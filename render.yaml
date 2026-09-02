@@ -1,0 +1,91 @@
+# Blueprint Render — alternative a GitHub Actions (voir .github/workflows/crons.yml).
+#
+# A utiliser si tu veux aussi l'API en ligne en permanence (pour que les potes
+# puissent lier leur compte depuis un navigateur sans que tu lances quoi que ce
+# soit chez toi). Sinon, les Actions suffisent : elles font tourner les crons,
+# et l'API n'est utile que ponctuellement.
+#
+# Verifier la tarification des Cron Jobs Render au moment de creer le blueprint :
+# elle a change plusieurs fois et je ne peux pas la confirmer d'ici.
+#
+# Les valeurs marquees sync: false sont a renseigner dans le dashboard Render,
+# elles ne doivent jamais etre commitees.
+
+services:
+  - type: web
+    name: on-lance-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run api
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: HENRIK_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+
+  - type: cron
+    name: on-lance-detect
+    runtime: node
+    plan: free
+    schedule: '*/10 * * * *'
+    buildCommand: npm ci
+    startCommand: npm run detect
+    envVars:
+      - fromGroup: on-lance-secrets
+
+  - type: cron
+    name: on-lance-rr
+    runtime: node
+    plan: free
+    schedule: '0 * * * *'
+    buildCommand: npm ci
+    startCommand: npm run rr:sync
+    envVars:
+      - fromGroup: on-lance-secrets
+
+  - type: cron
+    name: on-lance-positions
+    runtime: node
+    plan: free
+    schedule: '25 * * * *'
+    buildCommand: npm ci
+    startCommand: npm run pos:analyze
+    envVars:
+      - fromGroup: on-lance-secrets
+
+  - type: cron
+    name: on-lance-week
+    runtime: node
+    plan: free
+    # Lundi 04h00 heure de Paris en ete (le planning Render est en UTC).
+    schedule: '0 2 * * 1'
+    buildCommand: npm ci
+    startCommand: npm run week:close
+    envVars:
+      - fromGroup: on-lance-secrets
+
+envVarGroups:
+  - name: on-lance-secrets
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: HENRIK_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false

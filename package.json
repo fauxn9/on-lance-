@@ -1,0 +1,31 @@
+{
+  "name": "on-lance",
+  "version": "0.1.0",
+  "description": "On lance ? — detection automatique de matchs Valorant joues entre potes + notif de fin de partie a ton variable",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "api": "node src/api/server.js",
+    "detect": "node src/jobs/detect-matches.js",
+    "detect:dry": "DRY_RUN=1 node src/jobs/detect-matches.js",
+    "rr:sync": "node src/jobs/sync-rr.js",
+    "rr:sync:dry": "DRY_RUN=1 node src/jobs/sync-rr.js",
+    "week:close": "node src/jobs/close-week.js",
+    "week:close:dry": "DRY_RUN=1 node src/jobs/close-week.js",
+    "pos:analyze": "node src/jobs/analyze-positions.js",
+    "pos:analyze:dry": "DRY_RUN=1 node src/jobs/analyze-positions.js",
+    "db:init": "node src/db/init.js",
+    "verify": "node scripts/verify-henrik.js",
+    "vapid": "node scripts/gen-vapid.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "web-push": "^3.6.7"
+  }
+}

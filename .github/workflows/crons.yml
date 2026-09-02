@@ -1,0 +1,92 @@
+# Tâches planifiées de "On lance ?" — hébergement gratuit via GitHub Actions.
+#
+# Pourquoi ça suffit ici : rien dans ce projet n'a besoin d'un serveur allumé en
+# permanence. Les jobs sont des scripts qui s'exécutent puis s'arrêtent, et le
+# Web Push est délivré au navigateur par le service de push (Google/Mozilla),
+# pas par notre serveur — les potes reçoivent donc les notifs même quand aucune
+# machine à nous ne tourne.
+#
+# À savoir :
+#   - GitHub met les workflows planifiés en pause après 60 jours sans commit
+#     dans le dépôt. Un commit suffit à les relancer.
+#   - Les horaires sont indicatifs : sous charge, GitHub peut décaler une
+#     exécution de quelques minutes. Sans importance ici.
+#   - Les crons sont en UTC.
+#
+# Secrets à créer dans Settings > Secrets and variables > Actions :
+#   DATABASE_URL, HENRIK_API_KEY, ANTHROPIC_API_KEY,
+#   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+
+name: Crons On lance ?
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # détection des matchs joués ensemble
+    - cron: '0 * * * *'      # synchronisation du RR
+    - cron: '25 * * * *'     # analyse positionnelle
+    - cron: '0 2 * * 1'      # clôture de la semaine (lundi 04h00 Paris en été)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Tâche à lancer à la main'
+        required: true
+        default: detect
+        type: choice
+        options: [detect, rr, positions, week]
+
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  HENRIK_API_KEY: ${{ secrets.HENRIK_API_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+  VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+  VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+
+jobs:
+  detect:
+    if: github.event.schedule == '*/10 * * * *' || inputs.job == 'detect'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: npm run detect
+
+  rr:
+    if: github.event.schedule == '0 * * * *' || inputs.job == 'rr'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: npm run rr:sync
+
+  positions:
+    if: github.event.schedule == '25 * * * *' || inputs.job == 'positions'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: npm run pos:analyze
+
+  week:
+    if: github.event.schedule == '0 2 * * 1' || inputs.job == 'week'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - run: npm run week:close
