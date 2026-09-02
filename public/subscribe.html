@@ -182,12 +182,27 @@
         body: JSON.stringify({ userId }),
       });
       const data = await res.json();
-      say(
-        data.sent > 0
-          ? `Envoyée à ${data.sent} appareil(s). La notification devrait apparaître.`
-          : "Aucun envoi. Si VAPID n'est pas configuré côté serveur, rien ne part.",
-        data.sent > 0 ? 'ok' : 'err',
-      );
+
+      if (data.sent > 0) {
+        say(`Envoyée à ${data.sent} appareil(s). La notification devrait apparaître.`, 'ok');
+      } else if (data.notConfigured) {
+        say(
+          "Les clés VAPID ne sont pas chargées côté serveur. Vérifie VAPID_PUBLIC_KEY et "
+            + "VAPID_PRIVATE_KEY dans le .env, puis redémarre le serveur.",
+          'err',
+        );
+      } else if (data.noSubscription) {
+        say(
+          "Aucun abonnement enregistré pour cet utilisateur. Clique d'abord sur Activer.",
+          'err',
+        );
+      } else {
+        say(
+          "Le service de push a refusé l'envoi" + (data.error ? ` : ${data.error}` : '.')
+            + "\nLe détail complet est dans la console du serveur.",
+          'err',
+        );
+      }
     } catch (err) {
       say(err.message, 'err');
     }

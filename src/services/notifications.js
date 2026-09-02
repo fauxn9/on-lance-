@@ -32,8 +32,19 @@ export function getPublicKey() {
  * Envoie un payload a tous les appareils d'un user.
  * Les abonnements expires (404/410) sont supprimes : c'est la reponse standard
  * d'un navigateur qui a revoque l'abonnement, inutile de reessayer ensuite.
+ *
+ * L'appel a ensureConfigured() est indispensable ici et pas seulement dans
+ * drainPending() : cette fonction est aussi appelee directement par la route
+ * /push/test, qui ne passe pas par la file d'attente. Sans lui, web-push part
+ * sans cles VAPID et echoue — en renvoyant simplement sent: 0, ce qui donne
+ * l'impression trompeuse d'un abonnement manquant.
  */
 async function pushToUser(userId, payload) {
+  if (!ensureConfigured()) {
+    console.warn('[push] VAPID non configure — envoi impossible. Lancer : npm run vapid');
+    return { sent: 0, noSubscription: false, notConfigured: true };
+  }
+
   const { rows } = await query(
     'SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = $1',
     [userId],
@@ -42,6 +53,7 @@ async function pushToUser(userId, payload) {
   if (rows.length === 0) return { sent: 0, noSubscription: true };
 
   let sent = 0;
+  let lastError = null;
 
   for (const sub of rows) {
     try {
@@ -51,16 +63,20 @@ async function pushToUser(userId, payload) {
       );
       sent++;
     } catch (err) {
+      lastError = `${err.statusCode ?? ''} ${err.message}`.trim();
       if (err.statusCode === 404 || err.statusCode === 410) {
         await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
         console.log(`[push] abonnement expire supprime (user ${userId})`);
       } else {
-        console.error(`[push] echec user ${userId} : ${err.statusCode ?? ''} ${err.message}`);
+        console.error(`[push] echec user ${userId} : ${lastError}`);
       }
     }
   }
 
-  return { sent, noSubscription: false };
+  // On remonte la derniere erreur : sans elle, un echec d'envoi et une absence
+  // d'abonnement se ressemblent cote appelant, alors que les causes n'ont rien
+  // a voir.
+  return { sent, noSubscription: false, error: sent === 0 ? lastError : null };
 }
 
 const TITLES = {
