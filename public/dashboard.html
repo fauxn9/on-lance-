@@ -1,0 +1,412 @@
+<title>Mon tableau de bord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --ground: #07070b; --lift: #0c0c12; --surface: #101018;
+    --line: #1e1e29; --line-soft: #17171f;
+    --accent: #ff4655; --warm: #ff8a5b; --gain: #4fe3b0; --loss: #e04a68;
+    --cool: #6f93ff; --neutral: #85818a;
+    --ink: #f8f6f1; --muted: #bcb7ae; --faint: #85818a;
+    --display: 'Manrope', system-ui, sans-serif;
+    --body: 'Inter', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  /* Un `display` declare dans la feuille de style l'emporte sur l'attribut
+     `hidden` du HTML : sans cette regle, tout element masque qui a aussi un
+     display explicite reste visible. */
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--body); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell { width: min(100% - 32px, 880px); margin-inline: auto; }
+  h1, h2 { font-family: var(--display); margin: 0; letter-spacing: -0.02em; }
+  p { margin: 0; }
+  a { color: var(--warm); }
+  :focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; border-radius: 6px; }
+
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--faint);
+  }
+
+  /* --- En-tete ------------------------------------------------------------ */
+
+  header { padding: 34px 0 26px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 11px; font-family: var(--display); font-weight: 800; font-size: 15px; }
+  .brand .q { color: var(--accent); }
+  .mark {
+    width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--accent), var(--warm));
+  }
+  .nav-link { font-size: 13.5px; color: var(--muted); text-decoration: none; }
+  .nav-link:hover { color: var(--ink); }
+
+  h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 800; }
+  .sub { margin-top: 9px; color: var(--muted); font-size: 14.5px; }
+  .chip {
+    display: inline-block; font-family: var(--mono); font-size: 11.5px;
+    border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+    color: var(--muted); margin-left: 8px; vertical-align: 2px;
+  }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 11px; margin-top: 24px; }
+  @media (max-width: 700px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .tile { padding: 14px 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--lift); }
+  .tile-label { font-size: 11.5px; color: var(--faint); }
+  .tile-value {
+    font-family: var(--mono); font-size: 24px; font-weight: 700;
+    font-variant-numeric: tabular-nums; margin-top: 5px; line-height: 1;
+  }
+  .tile-note { font-size: 11px; color: var(--faint); margin-top: 6px; }
+  .up { color: var(--gain); } .down { color: var(--loss); }
+
+  /* --- Sections ----------------------------------------------------------- */
+
+  section { padding: 34px 0; border-top: 1px solid var(--line-soft); }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+  .section-head h2 { font-size: 20px; font-weight: 800; }
+
+  /* --- Coach -------------------------------------------------------------- */
+
+  .coach { border: 1px solid var(--line); border-radius: 14px; background: var(--lift); padding: 20px; }
+  .facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .facts li { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; align-items: start; }
+  .sev {
+    font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .08em;
+    padding: 3px 7px; border-radius: 5px; margin-top: 3px; white-space: nowrap;
+  }
+  .sev--fort { background: rgba(255,70,85,.16); color: var(--accent); }
+  .sev--net  { background: rgba(255,138,91,.14); color: var(--warm); }
+  .sev--info { background: rgba(133,129,138,.16); color: var(--faint); }
+  .facts p { font-size: 14px; color: var(--muted); }
+
+  .coach-text {
+    margin-top: 18px; padding: 15px 17px; border-radius: 11px; font-size: 14.5px;
+    border: 1px solid rgba(255,70,85,.28); background: rgba(255,70,85,.05); color: var(--ink);
+  }
+
+  button {
+    padding: 11px 18px; border-radius: 10px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); font-family: var(--display);
+    font-weight: 700; font-size: 13.5px; cursor: pointer;
+    transition: border-color .15s ease, transform .15s ease, opacity .15s ease;
+  }
+  button:hover:not(:disabled) { border-color: #2f2f3d; transform: translateY(-1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: linear-gradient(96deg, var(--accent), var(--warm)); color: #16040a; border-color: transparent; }
+  .more { width: 100%; margin-top: 16px; }
+
+  /* --- Historique --------------------------------------------------------- */
+
+  .games { display: flex; flex-direction: column; gap: 8px; }
+
+  .game {
+    display: grid;
+    grid-template-columns: 4px minmax(0,1.3fr) minmax(0,1fr) auto auto;
+    align-items: center; gap: 14px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--lift);
+    padding: 13px 16px 13px 0; overflow: hidden;
+  }
+  @media (max-width: 640px) {
+    .game { grid-template-columns: 4px minmax(0,1fr) auto; row-gap: 8px; }
+    .game .kda-cell { grid-column: 2 / -1; }
+  }
+
+  .stripe { align-self: stretch; border-radius: 4px 0 0 4px; }
+  .win  .stripe { background: var(--gain); }
+  .loss .stripe { background: var(--loss); }
+  .draw .stripe { background: var(--neutral); }
+
+  .map-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .map-name { font-family: var(--display); font-weight: 700; font-size: 15px; }
+  .map-meta { font-size: 12px; color: var(--faint); }
+  .map-meta .agent { color: var(--muted); }
+
+  .kda-cell { font-family: var(--mono); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .kda-cell .label { font-size: 10.5px; color: var(--faint); font-family: var(--body); margin-right: 6px; }
+
+  .acs-cell { font-family: var(--mono); font-size: 15px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .acs-cell small { display: block; font-size: 10px; font-weight: 400; color: var(--faint); font-family: var(--body); }
+
+  .rr-cell {
+    font-family: var(--mono); font-size: 14px; font-weight: 700; text-align: right;
+    min-width: 52px; font-variant-numeric: tabular-nums;
+  }
+
+  .group-tag {
+    display: inline-block; font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+    background: rgba(111,147,255,.14); color: var(--cool);
+    border-radius: 5px; padding: 2px 6px; margin-left: 7px; vertical-align: 1px;
+  }
+
+  .empty, .error {
+    padding: 22px; border: 1px dashed var(--line); border-radius: 13px;
+    color: var(--muted); font-size: 14px; text-align: center;
+  }
+  .error { border-style: solid; border-color: rgba(255,70,85,.3); color: var(--accent); }
+
+  .who { display: flex; gap: 9px; align-items: center; margin-top: 14px; }
+  .who input {
+    width: 90px; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line);
+    background: #14141d; color: var(--ink); font-family: var(--mono); font-size: 14px;
+  }
+
+  footer { padding: 26px 0 40px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--faint); }
+</style>
+
+<div class="shell">
+  <header>
+    <div class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
+        </span>
+        <span>On lance <span class="q">?</span></span>
+      </div>
+      <a class="nav-link" href="/">Accueil</a>
+    </div>
+
+    <span class="eyebrow" id="eyebrow">Tableau de bord</span>
+    <h1 id="title">Chargement…</h1>
+    <p class="sub" id="sub"></p>
+
+    <div class="who" id="who" hidden>
+      <label for="uid" style="font-size:13px;color:var(--muted)">Ton identifiant :</label>
+      <input id="uid" type="number" min="1" value="1">
+      <button id="uidGo">Voir</button>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+  </header>
+
+  <main>
+    <section>
+      <div class="section-head">
+        <h2>Coach positionnel</h2>
+        <button id="genBtn" hidden>Générer l'analyse</button>
+      </div>
+      <div id="coach"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Dernières parties</h2>
+        <span class="eyebrow" id="gamesCount"></span>
+      </div>
+      <div class="games" id="games"></div>
+      <button class="more" id="moreBtn" hidden>Voir plus de parties</button>
+    </section>
+  </main>
+
+  <footer class="shell">
+    Les parties se remplissent automatiquement toutes les heures. Le classement du
+    groupe est sur <a href="/coach.html">la page coach</a>.
+  </footer>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const PAGE = 10;
+
+  // Pas d'authentification pour l'instant : l'identifiant vient de l'URL, sinon
+  // du dernier utilisé sur cet appareil. C'est volontairement simple, et
+  // documenté comme la première chose à corriger avant d'ouvrir plus largement.
+  const params = new URLSearchParams(location.search);
+  let userId = params.get('user') ?? localStorage.getItem('onlance_user') ?? null;
+
+  let offset = 0;
+
+  const fr = (n, d = 1) => (n === null || n === undefined ? '—' : Number(n).toFixed(d).replace('.', ','));
+  const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+
+  async function get(url) {
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? `Erreur ${res.status}`);
+    return data;
+  }
+
+  // --- Profil ----------------------------------------------------------------
+
+  async function loadProfile() {
+    const p = await get(`/users/${userId}/profile`);
+    $('title').textContent = p.displayName;
+    $('sub').innerHTML =
+      (p.riotId ? `<span class="chip">${p.riotId}</span>` : '')
+      + (p.tier ? `<span class="chip">${p.tier}</span>` : '')
+      + (p.groupName ? `<span class="chip">${p.groupName}</span>` : '');
+    localStorage.setItem('onlance_user', userId);
+    return p;
+  }
+
+  // --- Tuiles : calculees sur les parties chargees ---------------------------
+
+  function renderTiles(matches) {
+    if (matches.length === 0) { $('tiles').innerHTML = ''; return; }
+
+    const withRr = matches.filter((m) => m.rrChange !== null && m.rrChange !== undefined);
+    const rr = withRr.reduce((s, m) => s + m.rrChange, 0);
+    const wins = matches.filter((m) => m.won).length;
+    const kills = matches.reduce((s, m) => s + (m.kills ?? 0), 0);
+    const deaths = matches.reduce((s, m) => s + (m.deaths ?? 0), 0);
+    const avgAcs = Math.round(matches.reduce((s, m) => s + (m.acs ?? 0), 0) / matches.length);
+
+    const tiles = [
+      { label: 'Parties affichées', value: matches.length, note: 'les plus récentes' },
+      { label: 'Victoires', value: `${wins}/${matches.length}`, note: `${Math.round(100 * wins / matches.length)} % de winrate` },
+      { label: 'ACS moyen', value: avgAcs, note: `K/D ${deaths ? fr(kills / deaths, 2) : kills}` },
+      {
+        label: 'RR sur ces parties',
+        value: withRr.length ? signed(rr) : '—',
+        note: withRr.length ? `sur ${withRr.length} parties classées` : 'RR pas encore synchronisé',
+        cls: rr > 0 ? 'up' : rr < 0 ? 'down' : '',
+      },
+    ];
+
+    $('tiles').innerHTML = tiles.map((t) => `
+      <div class="tile">
+        <div class="tile-label">${t.label}</div>
+        <div class="tile-value ${t.cls ?? ''}">${t.value}</div>
+        <div class="tile-note">${t.note}</div>
+      </div>`).join('');
+  }
+
+  // --- Historique ------------------------------------------------------------
+
+  function gameRow(m) {
+    const state = m.won === true ? 'win' : m.won === false ? 'loss' : 'draw';
+    const rr = m.rrChange === null || m.rrChange === undefined
+      ? '<span class="rr-cell" style="color:var(--faint)">—</span>'
+      : `<span class="rr-cell ${m.rrChange > 0 ? 'up' : m.rrChange < 0 ? 'down' : ''}">${signed(m.rrChange)}</span>`;
+
+    return `
+      <article class="game ${state}">
+        <span class="stripe"></span>
+        <div class="map-cell">
+          <span class="map-name">${m.map ?? 'Map inconnue'}${m.withGroup ? '<span class="group-tag">GROUPE</span>' : ''}</span>
+          <span class="map-meta">
+            <span class="agent">${m.agent ?? '—'}</span> · ${dateFmt.format(new Date(m.playedAt))}
+          </span>
+        </div>
+        <div class="kda-cell"><span class="label">K/D/A</span>${m.kills}/${m.deaths}/${m.assists}</div>
+        <div class="acs-cell">${m.acs ?? '—'}<small>ACS</small></div>
+        ${rr}
+      </article>`;
+  }
+
+  let allMatches = [];
+
+  async function loadMatches(reset = false) {
+    if (reset) { offset = 0; allMatches = []; $('games').innerHTML = ''; }
+
+    const data = await get(`/users/${userId}/matches?limit=${PAGE}&offset=${offset}`);
+
+    if (data.matches.length === 0 && offset === 0) {
+      $('games').innerHTML = `<div class="empty">
+        Aucune partie enregistrée pour l'instant.<br>
+        Le job d'analyse tourne toutes les heures et remplira cette liste tout seul.
+      </div>`;
+      $('moreBtn').hidden = true;
+      return;
+    }
+
+    allMatches = allMatches.concat(data.matches);
+    $('games').insertAdjacentHTML('beforeend', data.matches.map(gameRow).join(''));
+    offset += data.matches.length;
+
+    $('gamesCount').textContent = `${allMatches.length} affichées`;
+    $('moreBtn').hidden = !data.hasMore;
+    renderTiles(allMatches);
+  }
+
+  $('moreBtn').addEventListener('click', async () => {
+    $('moreBtn').disabled = true;
+    $('moreBtn').textContent = 'Chargement…';
+    try {
+      await loadMatches();
+    } catch (err) {
+      $('games').insertAdjacentHTML('beforeend', `<div class="error">${err.message}</div>`);
+    } finally {
+      $('moreBtn').disabled = false;
+      $('moreBtn').textContent = 'Voir plus de parties';
+    }
+  });
+
+  // --- Coach -----------------------------------------------------------------
+
+  function renderCoach(report) {
+    if (!report.patterns || report.patterns.length === 0) {
+      $('coach').innerHTML = `<div class="empty">${
+        report.message ?? "Pas encore assez de parties analysées pour dégager un pattern fiable."
+      }</div>`;
+      return;
+    }
+
+    $('coach').innerHTML = `
+      <div class="coach">
+        <ul class="facts">
+          ${report.patterns.map((p) => `
+            <li>
+              <span class="sev sev--${p.severity}">${p.severity.toUpperCase()}</span>
+              <p>${p.fact}</p>
+            </li>`).join('')}
+        </ul>
+        ${report.text ? `<p class="coach-text">${report.text}</p>` : ''}
+      </div>`;
+    $('genBtn').hidden = Boolean(report.text);
+  }
+
+  $('genBtn').addEventListener('click', async () => {
+    $('genBtn').disabled = true;
+    $('genBtn').textContent = 'Génération…';
+    try {
+      // ?generate=1 : seul cas où l'IA est appelée, donc facturée.
+      renderCoach(await get(`/users/${userId}/coach?generate=1`));
+    } catch (err) {
+      $('coach').insertAdjacentHTML('beforeend', `<div class="error">${err.message}</div>`);
+    } finally {
+      $('genBtn').disabled = false;
+      $('genBtn').textContent = "Générer l'analyse";
+    }
+  });
+
+  // --- Demarrage -------------------------------------------------------------
+
+  $('uidGo').addEventListener('click', () => {
+    location.search = `?user=${$('uid').value}`;
+  });
+
+  async function start() {
+    if (!userId) {
+      $('title').textContent = 'Quel joueur ?';
+      $('sub').textContent = "Entre l'identifiant reçu à ton inscription.";
+      $('who').hidden = false;
+      return;
+    }
+
+    try {
+      await loadProfile();
+      await loadMatches(true);
+      const coach = await get(`/users/${userId}/coach`);
+      renderCoach(coach);
+      $('genBtn').hidden = !coach.patterns || coach.patterns.length === 0;
+    } catch (err) {
+      $('title').textContent = 'Joueur introuvable';
+      $('sub').textContent = err.message;
+      $('who').hidden = false;
+    }
+  }
+
+  start();
+</script>

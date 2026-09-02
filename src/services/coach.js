@@ -88,12 +88,21 @@ function fallbackCoachText(patterns) {
  * Renvoie a la fois les faits (affichables tels quels dans le dashboard) et
  * leur mise en mots.
  */
-export async function buildCoachReport({ playerName, deaths, periodLabel = 'les 14 derniers jours' }) {
+export async function buildCoachReport({
+  playerName,
+  deaths,
+  periodLabel = 'les 14 derniers jours',
+  // false = on ne renvoie que les faits calcules (gratuit, instantane).
+  // L'appel a l'IA n'a lieu que si l'appelant le demande explicitement.
+  generate = true,
+}) {
   const aggregate = aggregateDeaths(deaths);
   const byMap = aggregateByMap(deaths);
   const patterns = detectPatterns(aggregate);
 
   const report = { periodLabel, aggregate, byMap, patterns, text: null, generated: false };
+
+  if (!generate) return report;
 
   if (patterns.length === 0 || !config.anthropic.apiKey) {
     report.text = fallbackCoachText(patterns);

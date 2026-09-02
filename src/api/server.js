@@ -7,6 +7,7 @@ import {
   loadWeekRr,
   getWeeklyHistory,
   loadDeaths,
+  loadPlayerMatches,
 } from '../db/index.js';
 import { resolveAccount } from '../services/henrikdev.js';
 import { getPublicKey, pushToUser } from '../services/notifications.js';
@@ -239,17 +240,58 @@ app.get('/users/:id/coach', wrap(async (req, res) => {
     return res.json({
       periodLabel: `les ${days} derniers jours`,
       deaths: 0,
-      message: "Aucune mort analysee sur la periode. Lancer npm run pos:analyze apres quelques matchs.",
+      message: "Aucune mort analysee sur la periode. Le job d'analyse tourne toutes les heures.",
     });
   }
+
+  // La mise en mots par l'IA n'est faite QUE sur demande explicite (?generate=1).
+  // Sans ce garde-fou, chaque affichage du dashboard declencherait un appel
+  // facture, pour un texte qui ne change quasiment pas d'une heure a l'autre.
+  // Les faits calcules, eux, sont toujours renvoyes : ils ne coutent rien.
+  const generate = req.query.generate === '1';
 
   res.json(
     await buildCoachReport({
       playerName: rows[0].display_name,
       deaths,
       periodLabel: `les ${days} derniers jours`,
+      generate,
     }),
   );
+}));
+
+/** Historique des parties d'un joueur, pagine (dashboard). */
+app.get('/users/:id/matches', wrap(async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 10), 1), 50);
+  const offset = Math.max(Number(req.query.offset ?? 0), 0);
+  res.json(await loadPlayerMatches(req.params.id, { limit, offset }));
+}));
+
+/** Fiche minimale d'un joueur : nom, groupe, palier actuel. */
+app.get('/users/:id/profile', wrap(async (req, res) => {
+  const { rows } = await query(
+    `SELECT u.id, u.display_name, a.riot_name, a.riot_tag,
+            g.name AS group_name, g.id AS group_id,
+            (SELECT tier FROM match_rr WHERE user_id = u.id ORDER BY played_at DESC LIMIT 1) AS tier
+     FROM users u
+     LEFT JOIN linked_riot_accounts a ON a.user_id = u.id
+     LEFT JOIN memberships m ON m.user_id = u.id
+     LEFT JOIN groups g ON g.id = m.group_id
+     WHERE u.id = $1
+     LIMIT 1`,
+    [req.params.id],
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+  const r = rows[0];
+  res.json({
+    id: r.id,
+    displayName: r.display_name,
+    riotId: r.riot_name ? `${r.riot_name}#${r.riot_tag}` : null,
+    groupId: r.group_id,
+    groupName: r.group_name,
+    tier: r.tier,
+  });
 }));
 
 /**

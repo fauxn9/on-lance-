@@ -267,6 +267,9 @@
           + 'ton classement — que ça te plaise ou non.',
         'ok',
       );
+      $('notif').textContent = 'Voir mon tableau de bord';
+      $('notif').disabled = false;
+      $('notif').onclick = () => { location.href = `/dashboard.html?user=${userId}`; };
     } catch (err) {
       // Sur Brave, le service de push de Google est desactive par defaut et
       // produit une erreur peu parlante : on l'explique plutot que de la relayer.

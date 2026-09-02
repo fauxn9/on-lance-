@@ -293,6 +293,77 @@ export async function loadGroupMembers(groupId) {
 // Brique 3 — coach positionnel
 // ---------------------------------------------------------------------------
 
+/**
+ * Enregistre le resume d'un match du point de vue d'un joueur.
+ * Idempotent : rejouer le job ne cree jamais de doublon.
+ */
+export async function saveMatchSummary({ userId, puuid, summary }) {
+  const { rowCount } = await query(
+    `INSERT INTO player_matches (
+       user_id, puuid, match_id, played_at, map_name, mode, agent, rounds_played,
+       score, acs, kills, deaths, assists, headshot_pct, damage_dealt, won
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+     ON CONFLICT (puuid, match_id) DO NOTHING`,
+    [
+      userId, puuid, summary.matchId, summary.playedAt, summary.mapName, summary.mode,
+      summary.agent, summary.roundsPlayed, summary.score, summary.acs,
+      summary.kills, summary.deaths, summary.assists, summary.headshotPct,
+      summary.damageDealt, summary.won,
+    ],
+  );
+  return rowCount;
+}
+
+/**
+ * Historique des parties d'un joueur, pagine.
+ *
+ * Le RR vient de match_rr par jointure : les deux tables sont alimentees par
+ * des jobs differents, et une partie peut donc apparaitre dans l'historique
+ * avant que son RR soit connu (ou l'inverse). La jointure externe evite qu'une
+ * partie disparaisse pour cette raison.
+ *
+ * On demande une ligne de plus que `limit` pour savoir s'il reste des pages,
+ * sans avoir a faire un COUNT sur toute la table.
+ */
+export async function loadPlayerMatches(userId, { limit = 10, offset = 0 } = {}) {
+  const { rows } = await query(
+    `SELECT m.match_id, m.played_at, m.map_name, m.mode, m.agent, m.rounds_played,
+            m.acs, m.kills, m.deaths, m.assists, m.headshot_pct, m.won,
+            r.rr_change, r.tier,
+            d.id IS NOT NULL AS avec_le_groupe
+     FROM player_matches m
+     LEFT JOIN match_rr r ON r.puuid = m.puuid AND r.match_id = m.match_id
+     LEFT JOIN detected_matches d ON d.match_id = m.match_id
+     WHERE m.user_id = $1
+     ORDER BY m.played_at DESC
+     LIMIT $2 OFFSET $3`,
+    [userId, limit + 1, offset],
+  );
+
+  const hasMore = rows.length > limit;
+  return {
+    matches: rows.slice(0, limit).map((r) => ({
+      matchId: r.match_id,
+      playedAt: r.played_at,
+      map: r.map_name,
+      mode: r.mode,
+      agent: r.agent,
+      roundsPlayed: r.rounds_played,
+      acs: r.acs,
+      kills: r.kills,
+      deaths: r.deaths,
+      assists: r.assists,
+      headshotPct: r.headshot_pct,
+      won: r.won,
+      rrChange: r.rr_change,
+      tier: r.tier,
+      withGroup: r.avec_le_groupe,
+    })),
+    hasMore,
+  };
+}
+
 /** Matchs deja analyses pour ce joueur (evite de re-analyser a chaque passage). */
 export async function getAnalyzedMatchIds(puuid, { sinceDays = 30 } = {}) {
   const { rows } = await query(

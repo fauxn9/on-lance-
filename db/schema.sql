@@ -205,6 +205,38 @@ CREATE TABLE IF NOT EXISTS player_deaths (
 CREATE INDEX IF NOT EXISTS idx_deaths_user_time ON player_deaths(user_id, played_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deaths_user_map ON player_deaths(user_id, map_name);
 
+-- Resume d'un match du point de vue d'un joueur suivi : c'est la source de
+-- l'historique affiche dans le dashboard.
+--
+-- Pourquoi une table dediee alors que detected_matches existe deja : cette
+-- derniere ne contient que les parties jouees A PLUSIEURS du meme groupe. Un
+-- joueur veut voir toutes ses parties, y compris celles jouees seul.
+-- Et match_rr, lui, n'a que le RR — ni score, ni agent, ni K/D.
+CREATE TABLE IF NOT EXISTS player_matches (
+  id            BIGSERIAL   PRIMARY KEY,
+  user_id       BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  puuid         TEXT        NOT NULL,
+  match_id      TEXT        NOT NULL,
+  played_at     TIMESTAMPTZ NOT NULL,
+  map_name      TEXT,
+  mode          TEXT,
+  agent         TEXT,
+  rounds_played INT,
+  score         INT,
+  acs           INT,
+  kills         INT,
+  deaths        INT,
+  assists       INT,
+  headshot_pct  INT,
+  damage_dealt  INT,
+  won           BOOLEAN,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (puuid, match_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_player_matches_user_time
+  ON player_matches(user_id, played_at DESC);
+
 -- Matchs deja analyses, pour ne pas re-telecharger et re-analyser en boucle.
 CREATE TABLE IF NOT EXISTS analyzed_matches (
   puuid        TEXT        NOT NULL,
