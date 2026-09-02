@@ -63,20 +63,35 @@ npm run db:init           # applique db/schema.sql
 npm run api               # API sur :3000
 ```
 
-Créer un groupe et lier les comptes :
+## Inviter les potes
+
+Une fois l'app en ligne, chaque pote ouvre **`/join.html`** et remplit trois
+champs : son pseudo, son Riot ID, le code du groupe. La page enchaîne toute
+seule la création du profil, l'ajout au groupe, la liaison du compte Valorant
+et l'abonnement aux notifications.
+
+Le code peut être passé dans l'URL pour lui éviter de le recopier :
+
+```
+https://ton-app.onrender.com/join.html?code=ONLANCE
+```
+
+Le Riot ID est validé (`GET /accounts/resolve`) **avant** toute écriture en
+base : un pseudo mal tapé n'a donc jamais laissé de profil orphelin derrière lui.
+
+Le premier groupe se crée en revanche en ligne de commande, une seule fois :
 
 ```bash
 curl -X POST localhost:3000/users  -H 'content-type: application/json' \
   -d '{"displayName":"Alex"}'
 
 curl -X POST localhost:3000/groups -H 'content-type: application/json' \
-  -d '{"name":"Les potes","userId":1}'          # renvoie un join_code
-
-curl -X POST localhost:3000/accounts/link -H 'content-type: application/json' \
-  -d '{"userId":1,"riotName":"TonPseudo","riotTag":"EUW"}'
+  -d '{"name":"Les potes","userId":1}'          # renvoie le join_code à partager
 ```
 
-Les autres rejoignent avec `POST /groups/join` et le `join_code`.
+⚠️ **Aucune authentification** : le code de groupe est le seul garde-fou.
+Quiconque a l'URL peut créer un profil et rejoindre. Acceptable entre potes,
+à corriger avant toute ouverture plus large.
 
 ## Étape 0 — vérifier l'API avant tout le reste
 

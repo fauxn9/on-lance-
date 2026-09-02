@@ -92,6 +92,22 @@ app.post('/groups/join', wrap(async (req, res) => {
 
 // --- Liaison du compte Riot ------------------------------------------------
 
+/**
+ * Verifie qu'un Riot ID existe, sans rien ecrire.
+ *
+ * Sert a valider la saisie AVANT de creer le compte : sans ca, un pseudo mal
+ * tape laisserait derriere lui un utilisateur orphelin en base a chaque essai.
+ */
+app.get('/accounts/resolve', wrap(async (req, res) => {
+  const { name, tag } = req.query;
+  if (!name || !tag) return res.status(400).json({ error: 'name et tag requis' });
+
+  const account = await resolveAccount(name, tag).catch(() => null);
+  if (!account?.puuid) return res.status(404).json({ error: 'Compte Riot introuvable' });
+
+  res.json({ name: account.name, tag: account.tag, region: account.region });
+}));
+
 app.post('/accounts/link', wrap(async (req, res) => {
   const { userId, riotName, riotTag } = req.body;
   if (!userId || !riotName || !riotTag) {

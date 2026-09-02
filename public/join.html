@@ -1,0 +1,282 @@
+<title>Rejoindre le groupe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;700&display=swap">
+
+<style>
+  :root {
+    --ground: #07070b; --lift: #0c0c12; --line: #1e1e29;
+    --accent: #ff4655; --warm: #ff8a5b; --gain: #4fe3b0;
+    --ink: #f8f6f1; --muted: #bcb7ae; --faint: #85818a;
+    --display: 'Manrope', system-ui, sans-serif;
+    --body: 'Inter', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--ground); color: var(--ink);
+    font-family: var(--body); line-height: 1.6;
+    display: grid; place-items: center; padding: 32px 20px;
+  }
+  .card {
+    width: min(100%, 540px); border: 1px solid var(--line); border-radius: 18px;
+    background: var(--lift); padding: 32px;
+  }
+  .mark {
+    width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--accent), var(--warm)); margin-bottom: 22px;
+  }
+  h1 { font-family: var(--display); font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+  .lede { color: var(--muted); margin: 12px 0 0; font-size: 15px; }
+
+  .field { margin-top: 22px; }
+  label { display: block; font-size: 12px; color: var(--faint); margin-bottom: 7px; }
+  .hint { font-size: 11.5px; color: var(--faint); margin-top: 6px; }
+  input {
+    width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
+    background: #14141d; color: var(--ink); font-family: var(--mono); font-size: 14px;
+  }
+  input:focus { outline: 2px solid var(--warm); outline-offset: 1px; }
+  input:disabled { opacity: .5; }
+
+  button {
+    width: 100%; margin-top: 24px; padding: 14px 20px; border-radius: 11px;
+    border: 1px solid transparent; font-family: var(--display); font-weight: 700;
+    font-size: 15px; cursor: pointer; transition: transform .15s ease, opacity .15s ease;
+    background: linear-gradient(96deg, var(--accent), var(--warm)); color: #16040a;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+
+  .steps { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .steps li {
+    display: grid; grid-template-columns: 20px 1fr; gap: 11px; align-items: start;
+    font-size: 14px; color: var(--faint);
+  }
+  .steps li[data-state="done"] { color: var(--ink); }
+  .steps li[data-state="fail"] { color: var(--accent); }
+  .bullet { font-family: var(--mono); font-size: 13px; }
+  .steps li[data-state="done"] .bullet { color: var(--gain); }
+
+  .out {
+    margin-top: 20px; padding: 14px 16px; border-radius: 11px; font-size: 13.5px;
+    white-space: pre-wrap; display: none;
+  }
+  .out[data-kind="ok"]   { display: block; background: rgba(79,227,176,.09); border: 1px solid rgba(79,227,176,.3); color: var(--gain); }
+  .out[data-kind="err"]  { display: block; background: rgba(255,70,85,.07); border: 1px solid rgba(255,70,85,.3); color: var(--accent); }
+  .out[data-kind="info"] { display: block; background: #14141d; border: 1px solid var(--line); color: var(--muted); }
+
+  .done-panel { display: none; }
+  .done-panel[data-visible="true"] { display: block; }
+  .form-panel[data-hidden="true"] { display: none; }
+
+  .id-chip {
+    display: inline-block; font-family: var(--mono); font-size: 12px;
+    background: #14141d; border: 1px solid var(--line); border-radius: 7px;
+    padding: 3px 9px; color: var(--muted);
+  }
+  a { color: var(--warm); }
+</style>
+
+<div class="card">
+  <div class="mark" aria-hidden="true">
+    <svg width="21" height="21" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
+  </div>
+
+  <div class="form-panel" id="formPanel">
+    <h1>Rejoindre le groupe</h1>
+    <p class="lede">
+      Trois infos, une fois pour toutes. Ensuite l'app détecte toute seule les
+      parties que tu joues avec le groupe et t'envoie le classement à la fin.
+    </p>
+
+    <div class="field">
+      <label for="name">Ton prénom ou pseudo</label>
+      <input id="name" type="text" placeholder="Hayann" autocomplete="nickname">
+      <p class="hint">C'est le nom qui apparaîtra dans le classement du groupe.</p>
+    </div>
+
+    <div class="field">
+      <label for="riot">Ton Riot ID</label>
+      <input id="riot" type="text" placeholder="hayann#luvbf" autocomplete="off">
+      <p class="hint">Exactement comme dans Valorant, avec le # et le tag.</p>
+    </div>
+
+    <div class="field">
+      <label for="code">Code du groupe</label>
+      <input id="code" type="text" placeholder="ONLANCE" autocomplete="off">
+    </div>
+
+    <button id="go">Rejoindre</button>
+
+    <ul class="steps">
+      <li data-step="riot"><span class="bullet">·</span> Vérification du Riot ID</li>
+      <li data-step="user"><span class="bullet">·</span> Création de ton profil</li>
+      <li data-step="group"><span class="bullet">·</span> Ajout au groupe</li>
+      <li data-step="link"><span class="bullet">·</span> Liaison du compte Valorant</li>
+    </ul>
+  </div>
+
+  <div class="done-panel" id="donePanel">
+    <h1>Te voilà dans le groupe</h1>
+    <p class="lede" id="doneLede"></p>
+
+    <p class="lede" style="margin-top:18px">
+      Dernière étape : autoriser les notifications, pour recevoir le classement
+      à la fin de chaque partie jouée avec le groupe.
+    </p>
+
+    <button id="notif">Activer les notifications</button>
+
+    <ul class="steps">
+      <li data-step="sw"><span class="bullet">·</span> Enregistrement du service worker</li>
+      <li data-step="perm"><span class="bullet">·</span> Autorisation du navigateur</li>
+      <li data-step="sub"><span class="bullet">·</span> Abonnement enregistré</li>
+    </ul>
+  </div>
+
+  <div class="out" id="out"></div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const out = $('out');
+  const say = (msg, kind = 'info') => { out.textContent = msg; out.dataset.kind = kind; };
+  const mark = (step, state) => {
+    const li = document.querySelector(`[data-step="${step}"]`);
+    if (!li) return;
+    li.dataset.state = state;
+    li.querySelector('.bullet').textContent = state === 'done' ? '✓' : state === 'fail' ? '×' : '·';
+  };
+
+  // Le code du groupe peut arriver par l'URL (?code=ONLANCE) : celui qui invite
+  // envoie un lien pret a l'emploi plutot qu'un code a recopier.
+  const params = new URLSearchParams(location.search);
+  if (params.get('code')) $('code').value = params.get('code').toUpperCase();
+
+  let userId = null; // conserve entre deux essais, pour ne pas recreer le profil
+
+  async function post(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? `Erreur ${res.status}`);
+    return data;
+  }
+
+  $('go').addEventListener('click', async () => {
+    const displayName = $('name').value.trim();
+    const riot = $('riot').value.trim();
+    const code = $('code').value.trim().toUpperCase();
+
+    if (!displayName || !riot || !code) return say('Remplis les trois champs.', 'err');
+
+    const at = riot.lastIndexOf('#');
+    if (at < 1 || at === riot.length - 1) {
+      return say("Le Riot ID doit contenir un # — par exemple hayann#luvbf.", 'err');
+    }
+    const riotName = riot.slice(0, at);
+    const riotTag = riot.slice(at + 1);
+
+    $('go').disabled = true;
+    say('En cours…', 'info');
+
+    try {
+      // 1. On valide le Riot ID AVANT de rien creer en base.
+      const check = await fetch(
+        `/accounts/resolve?name=${encodeURIComponent(riotName)}&tag=${encodeURIComponent(riotTag)}`,
+      );
+      if (!check.ok) {
+        mark('riot', 'fail');
+        throw new Error(
+          `Compte Valorant introuvable : ${riotName}#${riotTag}. Vérifie l'orthographe et le tag.`,
+        );
+      }
+      mark('riot', 'done');
+
+      if (!userId) {
+        userId = (await post('/users', { displayName })).id;
+      }
+      mark('user', 'done');
+
+      const group = await post('/groups/join', { joinCode: code, userId });
+      mark('group', 'done');
+
+      await post('/accounts/link', { userId, riotName, riotTag });
+      mark('link', 'done');
+
+      $('formPanel').dataset.hidden = 'true';
+      $('donePanel').dataset.visible = 'true';
+      $('doneLede').innerHTML =
+        `${displayName}, ton compte ${riotName}#${riotTag} est lié au groupe `
+        + `<strong>${group.name}</strong>. Ton identifiant est <span class="id-chip">${userId}</span>.`;
+      say('', 'none');
+      out.dataset.kind = '';
+    } catch (err) {
+      say(err.message, 'err');
+      $('go').disabled = false;
+    }
+  });
+
+  // --- Notifications ---------------------------------------------------------
+
+  function toUint8(base64url) {
+    const pad = '='.repeat((4 - (base64url.length % 4)) % 4);
+    const raw = atob((base64url + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+  }
+
+  $('notif').addEventListener('click', async () => {
+    $('notif').disabled = true;
+    say('Activation en cours…', 'info');
+
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Ce navigateur ne gère pas les notifications push.');
+      }
+
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      mark('sw', 'done');
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        mark('perm', 'fail');
+        throw new Error(
+          "Notifications refusées. Tu peux réautoriser le site via l'icône à gauche de l'adresse.",
+        );
+      }
+      mark('perm', 'done');
+
+      const { publicKey } = await (await fetch('/push/public-key')).json();
+      if (!publicKey) throw new Error('Le serveur ne renvoie pas de clé de notification.');
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: toUint8(publicKey),
+      });
+      await post('/push/subscribe', { userId, subscription: sub.toJSON() });
+      mark('sub', 'done');
+
+      say(
+        "Tout est prêt. À la fin de ta prochaine partie avec le groupe, tu recevras "
+          + 'ton classement — que ça te plaise ou non.',
+        'ok',
+      );
+    } catch (err) {
+      // Sur Brave, le service de push de Google est desactive par defaut et
+      // produit une erreur peu parlante : on l'explique plutot que de la relayer.
+      const msg = /push service error/i.test(err.message)
+        ? "Ton navigateur bloque le service de notifications. Sur Brave : Réglages → "
+          + "Confidentialité → active « Utiliser les services Google pour la messagerie "
+          + 'push », puis redémarre le navigateur.'
+        : err.message;
+      say(msg, 'err');
+      $('notif').disabled = false;
+    }
+  });
+</script>
