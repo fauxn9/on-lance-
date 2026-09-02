@@ -97,29 +97,21 @@ structure brute affichée à l'étape 4 du script.
 
 ```bash
 npm run vapid    # une seule fois, coller le résultat dans .env
+npm run api      # puis ouvrir http://localhost:3000/subscribe.html
 ```
 
-Puis, dans la console du navigateur sur la page de l'app :
+La page `subscribe.html` fait tout : enregistrement du service worker, demande
+d'autorisation, récupération de la clé publique, abonnement côté serveur, et un
+bouton de test. Chaque étape s'affiche, donc en cas d'échec on voit laquelle a
+lâché.
 
-```js
-const reg = await navigator.serviceWorker.register('/sw.js');
-const { publicKey } = await (await fetch('/push/public-key')).json();
-const sub = await reg.pushManager.subscribe({
-  userVisibleOnly: true,
-  applicationServerKey: publicKey,
-});
-await fetch('/push/subscribe', {
-  method: 'POST',
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ userId: 1, subscription: sub.toJSON() }),
-});
-```
+À faire **une fois par appareil**. Une fois l'abonnement enregistré, le serveur
+peut être éteint : le Web Push est délivré au navigateur par le service de push
+de Google/Mozilla, pas par nous.
 
-Vérifier que ça arrive :
-
-```bash
-curl -X POST localhost:3000/push/test -H 'content-type: application/json' -d '{"userId":1}'
-```
+Le service worker doit être servi depuis la racine (`/sw.js`) — un service
+worker ne contrôle que les pages à son niveau ou en dessous. C'est pour ça que
+`server.js` sert `public/` en statique.
 
 Le Web Push marche sur `http://localhost` sans certificat, mais exige HTTPS en
 production — pas de contournement.
@@ -269,8 +261,11 @@ plusieurs fois.
 
   ⚠️ Sur les projets Supabase récents, l'hôte direct `db.xxxx.supabase.co` est
   **IPv6 uniquement**. Depuis un réseau sans IPv6, utiliser la chaîne du
-  **pooler** (`aws-0-<region>.pooler.supabase.com`, utilisateur
-  `postgres.<ref>`), donnée par le bouton *Connect* du dashboard.
+  **pooler**, donnée par le bouton *Connect* du dashboard → section *Session
+  pooler*. Ne pas deviner le nom d'hôte : le préfixe (`aws-0`, `aws-1`…) dépend
+  du cluster qui héberge le projet, pas de sa région. Un mauvais préfixe donne
+  l'erreur `tenant/user ... not found`, qui ressemble à un problème
+  d'identifiants alors que c'en est un d'adresse.
 
 - **Détection** : Render → **Cron Job** (pas un Web Service), commande `npm run detect`,
   planning `*/10 * * * *`. Un cron job s'exécute puis s'arrête, donc pas de mise

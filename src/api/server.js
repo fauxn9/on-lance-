@@ -1,3 +1,5 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import {
   query,
@@ -22,6 +24,18 @@ import { getCalibration } from '../services/maps.js';
 
 const app = express();
 app.use(express.json());
+
+// Fichiers statiques : landing, dashboard coach, page d'abonnement, et surtout
+// le service worker.
+//
+// Le service worker DOIT etre servi depuis la racine (/sw.js) : un service
+// worker ne controle que les pages situees a son niveau ou en dessous. Servi
+// depuis un sous-dossier, l'abonnement aux notifications ne fonctionnerait pas.
+const here = dirname(fileURLToPath(import.meta.url));
+const publicDir = join(here, '../../public');
+
+app.use(express.static(publicDir));
+app.get('/', (_req, res) => res.sendFile(join(publicDir, 'landing.html')));
 
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   console.error(e);

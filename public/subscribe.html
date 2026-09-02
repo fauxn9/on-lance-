@@ -1,0 +1,195 @@
+<title>Activer les notifications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;700&display=swap">
+
+<style>
+  :root {
+    --ground: #07070b; --lift: #0c0c12; --line: #1e1e29;
+    --accent: #ff4655; --warm: #ff8a5b; --gain: #4fe3b0;
+    --ink: #f8f6f1; --muted: #bcb7ae; --faint: #85818a;
+    --display: 'Manrope', system-ui, sans-serif;
+    --body: 'Inter', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--ground); color: var(--ink);
+    font-family: var(--body); line-height: 1.6;
+    display: grid; place-items: center; padding: 32px 20px;
+  }
+  .card {
+    width: min(100%, 520px); border: 1px solid var(--line); border-radius: 18px;
+    background: var(--lift); padding: 32px;
+  }
+  .mark {
+    width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--accent), var(--warm)); margin-bottom: 22px;
+  }
+  h1 { font-family: var(--display); font-size: 25px; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+  p.lede { color: var(--muted); margin: 12px 0 0; font-size: 15px; }
+
+  label { display: block; font-size: 12px; color: var(--faint); margin: 26px 0 7px; }
+  input {
+    width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line);
+    background: #14141d; color: var(--ink); font-family: var(--mono); font-size: 14px;
+  }
+  input:focus { outline: 2px solid var(--warm); outline-offset: 1px; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  button {
+    flex: 1 1 auto; padding: 13px 20px; border-radius: 11px; border: 1px solid transparent;
+    font-family: var(--display); font-weight: 700; font-size: 14.5px; cursor: pointer;
+    transition: transform .15s ease, opacity .15s ease;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .primary { background: linear-gradient(96deg, var(--accent), var(--warm)); color: #16040a; }
+  .ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+
+  .steps { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
+  .steps li {
+    display: grid; grid-template-columns: 20px 1fr; gap: 11px; align-items: start;
+    font-size: 14px; color: var(--faint);
+  }
+  .steps li[data-state="done"] { color: var(--ink); }
+  .steps li[data-state="fail"] { color: var(--accent); }
+  .bullet { font-family: var(--mono); font-size: 13px; }
+  .steps li[data-state="done"] .bullet { color: var(--gain); }
+
+  .out {
+    margin-top: 22px; padding: 14px 16px; border-radius: 11px; font-family: var(--mono);
+    font-size: 12.5px; white-space: pre-wrap; word-break: break-word; display: none;
+  }
+  .out[data-kind="ok"]   { display: block; background: rgba(79,227,176,.09); border: 1px solid rgba(79,227,176,.3); color: var(--gain); }
+  .out[data-kind="err"]  { display: block; background: rgba(255,70,85,.07); border: 1px solid rgba(255,70,85,.3); color: var(--accent); }
+  .out[data-kind="info"] { display: block; background: #14141d; border: 1px solid var(--line); color: var(--muted); }
+</style>
+
+<div class="card">
+  <div class="mark" aria-hidden="true">
+    <svg width="21" height="21" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
+  </div>
+
+  <h1>Activer les notifications</h1>
+  <p class="lede">
+    Une seule fois par appareil. Une fois l'abonnement enregistré, tu peux tout
+    éteindre : les notifications arrivent quand même, elles sont délivrées par
+    le navigateur et non par ce serveur.
+  </p>
+
+  <label for="userId">Ton identifiant utilisateur</label>
+  <input id="userId" type="number" value="1" min="1">
+
+  <div class="row">
+    <button class="primary" id="go">Activer</button>
+    <button class="ghost" id="test" disabled>Envoyer un test</button>
+  </div>
+
+  <ul class="steps">
+    <li data-step="sw"><span class="bullet">·</span> Enregistrement du service worker</li>
+    <li data-step="perm"><span class="bullet">·</span> Autorisation du navigateur</li>
+    <li data-step="key"><span class="bullet">·</span> Récupération de la clé publique</li>
+    <li data-step="sub"><span class="bullet">·</span> Abonnement enregistré côté serveur</li>
+  </ul>
+
+  <div class="out" id="out"></div>
+</div>
+
+<script>
+  const out = document.getElementById('out');
+  const testBtn = document.getElementById('test');
+  const goBtn = document.getElementById('go');
+
+  const say = (msg, kind = 'info') => { out.textContent = msg; out.dataset.kind = kind; };
+  const mark = (step, state) => {
+    const li = document.querySelector(`[data-step="${step}"]`);
+    li.dataset.state = state;
+    li.querySelector('.bullet').textContent = state === 'done' ? '✓' : state === 'fail' ? '×' : '·';
+  };
+
+  // La cle VAPID transite en base64url ; l'API du navigateur attend un Uint8Array.
+  function toUint8(base64url) {
+    const pad = '='.repeat((4 - (base64url.length % 4)) % 4);
+    const raw = atob((base64url + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+  }
+
+  goBtn.addEventListener('click', async () => {
+    goBtn.disabled = true;
+    const userId = Number(document.getElementById('userId').value);
+    say('Activation en cours…', 'info');
+
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error("Ce navigateur ne gère pas les notifications push.");
+      }
+
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      mark('sw', 'done');
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        mark('perm', 'fail');
+        throw new Error(
+          permission === 'denied'
+            ? "Notifications refusées. Il faut réautoriser le site dans les réglages du navigateur (icône à gauche de l'adresse)."
+            : 'Autorisation non accordée.',
+        );
+      }
+      mark('perm', 'done');
+
+      const res = await fetch('/push/public-key');
+      const { publicKey } = await res.json();
+      if (!publicKey) {
+        mark('key', 'fail');
+        throw new Error('Le serveur ne renvoie pas de clé VAPID — vérifie VAPID_PUBLIC_KEY dans le .env.');
+      }
+      mark('key', 'done');
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: toUint8(publicKey),
+      });
+
+      const save = await fetch('/push/subscribe', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId, subscription: sub.toJSON() }),
+      });
+      if (!save.ok) {
+        mark('sub', 'fail');
+        throw new Error(`Enregistrement refusé (HTTP ${save.status}) : ${await save.text()}`);
+      }
+      mark('sub', 'done');
+
+      testBtn.disabled = false;
+      say("C'est bon. Cet appareil recevra les notifications de fin de match.", 'ok');
+    } catch (err) {
+      say(err.message, 'err');
+      goBtn.disabled = false;
+    }
+  });
+
+  testBtn.addEventListener('click', async () => {
+    const userId = Number(document.getElementById('userId').value);
+    say('Envoi du test…', 'info');
+    try {
+      const res = await fetch('/push/test', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      say(
+        data.sent > 0
+          ? `Envoyée à ${data.sent} appareil(s). La notification devrait apparaître.`
+          : "Aucun envoi. Si VAPID n'est pas configuré côté serveur, rien ne part.",
+        data.sent > 0 ? 'ok' : 'err',
+      );
+    } catch (err) {
+      say(err.message, 'err');
+    }
+  });
+</script>

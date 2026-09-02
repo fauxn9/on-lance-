@@ -8,11 +8,12 @@
  * En prod, HTTPS est obligatoire (pas de contournement possible).
  */
 
-const ICONS = {
-  hype: '/icons/hype.png',
-  push: '/icons/push.png',
-  roast: '/icons/roast.png',
-};
+// Une seule icone pour tous les tons : le ton se lit deja dans le titre et le
+// texte, et une icone par ton obligerait a maintenir un jeu d'images pour un
+// gain nul. Le badge est la petite silhouette monochrome affichee par Android
+// dans la barre de statut.
+const ICON = '/icons/icon-192.png';
+const BADGE = '/icons/badge.png';
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -24,12 +25,12 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body ?? '',
-    icon: ICONS[data.tone] ?? '/icons/default.png',
-    badge: '/icons/badge.png',
+    icon: ICON,
+    badge: BADGE,
     // Regroupe par match : si plusieurs notifs arrivent d'affilee, elles ne
-    // s'empilent pas en spam.
-    tag: data.matchId ?? 'on-lance',
-    data: { matchId: data.matchId, map: data.map },
+    // s'empilent pas en spam. Les notifs hebdo se regroupent par semaine.
+    tag: data.matchId ?? data.weekStart ?? 'on-lance',
+    data: { matchId: data.matchId, map: data.map, kind: data.kind },
     vibrate: data.tone === 'roast' ? [100, 50, 100] : [80],
   };
 
@@ -38,9 +39,9 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.matchId
-    ? `/match/${event.notification.data.matchId}`
-    : '/';
+  // Pas de page par match pour l'instant : on renvoie vers l'accueil. Le jour
+  // ou une vue de match existera, c'est ici qu'on ciblera /match/<id>.
+  const url = '/';
 
   // Si un onglet de l'app est deja ouvert, on le reutilise au lieu d'en ouvrir
   // un nouveau a chaque notif.
