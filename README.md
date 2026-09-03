@@ -1,4 +1,4 @@
-# On lance ? — Briques 1 à 6
+# On lance ? — Briques 1 à 7
 
 Détection automatique des matchs Valorant joués ensemble par un groupe de potes,
 notification de fin de partie avec un ton qui dépend du classement, et
@@ -69,12 +69,27 @@ leaderboard hebdomadaire basé sur le RR gagné.
 | Toute donnée de groupe réservée aux membres | ✅ |
 | Pages : connexion, invitation, groupes, tableau de bord, classement | ✅ |
 
+**Brique 7 — Row Level Security**
+
+| Élément | État |
+|---|---|
+| RLS activé sur les 12 tables du schéma public | ✅ |
+| Analyseur Supabase : 12 `ERROR` → 0 | ✅ vérifié |
+| Aucune politique, volontairement (voir `db/schema.sql`) | ✅ |
+
+L'API Data de Supabase exposait toutes les tables : avec la clé anon — une clé
+**conçue pour être publique** — on pouvait lire les comptes Riot, les
+abonnements aux notifications et l'historique de tout le monde sans passer par
+l'API. RLS est activé sans politique : le serveur utilise le rôle `postgres`
+(`rolbypassrls`), donc rien ne change pour lui, tandis que `anon` ne voit plus
+aucune ligne. Les règles d'accès restent écrites à un seul endroit, l'API, où
+elles sont testées.
+
 **Reste à faire**
 
 | Élément | État |
 |---|---|
 | Landing page | ✅ `public/landing.html` |
-| Brique 7 — RLS Supabase | ❌ à activer avant d'exposer l'API Data de Supabase |
 | Brique 8 — chat « pourquoi je suis mort là » | ❌ repoussé (prévu par la spec) |
 | Brique 9 — app desktop Tauri + overlay (lockfile) | ❌ |
 | Propriété vérifiée d'un Riot ID (`verified`) | ❌ dépend de la brique 9 |
@@ -406,9 +421,11 @@ plusieurs fois.
 6. **Révocation d'une session** — les sessions ne sont pas stockées, donc on ne
    peut pas en révoquer une en particulier avant ses 30 jours. Changer
    `SESSION_SECRET` les invalide toutes d'un coup. Assumé à cette échelle.
-7. **RLS Supabase (brique 7)** — l'API applique bien ses barrières, mais la clé
-   Postgres reste toute-puissante. À activer avant d'exposer quoi que ce soit
-   d'autre que ce serveur.
+7. **RLS sans politique** — l'analyseur Supabase signale « RLS enabled, no
+   policy » en INFO sur les 12 tables. C'est l'état voulu tant que seul le
+   serveur parle à la base. Si une page devait un jour appeler Supabase
+   directement depuis le navigateur, il faudrait écrire de vraies politiques
+   avant.
 
 ## Structure
 

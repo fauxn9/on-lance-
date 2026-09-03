@@ -265,3 +265,40 @@ CREATE TABLE IF NOT EXISTS analyzed_matches (
   analyzed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (puuid, match_id)
 );
+
+-- ---------------------------------------------------------------------------
+-- Brique 7 — Row Level Security
+-- ---------------------------------------------------------------------------
+--
+-- Toutes ces tables sont exposees par PostgREST, l'API Data de Supabase. Sans
+-- RLS, quiconque dispose de la cle anon du projet — une cle CONCUE pour etre
+-- publique — peut lire les comptes Riot, les abonnements aux notifications et
+-- l'historique de tout le monde, sans jamais passer par notre API.
+--
+-- On active RLS SANS aucune politique, et c'est volontaire :
+--
+--   - le serveur se connecte avec le role postgres, qui porte rolbypassrls :
+--     il continue de tout voir, rien ne change pour l'application ;
+--   - anon et authenticated ne le portent pas, et sans politique aucune ligne
+--     ne leur est visible : l'API Data devient muette.
+--
+-- Les regles d'acces restent donc ecrites a un seul endroit — l'API, ou elles
+-- sont testees. RLS ne les duplique pas, il ferme la porte de derriere.
+--
+-- L'analyseur Supabase signalera "RLS enabled, no policy" en INFO sur chacune
+-- de ces tables : c'est l'etat recherche, pas un oubli. Le jour ou une page
+-- appellerait Supabase directement depuis le navigateur, il faudrait alors
+-- ecrire de vraies politiques.
+
+ALTER TABLE users                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE groups               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE memberships          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE linked_riot_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE detected_matches     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_subscriptions   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_rr             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weekly_winners       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE player_matches       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE player_deaths        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analyzed_matches     ENABLE ROW LEVEL SECURITY;
