@@ -1,4 +1,5 @@
 <title>Activer les notifications</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;700&display=swap">
@@ -64,6 +65,14 @@
   .out[data-kind="ok"]   { display: block; background: rgba(79,227,176,.09); border: 1px solid rgba(79,227,176,.3); color: var(--gain); }
   .out[data-kind="err"]  { display: block; background: rgba(255,70,85,.07); border: 1px solid rgba(255,70,85,.3); color: var(--accent); }
   .out[data-kind="info"] { display: block; background: #14141d; border: 1px solid var(--line); color: var(--muted); }
+
+  /* Sur petit ecran, on recupere de la largeur utile en reduisant les marges
+     de la carte plutot qu'en rognant le contenu. */
+  @media (max-width: 480px) {
+    body { padding: 18px 12px; }
+    .card { padding: 22px 18px; border-radius: 14px; }
+    h1 { font-size: 22px; }
+  }
 </style>
 
 <div class="card">

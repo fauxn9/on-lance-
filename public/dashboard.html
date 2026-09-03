@@ -1,4 +1,5 @@
 <title>Mon tableau de bord</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
@@ -67,6 +68,28 @@
   .tile-note { font-size: 11px; color: var(--faint); margin-top: 6px; }
   .up { color: var(--gain); } .down { color: var(--loss); }
 
+  /* --- Bandeau notifications ---------------------------------------------- */
+
+  .notif-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    margin-top: 12px; padding: 14px 16px; border-radius: 13px;
+    border: 1px solid var(--line); background: var(--lift);
+  }
+  .notif-card[data-state="on"] { border-color: rgba(79,227,176,.3); background: rgba(79,227,176,.05); }
+  .notif-card[data-state="error"] { border-color: rgba(255,70,85,.3); background: rgba(255,70,85,.05); }
+
+  .notif-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .notif-text strong { font-family: var(--display); font-size: 14.5px; }
+  .notif-text span { font-size: 12.5px; color: var(--faint); }
+  .notif-card[data-state="on"] .notif-text strong { color: var(--gain); }
+  .notif-card[data-state="error"] .notif-text span { color: var(--accent); }
+  .notif-card button { flex: none; }
+
+  @media (max-width: 560px) {
+    .notif-card { flex-direction: column; align-items: stretch; }
+    .notif-card button { width: 100%; }
+  }
+
   /* --- Sections ----------------------------------------------------------- */
 
   section { padding: 34px 0; border-top: 1px solid var(--line-soft); }
@@ -114,9 +137,24 @@
     border: 1px solid var(--line); border-radius: 12px; background: var(--lift);
     padding: 13px 16px 13px 0; overflow: hidden;
   }
-  @media (max-width: 640px) {
-    .game { grid-template-columns: 4px minmax(0,1fr) auto; row-gap: 8px; }
-    .game .kda-cell { grid-column: 2 / -1; }
+  /* Sur telephone, une ligne de partie tient sur deux rangees plutot que de
+     comprimer cinq colonnes : map et RR en haut, les stats en dessous. Aucune
+     information n'est masquee, elles sont juste reorganisees. */
+  @media (max-width: 620px) {
+    .game {
+      grid-template-columns: 4px minmax(0,1fr) auto;
+      grid-template-areas:
+        "stripe map  rr"
+        "stripe kda  acs";
+      row-gap: 7px; column-gap: 12px;
+      padding: 12px 14px 12px 0;
+    }
+    .stripe   { grid-area: stripe; }
+    .map-cell { grid-area: map; }
+    .rr-cell  { grid-area: rr; }
+    .kda-cell { grid-area: kda; }
+    .acs-cell { grid-area: acs; }
+    .acs-cell small { display: inline; margin-left: 4px; }
   }
 
   .stripe { align-self: stretch; border-radius: 4px 0 0 4px; }
@@ -184,6 +222,17 @@
     </div>
 
     <div class="tiles" id="tiles"></div>
+
+    <!-- Un abonnement push appartient a UN navigateur sur UN appareil : celui
+         qui s'est abonne sur son PC doit refaire la manip sur son telephone.
+         D'ou ce bloc ici, sur la page qu'on ouvre depuis n'importe quel appareil. -->
+    <div class="notif-card" id="notifCard" hidden>
+      <div class="notif-text">
+        <strong id="notifTitle">Notifications</strong>
+        <span id="notifSub"></span>
+      </div>
+      <button id="notifBtn" class="primary">Activer</button>
+    </div>
   </header>
 
   <main>
@@ -381,6 +430,90 @@
     }
   });
 
+  // --- Notifications sur cet appareil ---------------------------------------
+
+  function toUint8(base64url) {
+    const pad = '='.repeat((4 - (base64url.length % 4)) % 4);
+    const raw = atob((base64url + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+  }
+
+  function notifState(state, title, sub, btn) {
+    const card = $('notifCard');
+    card.hidden = false;
+    card.dataset.state = state;
+    $('notifTitle').textContent = title;
+    $('notifSub').textContent = sub;
+    $('notifBtn').hidden = !btn;
+    if (btn) $('notifBtn').textContent = btn;
+  }
+
+  async function checkNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return notifState('off', 'Notifications indisponibles',
+        'Ce navigateur ne gère pas les notifications push.', null);
+    }
+
+    if (Notification.permission === 'denied') {
+      return notifState('error', 'Notifications bloquées',
+        "Réautorise le site via l'icône à gauche de l'adresse.", null);
+    }
+
+    // Un abonnement existant est propre a ce navigateur : sa presence suffit a
+    // savoir si cet appareil est deja couvert, sans rien demander au serveur.
+    const reg = await navigator.serviceWorker.getRegistration();
+    const existing = reg ? await reg.pushManager.getSubscription() : null;
+
+    if (existing && Notification.permission === 'granted') {
+      return notifState('on', 'Notifications activées sur cet appareil',
+        'Tu recevras le classement à la fin de chaque partie du groupe.', null);
+    }
+
+    notifState('off', 'Activer les notifications ici',
+      'À faire une fois par appareil — ton téléphone et ton PC sont séparés.', 'Activer');
+  }
+
+  $('notifBtn').addEventListener('click', async () => {
+    $('notifBtn').disabled = true;
+    $('notifBtn').textContent = 'Activation…';
+
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') throw new Error('Autorisation refusée.');
+
+      const { publicKey } = await get('/push/public-key');
+      if (!publicKey) throw new Error('Clé de notification absente côté serveur.');
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: toUint8(publicKey),
+      });
+
+      const res = await fetch('/push/subscribe', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ userId: Number(userId), subscription: sub.toJSON() }),
+      });
+      if (!res.ok) throw new Error(`Enregistrement refusé (${res.status}).`);
+
+      notifState('on', 'Notifications activées sur cet appareil',
+        'Tu recevras le classement à la fin de chaque partie du groupe.', null);
+    } catch (err) {
+      // Brave desactive par defaut le service de push de Google et renvoie une
+      // erreur incomprehensible : on la traduit plutot que de la relayer.
+      const brave = /push service error/i.test(err.message);
+      notifState('error', 'Activation impossible',
+        brave
+          ? 'Sur Brave : Réglages → Confidentialité → active « Utiliser les services Google pour la messagerie push », puis redémarre le navigateur.'
+          : err.message,
+        'Réessayer');
+      $('notifBtn').disabled = false;
+    }
+  });
+
   // --- Demarrage -------------------------------------------------------------
 
   $('uidGo').addEventListener('click', () => {
@@ -397,6 +530,7 @@
 
     try {
       await loadProfile();
+      checkNotifications().catch(() => {}); // jamais bloquant pour la page
       await loadMatches(true);
       const coach = await get(`/users/${userId}/coach`);
       renderCoach(coach);

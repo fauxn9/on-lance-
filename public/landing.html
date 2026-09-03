@@ -1,4 +1,5 @@
 <title>On lance ?</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -124,7 +125,20 @@
   .nav-links a { text-decoration: none; transition: color .18s ease; }
   .nav-links a:hover { color: var(--ink); }
 
-  @media (max-width: 720px) { .nav-links { display: none; } }
+  /* Sur mobile on masque les ancres de navigation, mais surtout PAS l'acces au
+     tableau de bord : c'est justement depuis le telephone qu'on veut consulter
+     ses stats. Il devient un bouton compact plutot qu'un lien perdu. */
+  @media (max-width: 720px) {
+    .nav-links a:not(.nav-cta) { display: none; }
+    .nav-links .nav-cta {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 14px;
+      color: var(--ink);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+  }
 
   /* --- Hero -------------------------------------------------------------- */
 
@@ -572,7 +586,7 @@
       <a href="#fonctionnement">Fonctionnement</a>
       <a href="#leaderboard">Leaderboard</a>
       <a href="#coach">Coach</a>
-      <a href="/dashboard.html">Mon tableau de bord</a>
+      <a class="nav-cta" href="/dashboard.html">Mon tableau de bord</a>
     </div>
   </nav>
 </div>
