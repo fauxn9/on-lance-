@@ -8,10 +8,12 @@ import {
   getWeeklyHistory,
   loadDeaths,
   loadPlayerMatches,
+  saveRrEntries,
 } from '../db/index.js';
-import { resolveAccount } from '../services/henrikdev.js';
+import { config } from '../config.js';
+import { resolveAccount, getRrHistory } from '../services/henrikdev.js';
 import { getPublicKey, pushToUser } from '../services/notifications.js';
-import { weekStartOf, weekLabel, buildLeaderboard } from '../services/leaderboard.js';
+import { weekStartOf, weekLabel, weekBounds, buildLeaderboard } from '../services/leaderboard.js';
 import { buildCoachReport } from '../services/coach.js';
 import { getCalibration } from '../services/maps.js';
 
@@ -211,9 +213,76 @@ app.get('/groups/:id/leaderboard', wrap(async (req, res) => {
   if (members.length === 0) return res.status(404).json({ error: 'Groupe introuvable ou sans compte lie' });
 
   const rrRows = await loadWeekRr(req.params.id, week);
+  const bounds = weekBounds(week);
+
   res.json({
     weekStart: week,
     label: weekLabel(week),
+    endsAt: bounds.endsAt,
+    isCurrentWeek: week === weekStartOf(new Date()),
+    standings: buildLeaderboard({ members, rrRows }),
+  });
+}));
+
+/**
+ * Rafraichit le RR du groupe depuis l'API, puis renvoie le classement a jour.
+ *
+ * Le cron horaire suffit pour la mecanique interne, mais pas pour quelqu'un qui
+ * vient de gagner trois games et veut voir son classement bouger. Cette route
+ * va chercher les donnees a la demande.
+ *
+ * Garde-fou volontaire : un seul rafraichissement par minute et par groupe.
+ * Sans lui, une page laissee ouverte ou un rechargement compulsif viderait le
+ * quota de l'API HenrikDev en quelques minutes.
+ */
+const lastRefresh = new Map();
+const REFRESH_COOLDOWN_MS = 60_000;
+
+app.post('/groups/:id/leaderboard/refresh', wrap(async (req, res) => {
+  const groupId = req.params.id;
+  const week = weekStartOf(new Date());
+
+  const members = (await loadGroupMembers(groupId)).filter((m) => m.puuid);
+  if (members.length === 0) return res.status(404).json({ error: 'Groupe introuvable ou sans compte lie' });
+
+  const since = Date.now() - (lastRefresh.get(groupId) ?? 0);
+  let refreshed = false;
+
+  if (since >= REFRESH_COOLDOWN_MS) {
+    lastRefresh.set(groupId, Date.now());
+    refreshed = true;
+
+    const floor = Date.now() - config.leaderboard.lookbackDays * 86_400_000;
+
+    // Sequentiel : le limiteur de debit du client HenrikDev espace deja les
+    // appels, mais on evite de lui envoyer tout le groupe d'un coup.
+    for (const m of members) {
+      try {
+        const entries = await getRrHistory(m.puuid, { region: 'eu' });
+        const rows = entries
+          .filter((e) => e.playedAt.getTime() >= floor)
+          .map((e) => ({
+            userId: m.userId, puuid: m.puuid, matchId: e.matchId,
+            rrChange: e.rrChange, rrAfter: e.rrAfter, tier: e.tier, map: e.map,
+            playedAt: e.playedAt, weekStart: weekStartOf(e.playedAt),
+          }));
+        if (rows.length > 0) await saveRrEntries(rows);
+      } catch (err) {
+        // Un joueur injoignable ne doit pas priver les autres du rafraichissement.
+        console.error(`[api] rafraichissement RR KO pour ${m.displayName}: ${err.message}`);
+      }
+    }
+  }
+
+  const rrRows = await loadWeekRr(groupId, week);
+  const bounds = weekBounds(week);
+
+  res.json({
+    weekStart: week,
+    label: weekLabel(week),
+    endsAt: bounds.endsAt,
+    isCurrentWeek: true,
+    refreshed,
     standings: buildLeaderboard({ members, rrRows }),
   });
 }));

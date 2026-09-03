@@ -171,10 +171,25 @@ jamais à l'affichage, sinon un membre qui quitte le groupe réécrirait le pass
 Consultation :
 
 ```bash
-curl localhost:3000/groups/1/leaderboard              # semaine en cours
+curl localhost:3000/groups/1/leaderboard              # semaine en cours (base)
 curl localhost:3000/groups/1/leaderboard?week=2026-08-31
 curl localhost:3000/groups/1/leaderboard/history      # vainqueurs passés
+curl -X POST localhost:3000/groups/1/leaderboard/refresh   # va rechercher le RR maintenant
 ```
+
+### Classement en direct
+
+La page `/leaderboard.html` affiche d'abord le classement stocké — instantané —
+puis déclenche un rafraîchissement qui va rechercher le RR auprès de l'API et
+met la vue à jour. Quelqu'un qui vient d'enchaîner trois victoires voit son
+classement bouger sans attendre le prochain passage du cron horaire.
+
+Une ligne qui gagne du RR s'illumine, et un joueur qui remonte affiche le nombre
+de places gagnées. Le bandeau du haut décompte le temps restant avant la clôture.
+
+`POST /leaderboard/refresh` est limité à **un appel par minute et par groupe**,
+en mémoire du serveur. Sans ce garde-fou, un onglet laissé ouvert ou quelques
+rechargements suffiraient à épuiser le quota de l'API HenrikDev.
 
 ## Coach positionnel (Brique 3)
 
@@ -333,6 +348,9 @@ scripts/verify-henrik.js   diagnostic de l'API — à lancer en premier
 scripts/gen-vapid.js       génération des clés Web Push
 public/sw.js               service worker (réception des notifs)
 public/landing.html        landing page
+public/join.html           inscription des potes (Riot ID + groupe + notifs)
+public/dashboard.html      tableau de bord joueur (historique + coach)
+public/leaderboard.html    classement du groupe en direct + tableau d'honneur
 public/coach.html          dashboard coach + heatmap
 src/api/server.js          API de gestion + leaderboard + coach
 test/logic.test.js         tests Brique 1

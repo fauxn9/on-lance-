@@ -58,6 +58,32 @@ export function shiftWeek(weekStart, weeks) {
 
 export const previousWeek = (weekStart) => shiftWeek(weekStart, -1);
 
+/**
+ * Instant UTC correspondant a minuit local d'une date donnee, dans le fuseau
+ * du groupe. Sert a savoir quand la semaine se termine reellement.
+ *
+ * On part de minuit UTC, on regarde quelle heure locale ca represente, et on
+ * corrige de l'ecart. Fiable ici : le changement d'heure en France a lieu a
+ * 2h/3h du matin, jamais a minuit, donc pas de cas ambigu.
+ */
+function zonedMidnight(dateStr, timeZone) {
+  const guess = new Date(`${dateStr}T00:00:00Z`);
+  const asLocal = new Date(guess.toLocaleString('en-US', { timeZone }));
+  return new Date(guess.getTime() - (asLocal.getTime() - guess.getTime()));
+}
+
+/**
+ * Debut et fin d'une semaine, en instants precis.
+ * La semaine se termine au moment ou commence la suivante : une game lancee
+ * une minute avant compte encore.
+ */
+export function weekBounds(weekStart, timeZone = DEFAULT_TZ) {
+  return {
+    startsAt: zonedMidnight(weekStart, timeZone),
+    endsAt: zonedMidnight(shiftWeek(weekStart, 1), timeZone),
+  };
+}
+
 /** Libelle lisible : "semaine du 31 aout". */
 export function weekLabel(weekStart, locale = 'fr-FR') {
   return `semaine du ${new Intl.DateTimeFormat(locale, {

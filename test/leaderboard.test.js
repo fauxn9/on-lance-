@@ -7,6 +7,7 @@ import {
   shiftWeek,
   previousWeek,
   weekLabel,
+  weekBounds,
   buildLeaderboard,
   hasActivity,
   weeklyWinner,
@@ -84,6 +85,30 @@ test('shiftWeek et previousWeek se deplacent de semaine en semaine', () => {
 
 test('weekLabel donne un libelle lisible en francais', () => {
   assert.equal(weekLabel('2026-08-31'), 'semaine du 31 août');
+});
+
+test('weekBounds cale le debut et la fin sur minuit heure de Paris', () => {
+  // Fin aout : heure d'ete, Paris est a UTC+2, donc minuit local = 22h UTC la veille.
+  const ete = weekBounds('2026-08-31');
+  assert.equal(ete.startsAt.toISOString(), '2026-08-30T22:00:00.000Z');
+  assert.equal(ete.endsAt.toISOString(), '2026-09-06T22:00:00.000Z');
+});
+
+test('weekBounds suit le changement d heure', () => {
+  // Debut janvier : heure d'hiver, Paris est a UTC+1, donc minuit local = 23h UTC.
+  const hiver = weekBounds('2026-01-05');
+  assert.equal(hiver.startsAt.toISOString(), '2026-01-04T23:00:00.000Z');
+
+  // La semaine qui contient le passage a l'heure d'ete (29 mars 2026) commence
+  // en UTC+1 et se termine en UTC+2 : les deux bornes n'ont pas le meme decalage.
+  const bascule = weekBounds('2026-03-23');
+  assert.equal(bascule.startsAt.toISOString(), '2026-03-22T23:00:00.000Z');
+  assert.equal(bascule.endsAt.toISOString(), '2026-03-29T22:00:00.000Z');
+});
+
+test('weekBounds respecte un autre fuseau', () => {
+  const utc = weekBounds('2026-08-31', 'UTC');
+  assert.equal(utc.startsAt.toISOString(), '2026-08-31T00:00:00.000Z');
 });
 
 // ---------------------------------------------------------------------------

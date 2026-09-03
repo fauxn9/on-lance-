@@ -1,0 +1,322 @@
+<title>Leaderboard du groupe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --ground: #07070b; --lift: #0c0c12; --surface: #101018;
+    --line: #1e1e29; --line-soft: #17171f;
+    --accent: #ff4655; --warm: #ff8a5b; --gain: #4fe3b0; --loss: #e04a68;
+    --cool: #6f93ff; --gold: #e6b53a; --neutral: #85818a;
+    --ink: #f8f6f1; --muted: #bcb7ae; --faint: #85818a;
+    --display: 'Manrope', system-ui, sans-serif;
+    --body: 'Inter', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--body); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell { width: min(100% - 32px, 760px); margin-inline: auto; }
+  h1, h2 { font-family: var(--display); margin: 0; letter-spacing: -0.02em; }
+  p { margin: 0; }
+  a { color: var(--warm); }
+  :focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; border-radius: 6px; }
+
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--faint);
+  }
+
+  header { padding: 30px 0 22px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 24px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 15px; }
+  .brand .q { color: var(--accent); }
+  .mark {
+    width: 29px; height: 29px; border-radius: 9px; flex: none; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--accent), var(--warm));
+  }
+  .nav-link { font-size: 13.5px; color: var(--muted); text-decoration: none; }
+  .nav-link:hover { color: var(--ink); }
+
+  h1 { font-size: clamp(25px, 5vw, 32px); font-weight: 800; }
+
+  /* Bandeau d'etat : semaine en cours, compte a rebours, rafraichissement */
+  .status {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; margin-top: 16px;
+    padding: 13px 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--lift);
+  }
+  .status-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .status-left strong { font-family: var(--display); font-size: 14.5px; }
+  .countdown { font-family: var(--mono); font-size: 12.5px; color: var(--faint); }
+  .countdown b { color: var(--warm); font-weight: 700; }
+
+  button {
+    padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); font-family: var(--display);
+    font-weight: 700; font-size: 13.5px; cursor: pointer; white-space: nowrap;
+    transition: border-color .15s ease, transform .15s ease, opacity .15s ease;
+  }
+  button:hover:not(:disabled) { border-color: #2f2f3d; transform: translateY(-1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  @media (max-width: 520px) {
+    .status { flex-direction: column; align-items: stretch; }
+    .status button { width: 100%; }
+  }
+
+  section { padding: 30px 0; border-top: 1px solid var(--line-soft); }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .section-head h2 { font-size: 19px; font-weight: 800; }
+
+  /* --- Classement ---------------------------------------------------------- */
+
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+
+  .row {
+    display: grid; grid-template-columns: 34px minmax(0,1fr) auto auto;
+    align-items: center; gap: 14px;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--lift);
+    transition: background .4s ease, border-color .4s ease;
+  }
+  .row--lead {
+    border-color: rgba(255,70,85,.35);
+    background: linear-gradient(90deg, rgba(255,70,85,.09), var(--lift) 60%);
+  }
+  /* Flash quand une ligne change apres un rafraichissement */
+  .row--moved { background: rgba(79,227,176,.1); border-color: rgba(79,227,176,.35); }
+
+  .pos {
+    font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--faint);
+    text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .row--lead .pos { color: var(--gold); }
+
+  .who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .name { font-family: var(--display); font-weight: 700; font-size: 15.5px; }
+  .meta { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+
+  .delta {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+    padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  .delta--up { background: rgba(79,227,176,.14); color: var(--gain); }
+
+  .rr {
+    font-family: var(--mono); font-size: 18px; font-weight: 700;
+    text-align: right; min-width: 62px; font-variant-numeric: tabular-nums;
+  }
+  .up { color: var(--gain); } .down { color: var(--loss); } .flat { color: var(--faint); }
+
+  @media (max-width: 480px) {
+    .row { grid-template-columns: 28px minmax(0,1fr) auto; gap: 10px; padding: 12px 13px; }
+    .delta { grid-column: 2; justify-self: start; }
+    .rr { font-size: 17px; min-width: 54px; }
+  }
+
+  /* --- Historique ---------------------------------------------------------- */
+
+  .past { display: flex; flex-direction: column; gap: 7px; }
+  .past-row {
+    display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 14px;
+    padding: 12px 15px; border: 1px solid var(--line-soft); border-radius: 11px;
+  }
+  .past-week { font-size: 13.5px; color: var(--muted); }
+  .past-winner { font-family: var(--display); font-weight: 700; font-size: 14.5px; }
+  .past-winner .crown { margin-right: 6px; }
+  .past-rr { font-family: var(--mono); font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .empty {
+    padding: 22px; border: 1px dashed var(--line); border-radius: 12px;
+    color: var(--muted); font-size: 14px; text-align: center;
+  }
+  .error { border: 1px solid rgba(255,70,85,.3); color: var(--accent); border-radius: 12px; padding: 18px; font-size: 14px; }
+
+  footer { padding: 24px 0 40px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--faint); }
+</style>
+
+<div class="shell">
+  <header>
+    <div class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
+        </span>
+        <span>On lance <span class="q">?</span></span>
+      </div>
+      <a class="nav-link" href="/dashboard.html">Mon tableau de bord</a>
+    </div>
+
+    <span class="eyebrow" id="groupName">Leaderboard</span>
+    <h1 id="weekLabel">Chargement…</h1>
+
+    <div class="status">
+      <div class="status-left">
+        <strong id="statusTitle">Semaine en cours</strong>
+        <span class="countdown" id="countdown"></span>
+      </div>
+      <button id="refresh">Rafraîchir</button>
+    </div>
+  </header>
+
+  <main>
+    <section style="border-top:0;padding-top:22px">
+      <div class="rows" id="rows"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Semaines passées</h2>
+        <span class="eyebrow">Tableau d'honneur</span>
+      </div>
+      <div class="past" id="past"></div>
+    </section>
+  </main>
+
+  <footer class="shell">
+    Le classement compte le RR gagné sur la semaine. Remise à zéro chaque lundi à
+    minuit, heure de Paris — le vainqueur reste au tableau d'honneur.
+  </footer>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const groupId = params.get('group') ?? localStorage.getItem('onlance_group') ?? '1';
+
+  let endsAt = null;
+  let previous = new Map(); // userId -> { rank, rrTotal }, pour reperer ce qui a bouge
+
+  const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+  async function api(url, options) {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? `Erreur ${res.status}`);
+    return data;
+  }
+
+  // --- Compte a rebours jusqu'a la cloture -----------------------------------
+
+  function tick() {
+    if (!endsAt) return;
+    const ms = endsAt - Date.now();
+    if (ms <= 0) {
+      $('countdown').innerHTML = 'La semaine est terminée, clôture imminente.';
+      return;
+    }
+    const j = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    $('countdown').innerHTML =
+      `Clôture dans <b>${j > 0 ? `${j} j ${h} h` : h > 0 ? `${h} h ${m} min` : `${m} min`}</b>`;
+  }
+  setInterval(tick, 30000);
+
+  // --- Classement ------------------------------------------------------------
+
+  function render(data) {
+    $('weekLabel').textContent = data.label.charAt(0).toUpperCase() + data.label.slice(1);
+    $('statusTitle').textContent = data.isCurrentWeek ? 'Semaine en cours' : 'Semaine terminée';
+    endsAt = data.endsAt ? new Date(data.endsAt).getTime() : null;
+    tick();
+
+    if (data.standings.length === 0) {
+      $('rows').innerHTML = '<div class="empty">Aucun membre avec un compte Riot lié.</div>';
+      return;
+    }
+
+    $('rows').innerHTML = data.standings.map((s) => {
+      const before = previous.get(s.userId);
+      const gagne = before && s.rrTotal > before.rrTotal;
+      const monte = before && s.rank < before.rank;
+
+      const cls = ['row'];
+      if (s.rank === 1 && s.matches > 0) cls.push('row--lead');
+      if (gagne) cls.push('row--moved');
+
+      return `
+        <article class="${cls.join(' ')}">
+          <span class="pos">${s.rank}</span>
+          <span class="who">
+            <span class="name">${s.displayName}${s.rank === 1 && s.matches > 0 ? ' 👑' : ''}</span>
+            <span class="meta">${s.matches} partie${s.matches > 1 ? 's' : ''}${
+              s.bestGain !== null ? ` · meilleur ${signed(s.bestGain)}` : ''
+            }</span>
+          </span>
+          ${monte ? `<span class="delta delta--up">▲ ${before.rank - s.rank}</span>` : '<span></span>'}
+          <span class="rr ${s.rrTotal > 0 ? 'up' : s.rrTotal < 0 ? 'down' : 'flat'}">${signed(s.rrTotal)}</span>
+        </article>`;
+    }).join('');
+
+    previous = new Map(data.standings.map((s) => [s.userId, { rank: s.rank, rrTotal: s.rrTotal }]));
+  }
+
+  async function load({ live = false } = {}) {
+    const btn = $('refresh');
+    btn.disabled = true;
+    if (live) btn.textContent = 'Mise à jour…';
+
+    try {
+      const data = live
+        ? await api(`/groups/${groupId}/leaderboard/refresh`, { method: 'POST' })
+        : await api(`/groups/${groupId}/leaderboard`);
+      render(data);
+      localStorage.setItem('onlance_group', groupId);
+
+      if (live && data.refreshed === false) {
+        $('countdown').innerHTML += ' · déjà à jour il y a moins d\'une minute';
+      }
+    } catch (err) {
+      $('rows').innerHTML = `<div class="error">${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Rafraîchir';
+    }
+  }
+
+  $('refresh').addEventListener('click', () => load({ live: true }));
+
+  // --- Historique des vainqueurs ---------------------------------------------
+
+  const weekFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+
+  async function loadPast() {
+    try {
+      const rows = await api(`/groups/${groupId}/leaderboard/history`);
+      if (rows.length === 0) {
+        $('past').innerHTML = `<div class="empty">
+          Aucune semaine clôturée pour l'instant. La première clôture a lieu lundi.
+        </div>`;
+        return;
+      }
+      $('past').innerHTML = rows.map((r) => `
+        <div class="past-row">
+          <span class="past-week">Semaine du ${weekFmt.format(new Date(r.week_start))}</span>
+          <span class="past-winner">
+            <span class="crown">👑</span>${r.winner_name ?? '—'}
+            <span class="past-rr ${r.winner_rr > 0 ? 'up' : 'down'}">${
+              r.winner_rr === null ? '' : signed(r.winner_rr) + ' RR'
+            }</span>
+          </span>
+        </div>`).join('');
+    } catch {
+      $('past').innerHTML = '<div class="empty">Historique indisponible.</div>';
+    }
+  }
+
+  // Au chargement : affichage immediat depuis la base, puis mise a jour live.
+  // On ne fait pas attendre l'utilisateur devant un ecran vide pendant que
+  // l'API Valorant repond.
+  (async () => {
+    await load();
+    await loadPast();
+    load({ live: true });
+  })();
+</script>
