@@ -26,6 +26,7 @@ import { buildCoachReport } from '../services/coach.js';
 import { getCalibration } from '../services/maps.js';
 import * as discord from '../services/discord.js';
 import { safeNext } from '../services/urls.js';
+import { wrap } from '../services/http.js';
 import {
   createSession,
   readSession,
@@ -62,11 +63,6 @@ const publicDir = join(here, '../../public');
 
 app.use(express.static(publicDir));
 app.get('/', (_req, res) => res.sendFile(join(publicDir, 'landing.html')));
-
-const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
-  console.error(e);
-  res.status(500).json({ error: e.message });
-});
 
 const shortCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
