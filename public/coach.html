@@ -296,9 +296,19 @@
     </section>
   </main>
 
-  <footer>
+  <footer style="text-align:center">
+    <div class="kofi-wrap">
+      <a class="kofi" href="https://ko-fi.com/onlance" target="_blank" rel="noopener noreferrer">
+        Soutenir le projet <span class="kofi-heart" aria-hidden="true">❤️</span>
+      </a>
+      <!-- Apres le lien dans le DOM : les paillettes passent ainsi au-dessus du
+           bouton sans z-index, et le selecteur ~ peut les allumer au focus clavier. -->
+      <span class="kofi-sparks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <p style="margin-top:20px">
     Données Valorant via l'API communautaire HenrikDev, minimaps via
     valorant-api.com. L'analyse tourne toutes les heures sur tes parties classées.
+  </p>
   </footer>
 </div>
 

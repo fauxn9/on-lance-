@@ -165,4 +165,106 @@ footer {
   border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--faint);
 }
 
+
+  /* --- Bouton de soutien (Ko-fi) -----------------------------------------
+     Couleurs volontairement identiques a la marque (rouge Valorant -> orange),
+     avec un or en pointe pour les paillettes : ca attire l'oeil sans jurer.
+     Les couleurs sont ecrites en dur plutot qu'en variables, pour que ce bloc
+     se colle tel quel dans la landing comme dans ui.css. */
+
+  .kofi-wrap { position: relative; display: inline-block; line-height: 0; }
+
+  .kofi {
+    position: relative; overflow: hidden;      /* pour le reflet qui balaie */
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 13px 27px; border-radius: 999px;
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-weight: 800; font-size: 14.5px; line-height: 1.2;
+    color: #1a0509; text-decoration: none; white-space: nowrap;
+    background: linear-gradient(100deg, #ff4655, #ff7a52 34%, #ffa23f 58%, #ff6f4a 80%, #ff4655);
+    background-size: 210% 100%; background-position: 0% 0;
+    box-shadow: 0 6px 24px -12px rgba(255, 70, 85, .9);
+    transition: transform .28s cubic-bezier(.2, .8, .3, 1.25),
+                box-shadow .28s ease, background-position .7s ease;
+  }
+
+  /* Le reflet : une bande claire inclinee, hors cadre au repos. */
+  .kofi::after {
+    content: ''; position: absolute; top: -60%; bottom: -60%; left: -70%;
+    width: 45%; transform: skewX(-22deg) translateX(0);
+    background: linear-gradient(90deg, transparent, rgba(255, 245, 225, .42), transparent);
+    opacity: 0; pointer-events: none;
+  }
+
+  .kofi:hover, .kofi:focus-visible {
+    transform: translateY(-2px) scale(1.035);
+    background-position: 100% 0;
+    box-shadow: 0 12px 34px -10px rgba(255, 105, 70, .75),
+                0 0 0 1px rgba(255, 193, 107, .35);
+  }
+  .kofi:active { transform: translateY(0) scale(.99); }
+
+  .kofi-wrap:hover .kofi::after,
+  .kofi:focus-visible::after { opacity: 1; animation: kofi-sheen .85s ease-out; }
+
+  @keyframes kofi-sheen {
+    from { transform: skewX(-22deg) translateX(0); }
+    to   { transform: skewX(-22deg) translateX(430%); }
+  }
+
+  /* Le coeur bat en continu, tres discretement : c'est lui le point d'accroche. */
+  .kofi-heart { display: inline-block; font-size: 15px; animation: kofi-beat 2.4s ease-in-out infinite; }
+  .kofi-wrap:hover .kofi-heart { animation-duration: .75s; }
+
+  @keyframes kofi-beat {
+    0%, 62%, 100% { transform: scale(1); }
+    72%           { transform: scale(1.22); }
+    82%           { transform: scale(1.05); }
+  }
+
+  /* --- Paillettes ---------------------------------------------------------
+     Hors du bouton (qui doit rester en overflow:hidden pour le reflet), d'ou
+     l'enveloppe .kofi-wrap. Inertes au clic. */
+
+  .kofi-sparks { position: absolute; inset: -14px -18px; pointer-events: none; }
+
+  .kofi-sparks i {
+    position: absolute; width: 11px; height: 11px;
+    background: linear-gradient(140deg, #ffe6a7, #ffc16b 45%, #ff8a5b);
+    clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+    opacity: 0; transform: scale(0) rotate(0deg);
+    filter: drop-shadow(0 0 5px rgba(255, 180, 90, .85));
+  }
+
+  .kofi-wrap:hover .kofi-sparks i,
+  .kofi:focus-visible ~ .kofi-sparks i { animation: kofi-spark 1.15s ease-out infinite; }
+
+  @keyframes kofi-spark {
+    0%   { opacity: 0; transform: scale(0)   rotate(0deg)   translateY(0); }
+    35%  { opacity: 1; transform: scale(1)   rotate(75deg)  translateY(-5px); }
+    70%  { opacity: .7; transform: scale(.6) rotate(140deg) translateY(-11px); }
+    100% { opacity: 0; transform: scale(0)   rotate(190deg) translateY(-17px); }
+  }
+
+  /* Positions et decalages irreguliers : une grille reguliere se voit tout de
+     suite et fait "effet CSS" au lieu de paillettes. */
+  .kofi-sparks i:nth-child(1) { left:  4%; top: 62%; animation-delay: 0s;    }
+  .kofi-sparks i:nth-child(2) { left: 17%; top: 10%; animation-delay: .17s; width: 8px;  height: 8px;  }
+  .kofi-sparks i:nth-child(3) { left: 33%; top: 78%; animation-delay: .42s; width: 13px; height: 13px; }
+  .kofi-sparks i:nth-child(4) { left: 51%; top:  4%; animation-delay: .09s; }
+  .kofi-sparks i:nth-child(5) { left: 66%; top: 70%; animation-delay: .58s; width: 9px;  height: 9px;  }
+  .kofi-sparks i:nth-child(6) { left: 81%; top: 14%; animation-delay: .31s; width: 12px; height: 12px; }
+  .kofi-sparks i:nth-child(7) { left: 93%; top: 55%; animation-delay: .66s; width: 8px;  height: 8px;  }
+  .kofi-sparks i:nth-child(8) { left: 26%; top: 40%; animation-delay: .78s; width: 7px;  height: 7px;  }
+
+  .kofi-note { margin-top: 11px; font-size: 12px; opacity: .75; }
+
+  /* Quelqu'un qui a demande moins d'animation ne doit pas se prendre un feu
+     d'artifice : le bouton reste beau, il arrete juste de bouger. */
+  @media (prefers-reduced-motion: reduce) {
+    .kofi, .kofi-heart, .kofi-sparks i { animation: none !important; transition: none !important; }
+    .kofi-sparks { display: none; }
+    .kofi:hover { transform: none; }
+  }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
