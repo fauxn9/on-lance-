@@ -29,7 +29,14 @@ const STYLE_ANGLES = [
   "un one-liner sec, presque une punchline de stand-up, pas de fioriture",
   "un ton de pote qui charrie dans le vocal juste apres la game",
   "une metaphore culinaire ou animaliere qui sort de l'ordinaire",
-  "une fausse statistique absurde clairement blagueuse pour appuyer le propos",
+  // Cet angle a produit « les 34% de taux de clutch en 1v1 » dans un vrai
+  // message : une statistique inventee, mais parfaitement credible, dans une app
+  // dont tout l'argument est de ne rien inventer. La blague ne tient que si
+  // personne ne peut la confondre avec une mesure — d'ou les interdits explicites.
+  "une statistique inventee de toutes pieces mais IMPOSSIBLE a prendre au serieux : "
+    + "elle doit porter sur quelque chose d'inmesurable et absurde, et JAMAIS "
+    + "ressembler a une vraie metrique du jeu (interdits : ACS, clutch, headshot, "
+    + "K/D, winrate, first blood, taux de quoi que ce soit de reel)",
   "un ton complice qui feint l'admiration avant de retourner la vanne",
   "une phrase construite comme un titre accrocheur de site sportif",
   "une reference au timing/rythme de la game plutot qu'aux chiffres bruts",
@@ -176,39 +183,104 @@ function fallbackMessage(player, standings) {
   }
 }
 
+/**
+ * Termes qui designent une VRAIE mesure du jeu. Un chiffre colle a l'un d'eux
+ * se lit comme une statistique, pas comme une vanne.
+ */
+const METRIQUES = /\b(acs|clutch|headshots?|hs|k\/?d|kda|kills?|frags?|deaths?|morts?|assists?|winrate|first ?bloods?|aces?|rr|elo|precision|taux)\b/i;
+
+/**
+ * Detecte une statistique inventee dans un message genere.
+ *
+ * Le probleme reel : l'angle "fausse statistique" a produit « les 34% de taux de
+ * clutch en 1v1 », un chiffre credible et totalement invente, dans une app dont
+ * l'argument central est que rien n'est estime. Une consigne de prompt ne suffit
+ * pas — le modele l'avait deja, et l'a contournee.
+ *
+ * La regle appliquee ici est volontairement etroite pour ne pas tuer l'humour :
+ * on ne refuse un chiffre QUE s'il touche a une metrique reelle du jeu ET qu'il
+ * ne figure pas dans les donnees fournies. Une blague sur « 12 kg de patience »
+ * passe donc sans probleme, « 34% de clutch » non.
+ *
+ * @param texte    le message genere
+ * @param chiffres les nombres reellement fournis au modele
+ * @returns le chiffre fautif, ou null si le message est propre
+ */
+export function statistiqueInventee(texte, chiffres) {
+  const connus = new Set(chiffres.map(Number).filter((n) => !Number.isNaN(n)));
+
+  // Chaque nombre du message, avec les ~25 caracteres qui l'entourent.
+  for (const m of texte.matchAll(/(\d+(?:[.,]\d+)?)\s*%?/g)) {
+    const valeur = Number(m[1].replace(',', '.'));
+    if (connus.has(valeur)) continue;
+
+    const autour = texte.slice(Math.max(0, m.index - 25), m.index + m[0].length + 25);
+    if (METRIQUES.test(autour)) return m[1];
+  }
+  return null;
+}
+
+/** Tous les nombres qu'on a reellement donnes au modele pour ce match. */
+function chiffresFournis({ player, standings }) {
+  const n = [player.rank, player.acs, player.gapToFirst, standings.length];
+  for (const s of standings) {
+    n.push(s.rank, s.acs, s.kills, s.deaths, s.assists, s.hsPercent);
+  }
+  return n.filter((v) => v !== null && v !== undefined);
+}
+
 export async function generateMessage({ player, standings, match, recentMessages = [], insight = null }) {
   if (!config.anthropic.apiKey) {
     return { body: fallbackMessage(player, standings), generated: false };
   }
 
-  try {
-    const angle = pickAngle();
-    const res = await client.messages.create({
-      model: config.anthropic.model,
-      max_tokens: 200,
-      temperature: 1,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: buildUserPrompt({ player, standings, match, recentMessages, angle, insight }),
-        },
-      ],
-    });
+  const connus = chiffresFournis({ player, standings });
 
-    const text = res.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-      .trim()
-      .replace(/^["«]|["»]$/g, '');
+  // Deux tentatives : une statistique inventee est un accident de generation,
+  // pas un defaut systematique. Si la seconde derape aussi, on prefere le
+  // message ecrit en dur, correct par construction, a un chiffre invente.
+  for (let essai = 1; essai <= 2; essai += 1) {
+    try {
+      const angle = pickAngle();
+      const res = await client.messages.create({
+        model: config.anthropic.model,
+        max_tokens: 200,
+        temperature: 1,
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: buildUserPrompt({ player, standings, match, recentMessages, angle, insight }),
+          },
+        ],
+      });
 
-    if (!text) return { body: fallbackMessage(player, standings), generated: false };
-    return { body: text, generated: true };
-  } catch (err) {
-    console.error(`[messages] generation echouee pour ${player.displayName}:`, err.message);
-    return { body: fallbackMessage(player, standings), generated: false };
+      const text = res.content
+        .filter((b) => b.type === 'text')
+        .map((b) => b.text)
+        .join('')
+        .trim()
+        .replace(/^["«]|["»]$/g, '');
+
+      if (!text) return { body: fallbackMessage(player, standings), generated: false };
+
+      const fautif = statistiqueInventee(text, connus);
+      if (fautif) {
+        console.warn(
+          `[messages] statistique inventee (${fautif}) pour ${player.displayName}, `
+          + `tentative ${essai}/2 : "${text}"`,
+        );
+        continue;
+      }
+
+      return { body: text, generated: true };
+    } catch (err) {
+      console.error(`[messages] generation echouee pour ${player.displayName}:`, err.message);
+      return { body: fallbackMessage(player, standings), generated: false };
+    }
   }
+
+  return { body: fallbackMessage(player, standings), generated: false };
 }
 
 /**

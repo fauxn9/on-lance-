@@ -113,11 +113,30 @@ export async function saveDetection({ groupId, match, playersWithMessages }) {
 
     const detectedMatchId = inserted.rows[0].id;
 
+    let notified = 0;
     for (const p of playersWithMessages) {
-      await client.query(
+      // Une personne peut appartenir a plusieurs groupes, et la meme partie est
+      // alors detectee une fois par groupe. Le classement, lui, a bien un sens
+      // par groupe — on garde donc les deux detections. Mais la notification,
+      // non : recevoir deux fois le resume de la meme game est juste penible.
+      // Un joueur n'est prevenu que pour la premiere detection de ce match.
+      const { rowCount } = await client.query(
         `INSERT INTO notifications (user_id, detected_match_id, tone, rank_in_group, body)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [p.userId, detectedMatchId, p.tone, p.rank, p.message.body],
+         SELECT $1, $2, $3, $4, $5
+         WHERE NOT EXISTS (
+           SELECT 1 FROM notifications n
+           JOIN detected_matches d ON d.id = n.detected_match_id
+           WHERE n.user_id = $1 AND d.match_id = $6
+         )`,
+        [p.userId, detectedMatchId, p.tone, p.rank, p.message.body, match.matchId],
+      );
+      notified += rowCount;
+    }
+
+    if (notified < playersWithMessages.length) {
+      console.log(
+        `[detect]   ${playersWithMessages.length - notified} notif(s) evitee(s) : `
+        + 'ces joueurs ont deja ete prevenus pour ce match via un autre groupe',
       );
     }
 
