@@ -63,6 +63,7 @@ export function renderHeader(el, user, { active = '' } = {}) {
   const links = [
     ['/dashboard.html', 'Tableau de bord'],
     ['/leaderboard.html', 'Classement'],
+    ['/coach.html', 'Coach'],
     ['/groupes.html', 'Groupes'],
   ];
 

@@ -101,14 +101,60 @@ app.get('/me/matches', (q, r) => {
   });
 });
 
-app.get('/me/coach', (q, r) => r.json({
-  periodLabel: 'les 14 derniers jours', deaths: 179,
-  patterns: [
-    { severity: 'fort', fact: '52 % de tes morts arrivent isolé, à plus de 15 m du plus proche coéquipier.' },
-    { severity: 'net', fact: '24 % de tes morts étaient tradables : un coéquipier était à moins de 8 m.' },
-  ],
-  text: q.query.generate === '1' ? 'Texte du coach généré.' : null,
-}));
+/* Meme forme que buildCoachReport() : agregat global, decoupage par map,
+   faits, et texte seulement si generate=1. Ascent a un gros echantillon, Abyss
+   un echantillon trop petit — les deux chemins doivent etre couverts. */
+const parMap = [
+  { mapName: 'Ascent', deaths: 96, lastAliveDeaths: 8, positionalSample: 88, isolatedDeaths: 57,
+    tradeableDeaths: 19, medianTeammateDistance: 17.7, medianDuelDistance: 15.8, viewSample: 74 },
+  { mapName: 'Lotus', deaths: 51, lastAliveDeaths: 4, positionalSample: 47, isolatedDeaths: 17,
+    tradeableDeaths: 16, medianTeammateDistance: 12.4, medianDuelDistance: 14.1, viewSample: 40 },
+  { mapName: 'Abyss', deaths: 6, lastAliveDeaths: 1, positionalSample: 5, isolatedDeaths: 4,
+    tradeableDeaths: 1, medianTeammateDistance: 19.2, medianDuelDistance: 16.0, viewSample: 3 },
+];
+
+app.get('/me/coach', (q, r) => {
+  if (Number(q.query.days) === 7) {
+    return r.json({ periodLabel: 'les 7 derniers jours', deaths: 0,
+      message: "Aucune mort analysee sur la periode. Le job d'analyse tourne toutes les heures." });
+  }
+  const somme = (k) => parMap.reduce((t, m) => t + m[k], 0);
+  r.json({
+    periodLabel: `les ${q.query.days ?? 14} derniers jours`,
+    aggregate: {
+      deaths: somme('deaths'), lastAliveDeaths: somme('lastAliveDeaths'),
+      positionalSample: somme('positionalSample'), isolatedDeaths: somme('isolatedDeaths'),
+      tradeableDeaths: somme('tradeableDeaths'), medianTeammateDistance: 15.6,
+      medianDuelDistance: 15.8, viewSample: somme('viewSample'),
+      outOfViewDeaths: 41, fromBehindDeaths: 12,
+    },
+    byMap: parMap,
+    patterns: [
+      { key: 'isolation', severity: 'fort', sample: 140,
+        fact: '78 morts sur 140 a plus de 15 m du coequipier le plus proche (56%)' },
+      { key: 'no_trade', severity: 'net', sample: 140,
+        fact: 'seulement 36 morts sur 140 avec un coequipier a moins de 8 m (26%)' },
+    ],
+    text: q.query.generate === '1' ? 'Texte du coach généré.' : null,
+    generated: q.query.generate === '1',
+  });
+});
+
+app.get('/me/heatmap', (q, r) => {
+  const m = parMap.find((x) => x.mapName === q.query.map);
+  r.json({
+    map: q.query.map,
+    // Abyss sans minimap calibree : le chemin degrade doit tenir.
+    minimapUrl: q.query.map === 'Abyss' ? null
+      : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    points: Array.from({ length: m ? m.deaths : 0 }, (_, i) => ({
+      x: 0.1 + ((i * 7) % 80) / 100, y: 0.1 + ((i * 13) % 80) / 100,
+      isolated: i % 2 === 0, lastAlive: i % 11 === 0,
+      nearestTeammate: 6 + (i % 20), duelDistance: 10 + (i % 15),
+      round: 1 + (i % 24), matchId: `m${i}`, playedAt: new Date().toISOString(),
+    })),
+  });
+});
 
 app.get('/push/public-key', (_q, r) => r.json({ publicKey: '' }));
 
@@ -257,7 +303,7 @@ await verifie('tableau de bord -> tuiles, coach, pagination', async () => {
   let t = await texte();
   if (!t.includes('fauxn9#luvgf')) throw new Error('Riot ID absent de l’en-tete');
   if (!t.includes('gold 2')) throw new Error('tier absent');
-  if (!t.includes('52 %')) throw new Error('pattern du coach absent');
+  if (!t.includes('78 morts sur 140')) throw new Error('pattern du coach absent');
   if (await page.locator('.game').count() !== 10) throw new Error('mauvais nombre de parties');
   if (!t.includes('10 affichées')) throw new Error('compteur absent');
 
@@ -290,6 +336,44 @@ await verifie('tableau de bord sans Riot ID -> formulaire de rattachement', asyn
   await page.waitForFunction(() => document.getElementById('riotNote').dataset.kind === 'ok');
   const t = await texte();
   if (!t.includes('12 parties')) throw new Error('adoption non annoncee');
+});
+
+// 6 ter. Coach positionnel — la brique 5
+await verifie('coach -> tuiles, faits, onglets de map et heatmap', async () => {
+  await page.goto(`${base}/coach.html`);
+  await attends(/morts analysées/i);
+  const t = await texte();
+  if (!t.includes('153')) throw new Error('total des morts absent');
+  if (!t.includes('78 morts sur 140')) throw new Error('faits mesures absents');
+  if (!t.includes('sur demande')) throw new Error("l'IA devrait attendre une demande explicite");
+
+  if (await page.locator('.tab').count() !== 3) throw new Error('mauvais nombre de maps');
+  await page.waitForSelector('.dot');
+  if (await page.locator('.dot').count() !== 96) throw new Error('mauvais nombre de points sur Ascent');
+  if (!(await texte()).includes('pire map')) throw new Error('verdict absent sur Ascent');
+});
+
+await verifie('coach -> survol d’un point, changement de map, echantillon trop petit', async () => {
+  await page.locator('.dot').first().dispatchEvent('mouseenter');
+  await page.waitForFunction(() => !document.getElementById('tip').hidden);
+  if (!(await page.locator('#tip').innerText()).includes('m')) throw new Error('infobulle vide');
+
+  // Abyss : 6 morts et pas de minimap calibree — la page doit refuser de
+  // conclure au lieu d'annoncer une "pire map" sur 5 morts.
+  await page.click('.tab[data-map="Abyss"]');
+  await attends(/trop peu pour en conclure/i);
+  if (await page.locator('#minimap').isVisible()) throw new Error('minimap affichee sans URL');
+  if (!(await texte()).includes('pas de minimap calibrée')) throw new Error('absence de minimap non expliquee');
+  if (await page.locator('.dot').count() !== 6) throw new Error('points non recharges pour Abyss');
+});
+
+await verifie('coach -> generation a la demande et periode sans donnees', async () => {
+  await page.click('#genBtn');
+  await attends(/texte du coach généré/i);
+
+  await page.click('.pill[data-days="7"]');
+  await attends(/aucune mort analysee/i);
+  if (await page.locator('#main').isVisible()) throw new Error('sections affichees sans donnees');
 });
 
 // 7. Landing

@@ -1,4 +1,4 @@
-# On lance ? — Briques 1 à 4 & 6
+# On lance ? — Briques 1 à 6
 
 Détection automatique des matchs Valorant joués ensemble par un groupe de potes,
 notification de fin de partie avec un ton qui dépend du classement, et
@@ -43,7 +43,18 @@ leaderboard hebdomadaire basé sur le RR gagné.
 | Étage 2 : mise en mots par l'IA | ✅ vérifié en réel sur 179 morts |
 | Insight positionnel dans la notif `roast` | ✅ |
 | Job d'analyse + routes coach/heatmap | ✅ |
-| Dashboard coach + heatmap | ✅ `public/coach.html` |
+| Dashboard coach + heatmap | ✅ `public/coach.html` (en direct depuis la brique 5) |
+
+**Brique 5 — le coach en direct**
+
+| Élément | État |
+|---|---|
+| Heatmap branchée sur `/me/heatmap` (minimap réelle + points cliquables) | ✅ |
+| Onglets par map, alimentés par le découpage réel de `/me/coach` | ✅ |
+| Sélecteur de période (7 / 14 / 30 jours) sur toute la page | ✅ |
+| Refus de conclure sous 8 morts mesurables, par map | ✅ |
+| Map sans minimap calibrée : les distances restent, le placement est annoncé absent | ✅ |
+| Texte de l'IA uniquement sur demande explicite (donc facturé une fois) | ✅ |
 
 **Briques 4 & 6 — authentification et groupes**
 
@@ -63,7 +74,6 @@ leaderboard hebdomadaire basé sur le RR gagné.
 | Élément | État |
 |---|---|
 | Landing page | ✅ `public/landing.html` |
-| Brique 5 — page coach branchée sur les vraies données | ❌ `coach.html` montre encore un instantané figé |
 | Brique 7 — RLS Supabase | ❌ à activer avant d'exposer l'API Data de Supabase |
 | Brique 8 — chat « pourquoi je suis mort là » | ❌ repoussé (prévu par la spec) |
 | Brique 9 — app desktop Tauri + overlay (lockfile) | ❌ |
@@ -294,8 +304,8 @@ expiré, lecture d'un cookie parmi d'autres sans confusion de nom, en-tête
 limité à `identify`.
 
 Le parcours des pages (lien d'invitation → Discord → Riot ID → notifs →
-classement → déconnexion) se rejoue dans un vrai navigateur, avec un faux
-serveur, hors de `npm test` parce qu'il demande Playwright :
+classement → coach → déconnexion, 17 étapes) se rejoue dans un vrai navigateur,
+avec un faux serveur, hors de `npm test` parce qu'il demande Playwright :
 
 ```bash
 npm i -D playwright && npx playwright install chromium
@@ -380,19 +390,23 @@ plusieurs fois.
 2. **Ton à 2 joueurs** — par défaut le 2e reçoit le `roast` (il est le dernier).
    Bascule sur `push` via l'option `twoPlayerSecondTone` dans `assignTones()` si
    c'est trop dur à l'usage.
-3. **Calibrage des messages** — les briefs de ton sont dans `TONE_BRIEFS`
+3. **Maps sans calibration** — `getCalibration()` interroge valorant-api.com.
+   Si une map n'y est pas encore (une nouvelle sortie, par exemple), la page
+   coach l'annonce et affiche quand même les chiffres : seules les distances
+   comptent pour l'analyse, la minimap n'est qu'un support visuel.
+4. **Calibrage des messages** — les briefs de ton sont dans `TONE_BRIEFS`
    (`src/services/messages.js`). C'est le fichier à itérer après avoir vu les
    premiers messages en dry-run.
-4. **Propriété d'un Riot ID** — Discord établit qui tu es, pas ce que tu
+5. **Propriété d'un Riot ID** — Discord établit qui tu es, pas ce que tu
    possèdes. Rien n'empêche donc de saisir le Riot ID de quelqu'un qui ne s'est
    jamais inscrit : c'est exactement le mécanisme d'adoption, et c'est
    volontaire. Ce qui est verrouillé, c'est de reprendre un Riot ID déjà
    rattaché à un compte Discord. La vraie preuve viendra du lockfile (brique 9),
    via le champ `verified` — aujourd'hui à `false` partout.
-5. **Révocation d'une session** — les sessions ne sont pas stockées, donc on ne
+6. **Révocation d'une session** — les sessions ne sont pas stockées, donc on ne
    peut pas en révoquer une en particulier avant ses 30 jours. Changer
    `SESSION_SECRET` les invalide toutes d'un coup. Assumé à cette échelle.
-6. **RLS Supabase (brique 7)** — l'API applique bien ses barrières, mais la clé
+7. **RLS Supabase (brique 7)** — l'API applique bien ses barrières, mais la clé
    Postgres reste toute-puissante. À activer avant d'exposer quoi que ce soit
    d'autre que ce serveur.
 
@@ -429,7 +443,7 @@ public/rejoindre.html      parcours d'invitation (Discord → Riot ID → notifs
 public/groupes.html        création de groupe + lien d'invitation
 public/dashboard.html      tableau de bord joueur (historique + coach)
 public/leaderboard.html    classement du groupe en direct + tableau d'honneur
-public/coach.html          démonstration du coach (instantané figé, brique 5)
+public/coach.html          coach en direct : heatmap, onglets par map, comparatif
 public/join.html           ancienne inscription — ne sert plus qu'à rediriger
 src/api/server.js          API : auth, groupes, leaderboard, coach
 test/logic.test.js         tests Brique 1
