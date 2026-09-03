@@ -32,6 +32,22 @@ services:
         sync: false
       - key: VAPID_SUBJECT
         sync: false
+      # Brique 4 : sans ces trois-la, la connexion est impossible.
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      # Changer SESSION_SECRET deconnecte tout le monde : c'est le seul moyen de
+      # revoquer les sessions en masse, mais ce n'est pas a faire par accident.
+      - key: SESSION_SECRET
+        sync: false
+      # Sert aux redirections OAuth et aux liens d'invitation : doit correspondre
+      # exactement a une Redirect declaree cote Discord.
+      - key: BASE_URL
+        value: https://onlance.xyz
+      # Active le drapeau Secure sur le cookie de session.
+      - key: NODE_ENV
+        value: production
 
   - type: cron
     name: on-lance-detect

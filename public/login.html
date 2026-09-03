@@ -1,0 +1,99 @@
+<title>Se connecter — On lance ?</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Connexion à On lance ? avec Discord.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+
+<style>
+  body { min-height: 100vh; display: grid; place-items: center; padding: 28px 16px; }
+  .mark-lg {
+    width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--accent), var(--warm)); margin-bottom: 22px;
+  }
+  h1 { font-size: 25px; font-weight: 800; }
+  .lede { color: var(--muted); margin-top: 11px; font-size: 15px; }
+  .why { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .why li { display: grid; grid-template-columns: 16px 1fr; gap: 12px; font-size: 13.5px; color: var(--muted); }
+  .why svg { margin-top: 4px; }
+  .discord { margin-top: 26px; }
+  .small { margin-top: 18px; font-size: 12px; color: var(--faint); }
+</style>
+
+<div class="shell--narrow">
+  <div class="card">
+    <div class="mark-lg" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
+    </div>
+
+    <h1>Se connecter</h1>
+    <p class="lede">
+      Un clic, pas de mot de passe à retenir. Discord sert uniquement à savoir
+      qui tu es.
+    </p>
+
+    <ul class="why">
+      <li>
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="#4fe3b0" stroke-width="1.6"/><path d="M6.4 10.3l2.4 2.4 4.7-5" stroke="#4fe3b0" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>On ne récupère que ton pseudo et ton avatar.</span>
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="8.5" width="13" height="9" rx="2.2" stroke="#4fe3b0" stroke-width="1.6"/><path d="M6.8 8.5V6.4a3.2 3.2 0 016.4 0v2.1" stroke="#4fe3b0" stroke-width="1.6"/></svg>
+        <span>Aucun accès à tes serveurs, tes messages ou tes amis.</span>
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l6 2.6v4.6c0 3.4-2.4 6.4-6 7.8-3.6-1.4-6-4.4-6-7.8V5.1l6-2.6z" stroke="#4fe3b0" stroke-width="1.6"/></svg>
+        <span>Un groupe ne se rejoint que par son lien d'invitation.</span>
+      </li>
+    </ul>
+
+    <a class="btn discord full" id="go" href="#">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M20.3 4.4A19.8 19.8 0 0015.4 3l-.3.6a14.7 14.7 0 014.3 2.2 13.9 13.9 0 00-11-1.3l.2-.9A19.8 19.8 0 003.7 4.4C1 8.3.2 12.2.6 16a19.9 19.9 0 006 3l.5-1a12.9 12.9 0 01-1.9-.9l.4-.3a14.2 14.2 0 0012.8 0l.4.3a13 13 0 01-1.9.9l.5 1a19.8 19.8 0 006-3c.5-4.5-.6-8.4-3.1-11.6zM8.5 13.6c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm7 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/>
+      </svg>
+      Continuer avec Discord
+    </a>
+
+    <div class="note" id="note" hidden></div>
+
+    <p class="small">
+      Pas encore de groupe ? Il faut le lien d'invitation d'un ami — ou
+      <a href="/groupes.html">crée le tien</a> après connexion.
+    </p>
+  </div>
+</div>
+
+<script type="module">
+  import { session, loginUrl, $ } from '/app.js';
+
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next') ?? '/dashboard.html';
+
+  const say = (msg, kind = 'err') => {
+    const n = $('note');
+    n.textContent = msg;
+    n.dataset.kind = kind;
+    n.hidden = false;
+  };
+
+  // Messages renvoyes par le serveur en cas d'echec du retour OAuth.
+  const erreurs = {
+    state: "La connexion a expiré ou a été interrompue. Réessaie.",
+    discord: "Discord n'a pas répondu comme prévu. Réessaie dans un instant.",
+  };
+  if (params.get('erreur')) say(erreurs[params.get('erreur')] ?? 'Connexion impossible.');
+
+  $('go').href = loginUrl(next);
+
+  // Deja connecte : on ne laisse pas quelqu'un sur un ecran de connexion inutile.
+  try {
+    const { user, discordConfigured } = await session();
+    if (user) location.replace(next);
+    else if (!discordConfigured) {
+      $('go').setAttribute('aria-disabled', 'true');
+      say("La connexion Discord n'est pas configurée sur le serveur.", 'err');
+    }
+  } catch { /* le bouton reste utilisable */ }
+</script>

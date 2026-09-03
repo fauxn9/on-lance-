@@ -455,6 +455,240 @@ export async function loadDeaths(userId, { sinceDays = 14, mapName = null } = {}
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Brique 4 — identite Discord
+// ---------------------------------------------------------------------------
+
+/** Retrouve ou cree le profil correspondant a un compte Discord. */
+export async function findOrCreateDiscordUser({ discordId, username, avatarUrl }) {
+  const { rows } = await query(
+    `INSERT INTO users (display_name, discord_id, discord_username, avatar_url, last_seen_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (discord_id) DO UPDATE
+       SET discord_username = EXCLUDED.discord_username,
+           avatar_url       = EXCLUDED.avatar_url,
+           last_seen_at     = now()
+     RETURNING id, display_name, discord_id, discord_username, avatar_url`,
+    [username, discordId, username, avatarUrl],
+  );
+  return rows[0];
+}
+
+/** Profil complet de l'utilisateur connecte, avec son compte Riot s'il en a un. */
+export async function getSessionUser(userId) {
+  const { rows } = await query(
+    `SELECT u.id, u.display_name, u.discord_username, u.avatar_url,
+            a.riot_name, a.riot_tag, a.region, a.verified,
+            (SELECT tier FROM match_rr r WHERE r.user_id = u.id
+              ORDER BY r.played_at DESC LIMIT 1) AS tier
+     FROM users u
+     LEFT JOIN linked_riot_accounts a ON a.user_id = u.id
+     WHERE u.id = $1`,
+    [userId],
+  );
+  if (rows.length === 0) return null;
+
+  const r = rows[0];
+  return {
+    id: r.id,
+    displayName: r.display_name,
+    discordUsername: r.discord_username,
+    avatarUrl: r.avatar_url,
+    riotId: r.riot_name ? `${r.riot_name}#${r.riot_tag}` : null,
+    riotVerified: r.verified ?? false,
+    tier: r.tier,
+  };
+}
+
+/**
+ * Rattache un compte Riot au profil connecte.
+ *
+ * Trois situations, et c'est la regle la plus importante de la brique :
+ *
+ *   libre       — personne ne l'a, on le lie.
+ *   deja a moi  — on rafraichit juste le pseudo, qui peut avoir change.
+ *   orphelin    — un profil cree avant l'authentification le detient. Personne
+ *                 ne le possede vraiment, donc on ADOPTE : tout son historique
+ *                 est transfere sur le profil connecte, puis l'orphelin est
+ *                 supprime. C'est ce qui recupere les donnees eparpillees par
+ *                 l'absence d'authentification.
+ *   pris        — un profil AVEC compte Discord le detient : on refuse. Sans
+ *                 cette barriere, n'importe qui pourrait taper le Riot ID d'un
+ *                 autre et absorber ses donnees — le bug qu'on vient de subir.
+ *   deja un      — le profil connecte a DEJA un autre compte Riot : on refuse
+ *                 aussi. Rien dans le schema n'interdit deux comptes pour un
+ *                 meme profil, et getSessionUser() en prendrait un au hasard :
+ *                 le classement et le coach porteraient alors sur un compte
+ *                 different d'un chargement a l'autre.
+ *
+ * La verification reelle de propriete viendra de l'app desktop (Brique 9) :
+ * c'est elle qui pourra passer `verified` a true, et donc autoriser un
+ * transfert legitime entre deux comptes Discord.
+ */
+export async function claimRiotAccount({ userId, puuid, riotName, riotTag, region = 'eu' }) {
+  return withTransaction(async (client) => {
+    const { rows: mine } = await client.query(
+      'SELECT riot_name, riot_tag FROM linked_riot_accounts WHERE user_id = $1 AND puuid <> $2',
+      [userId, puuid],
+    );
+    if (mine.length > 0) {
+      return {
+        status: 'has_other',
+        adopted: 0,
+        current: `${mine[0].riot_name}#${mine[0].riot_tag}`,
+      };
+    }
+
+    const { rows: existing } = await client.query(
+      `SELECT a.id, a.user_id, u.discord_id, u.display_name
+       FROM linked_riot_accounts a
+       JOIN users u ON u.id = a.user_id
+       WHERE a.puuid = $1
+       FOR UPDATE OF a`,
+      [puuid],
+    );
+
+    // --- libre ---
+    if (existing.length === 0) {
+      await client.query(
+        `INSERT INTO linked_riot_accounts (user_id, puuid, riot_name, riot_tag, region)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [userId, puuid, riotName, riotTag, region],
+      );
+      return { status: 'linked', adopted: 0 };
+    }
+
+    const holder = existing[0];
+
+    // --- deja a moi ---
+    if (Number(holder.user_id) === Number(userId)) {
+      await client.query(
+        'UPDATE linked_riot_accounts SET riot_name = $1, riot_tag = $2 WHERE id = $3',
+        [riotName, riotTag, holder.id],
+      );
+      return { status: 'already_mine', adopted: 0 };
+    }
+
+    // --- pris par un compte authentifie ---
+    if (holder.discord_id) {
+      return { status: 'taken', heldBy: holder.display_name, adopted: 0 };
+    }
+
+    // --- orphelin : adoption ---
+    const orphan = Number(holder.user_id);
+
+    // On deplace l'historique vers le profil connecte. Les cles d'unicite de
+    // ces tables portent sur (puuid, match_id), jamais sur user_id : changer le
+    // rattachement ne peut donc creer aucun doublon.
+    let moved = 0;
+    for (const table of ['match_rr', 'player_matches', 'player_deaths', 'notifications', 'push_subscriptions']) {
+      const res = await client.query(
+        `UPDATE ${table} SET user_id = $1 WHERE user_id = $2`,
+        [userId, orphan],
+      );
+      moved += res.rowCount;
+    }
+
+    // Les appartenances aux groupes se deplacent seulement si le profil connecte
+    // n'est pas deja membre du meme groupe, sinon la cle primaire refuserait.
+    await client.query(
+      `UPDATE memberships SET user_id = $1
+       WHERE user_id = $2
+         AND group_id NOT IN (SELECT group_id FROM memberships WHERE user_id = $1)`,
+      [userId, orphan],
+    );
+    await client.query('DELETE FROM memberships WHERE user_id = $1', [orphan]);
+
+    // Le groupe dont l'orphelin etait proprietaire revient au profil connecte.
+    await client.query(
+      'UPDATE groups SET owner_user_id = $1 WHERE owner_user_id = $2',
+      [userId, orphan],
+    );
+
+    await client.query(
+      'UPDATE linked_riot_accounts SET user_id = $1, riot_name = $2, riot_tag = $3 WHERE id = $4',
+      [userId, riotName, riotTag, holder.id],
+    );
+
+    await client.query('DELETE FROM users WHERE id = $1', [orphan]);
+
+    return { status: 'adopted', adopted: moved, from: holder.display_name };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Brique 6 — groupes et invitations
+// ---------------------------------------------------------------------------
+
+export async function createGroup({ name, ownerUserId, joinCode, inviteToken }) {
+  return withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO groups (name, join_code, invite_token, owner_user_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, join_code, invite_token`,
+      [name, joinCode, inviteToken, ownerUserId],
+    );
+    const group = rows[0];
+
+    await client.query(
+      `INSERT INTO memberships (group_id, user_id, role) VALUES ($1, $2, 'owner')
+       ON CONFLICT DO NOTHING`,
+      [group.id, ownerUserId],
+    );
+    return group;
+  });
+}
+
+/** Groupe designe par un jeton d'invitation, avec de quoi afficher un apercu. */
+export async function groupByInviteToken(token) {
+  const { rows } = await query(
+    `SELECT g.id, g.name, g.join_code, g.invite_token,
+            (SELECT count(*) FROM memberships m WHERE m.group_id = g.id) AS members,
+            (SELECT u.display_name FROM users u WHERE u.id = g.owner_user_id) AS owner
+     FROM groups g WHERE g.invite_token = $1`,
+    [token],
+  );
+  return rows[0] ?? null;
+}
+
+export async function joinGroup({ groupId, userId }) {
+  const { rowCount } = await query(
+    `INSERT INTO memberships (group_id, user_id, role) VALUES ($1, $2, 'member')
+     ON CONFLICT DO NOTHING`,
+    [groupId, userId],
+  );
+  return rowCount > 0; // false = deja membre, ce qui n'est pas une erreur
+}
+
+/** Un utilisateur ne voit que les donnees des groupes dont il est membre. */
+export async function isGroupMember(groupId, userId) {
+  const { rows } = await query(
+    'SELECT 1 FROM memberships WHERE group_id = $1 AND user_id = $2',
+    [groupId, userId],
+  );
+  return rows.length > 0;
+}
+
+export async function listMyGroups(userId) {
+  const { rows } = await query(
+    `SELECT g.id, g.name, g.join_code, g.invite_token, m.role,
+            (SELECT count(*) FROM memberships x WHERE x.group_id = g.id) AS members
+     FROM memberships m
+     JOIN groups g ON g.id = m.group_id
+     WHERE m.user_id = $1
+     ORDER BY g.created_at`,
+    [userId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    joinCode: r.join_code,
+    inviteToken: r.invite_token,
+    role: r.role,
+    members: Number(r.members),
+  }));
+}
+
 export async function closePool() {
   await pool.end();
 }

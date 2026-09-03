@@ -9,6 +9,14 @@ import {
   loadDeaths,
   loadPlayerMatches,
   saveRrEntries,
+  findOrCreateDiscordUser,
+  getSessionUser,
+  claimRiotAccount,
+  createGroup,
+  groupByInviteToken,
+  joinGroup,
+  isGroupMember,
+  listMyGroups,
 } from '../db/index.js';
 import { config } from '../config.js';
 import { resolveAccount, getRrHistory } from '../services/henrikdev.js';
@@ -16,24 +24,39 @@ import { getPublicKey, pushToUser } from '../services/notifications.js';
 import { weekStartOf, weekLabel, weekBounds, buildLeaderboard } from '../services/leaderboard.js';
 import { buildCoachReport } from '../services/coach.js';
 import { getCalibration } from '../services/maps.js';
+import * as discord from '../services/discord.js';
+import { safeNext } from '../services/urls.js';
+import {
+  createSession,
+  readSession,
+  readCookie,
+  sessionCookie,
+  clearCookie,
+  randomToken,
+} from '../services/session.js';
 
 /**
- * API minimale de la Brique 1.
+ * API de "On lance ?".
  *
- * Volontairement reduite au strict necessaire pour que le groupe de potes
- * puisse s'inscrire et lier ses comptes. Pas d'auth pour l'instant : a ajouter
- * avant toute ouverture au-dela du cercle de test (voir README).
+ * L'identite vient de Discord (Brique 4). Les groupes ne se rejoignent que par
+ * lien d'invitation (Brique 6), et toute donnee de groupe exige d'en etre
+ * membre.
+ *
+ * Ce qui n'est PAS encore garanti : qu'un Riot ID appartienne bien a celui qui
+ * l'a saisi. Le champ `verified` reste a false partout, en attendant que l'app
+ * desktop lise le lockfile du client Valorant (Brique 9).
  */
 
 const app = express();
 app.use(express.json());
 
-// Fichiers statiques : landing, dashboard coach, page d'abonnement, et surtout
-// le service worker.
-//
-// Le service worker DOIT etre servi depuis la racine (/sw.js) : un service
-// worker ne controle que les pages situees a son niveau ou en dessous. Servi
-// depuis un sous-dossier, l'abonnement aux notifications ne fonctionnerait pas.
+// Render termine le TLS en amont : sans ce reglage, req.protocol vaudrait "http"
+// et les URL de redirection OAuth seraient construites en clair.
+app.set('trust proxy', 1);
+
+// Fichiers statiques, dont le service worker. Il DOIT etre servi depuis la
+// racine (/sw.js) : un service worker ne controle que les pages situees a son
+// niveau ou en dessous.
 const here = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(here, '../../public');
 
@@ -45,62 +68,114 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   res.status(500).json({ error: e.message });
 });
 
-function joinCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
+const shortCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// --- Users -----------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Session
+// ---------------------------------------------------------------------------
 
-app.post('/users', wrap(async (req, res) => {
-  const { displayName } = req.body;
-  if (!displayName) return res.status(400).json({ error: 'displayName requis' });
+/** Attache req.userId quand un cookie de session valide est present. */
+app.use((req, _res, next) => {
+  req.userId = readSession(readCookie(req.headers.cookie));
+  next();
+});
 
-  const { rows } = await query(
-    'INSERT INTO users (display_name) VALUES ($1) RETURNING id, display_name',
-    [displayName],
-  );
-  res.status(201).json(rows[0]);
-}));
-
-// --- Groupes ---------------------------------------------------------------
-
-app.post('/groups', wrap(async (req, res) => {
-  const { name, userId } = req.body;
-  if (!name || !userId) return res.status(400).json({ error: 'name et userId requis' });
-
-  const { rows } = await query(
-    'INSERT INTO groups (name, join_code) VALUES ($1, $2) RETURNING id, name, join_code',
-    [name, joinCode()],
-  );
-  const group = rows[0];
-  await query('INSERT INTO memberships (group_id, user_id) VALUES ($1, $2)', [group.id, userId]);
-  res.status(201).json(group);
-}));
-
-app.post('/groups/join', wrap(async (req, res) => {
-  const { joinCode: code, userId } = req.body;
-  if (!code || !userId) return res.status(400).json({ error: 'joinCode et userId requis' });
-
-  const { rows } = await query('SELECT id, name FROM groups WHERE join_code = $1', [code.toUpperCase()]);
-  if (rows.length === 0) return res.status(404).json({ error: 'Groupe introuvable' });
-
-  await query(
-    'INSERT INTO memberships (group_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-    [rows[0].id, userId],
-  );
-  res.json(rows[0]);
-}));
-
-// --- Liaison du compte Riot ------------------------------------------------
+/** Barriere pour tout ce qui touche aux donnees d'une personne. */
+const requireAuth = (req, res, next) => {
+  if (!req.userId) return res.status(401).json({ error: 'Connexion requise' });
+  next();
+};
 
 /**
- * Verifie qu'un Riot ID existe, sans rien ecrire.
- *
- * Sert a valider la saisie AVANT de creer le compte : sans ca, un pseudo mal
- * tape laisserait derriere lui un utilisateur orphelin en base a chaque essai.
+ * Barriere de groupe : etre connecte ne suffit pas, il faut etre membre.
+ * C'est ce qui empeche de lire le classement ou l'historique d'un groupe dont
+ * on n'a pas recu le lien d'invitation.
  */
+const requireMember = wrap(async (req, res, next) => {
+  if (!req.userId) return res.status(401).json({ error: 'Connexion requise' });
+  if (!(await isGroupMember(req.params.id, req.userId))) {
+    return res.status(403).json({ error: "Tu n'es pas membre de ce groupe" });
+  }
+  next();
+});
+
+// ---------------------------------------------------------------------------
+// Authentification Discord
+// ---------------------------------------------------------------------------
+
+const redirectUri = () => `${config.baseUrl}/auth/discord/callback`;
+
+/**
+ * Depart vers Discord.
+ *
+ * `state` est un jeton aleatoire depose dans un cookie court et revérifié au
+ * retour : sans lui, un tiers pourrait declencher une connexion a l'insu de
+ * l'utilisateur. `next` permet de revenir sur la page d'ou l'on venait — un
+ * chemin interne uniquement, pour ne pas servir de tremplin vers un site tiers.
+ */
+app.get('/auth/discord', (req, res) => {
+  if (!discord.isConfigured()) {
+    return res.status(503).json({ error: 'Connexion Discord non configuree sur le serveur' });
+  }
+
+  const state = randomToken(16);
+  const next = safeNext(req.query.next);
+
+  res.setHeader('Set-Cookie', [
+    `onlance_state=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${config.session.secureCookies ? '; Secure' : ''}`,
+    `onlance_next=${encodeURIComponent(next)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${config.session.secureCookies ? '; Secure' : ''}`,
+  ]);
+  res.redirect(discord.authorizeUrl({ state, redirectUri: redirectUri() }));
+});
+
+app.get('/auth/discord/callback', wrap(async (req, res) => {
+  const { code, state } = req.query;
+  const expected = readCookie(req.headers.cookie, 'onlance_state');
+  const next = safeNext(readCookie(req.headers.cookie, 'onlance_next'));
+
+  if (!code || !state || !expected || state !== expected) {
+    return res.redirect('/login.html?erreur=state');
+  }
+
+  let identity;
+  try {
+    identity = await discord.fetchIdentity(code, redirectUri());
+  } catch (err) {
+    console.error('[auth] Discord :', err.message);
+    return res.redirect('/login.html?erreur=discord');
+  }
+
+  const user = await findOrCreateDiscordUser(identity);
+
+  res.setHeader('Set-Cookie', [
+    sessionCookie(createSession(Number(user.id))),
+    'onlance_state=; Path=/; Max-Age=0',
+    'onlance_next=; Path=/; Max-Age=0',
+  ]);
+  res.redirect(next);
+}));
+
+app.post('/auth/logout', (_req, res) => {
+  res.setHeader('Set-Cookie', clearCookie());
+  res.json({ ok: true });
+});
+
+/** Qui suis-je. Renvoie 200 avec user: null si personne n'est connecte. */
+app.get('/auth/me', wrap(async (req, res) => {
+  if (!req.userId) return res.json({ user: null, discordConfigured: discord.isConfigured() });
+  res.json({
+    user: await getSessionUser(req.userId),
+    discordConfigured: discord.isConfigured(),
+  });
+}));
+
+// ---------------------------------------------------------------------------
+// Compte Riot
+// ---------------------------------------------------------------------------
+
+/** Verifie qu'un Riot ID existe, sans rien ecrire ni exiger de connexion. */
 app.get('/accounts/resolve', wrap(async (req, res) => {
   const { name, tag } = req.query;
   if (!name || !tag) return res.status(400).json({ error: 'name et tag requis' });
@@ -111,37 +186,115 @@ app.get('/accounts/resolve', wrap(async (req, res) => {
   res.json({ name: account.name, tag: account.tag, region: account.region });
 }));
 
-app.post('/accounts/link', wrap(async (req, res) => {
-  const { userId, riotName, riotTag } = req.body;
-  if (!userId || !riotName || !riotTag) {
-    return res.status(400).json({ error: 'userId, riotName et riotTag requis' });
-  }
+/**
+ * Rattache un Riot ID au compte connecte.
+ *
+ * Le cas interessant est l'adoption : un profil cree avant l'authentification
+ * detient peut-etre ce Riot ID avec tout son historique. Personne ne le
+ * possedant vraiment, on le recupere. Voir claimRiotAccount().
+ */
+app.post('/accounts/link', requireAuth, wrap(async (req, res) => {
+  const { riotName, riotTag } = req.body;
+  if (!riotName || !riotTag) return res.status(400).json({ error: 'riotName et riotTag requis' });
 
-  // On resout le puuid une seule fois ici : c'est lui qui sert de cle de
-  // jointure ensuite, car un name#tag peut changer.
-  const account = await resolveAccount(riotName, riotTag);
+  const account = await resolveAccount(riotName, riotTag).catch(() => null);
   if (!account?.puuid) return res.status(404).json({ error: 'Compte Riot introuvable' });
 
-  const { rows } = await query(
-    `INSERT INTO linked_riot_accounts (user_id, puuid, riot_name, riot_tag, region)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (puuid) DO UPDATE SET user_id = EXCLUDED.user_id,
-                                       riot_name = EXCLUDED.riot_name,
-                                       riot_tag  = EXCLUDED.riot_tag
-     RETURNING id, puuid, riot_name, riot_tag, region`,
-    [userId, account.puuid, account.name, account.tag, account.region ?? 'eu'],
-  );
-  res.status(201).json(rows[0]);
+  const result = await claimRiotAccount({
+    userId: req.userId,
+    puuid: account.puuid,
+    riotName: account.name,
+    riotTag: account.tag,
+    region: account.region ?? 'eu',
+  });
+
+  if (result.status === 'taken') {
+    return res.status(409).json({
+      error: `Ce compte Valorant est déjà rattaché au profil de ${result.heldBy}.`,
+      code: 'deja_pris',
+    });
+  }
+
+  if (result.status === 'has_other') {
+    return res.status(409).json({
+      error: `Ton profil est déjà rattaché à ${result.current}. Un profil ne peut suivre qu'un seul compte Valorant.`,
+      code: 'deja_un_compte',
+    });
+  }
+
+  // Le pseudo affiche suit le Riot ID : c'est sous ce nom que les potes le
+  // reconnaissent dans le classement, pas sous son pseudo Discord.
+  await query('UPDATE users SET display_name = $1 WHERE id = $2', [account.name, req.userId]);
+
+  res.json({
+    status: result.status,
+    riotId: `${account.name}#${account.tag}`,
+    recupere: result.adopted ?? 0,
+  });
 }));
 
-// --- Web Push --------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Groupes (Brique 6)
+// ---------------------------------------------------------------------------
+
+app.get('/me/groups', requireAuth, wrap(async (req, res) => {
+  res.json({ groups: await listMyGroups(req.userId) });
+}));
+
+app.post('/groups', requireAuth, wrap(async (req, res) => {
+  const name = String(req.body?.name ?? '').trim();
+  if (!name) return res.status(400).json({ error: 'Donne un nom au groupe' });
+  if (name.length > 40) return res.status(400).json({ error: 'Nom trop long (40 caractères max)' });
+
+  const group = await createGroup({
+    name,
+    ownerUserId: req.userId,
+    joinCode: shortCode(),
+    inviteToken: randomToken(16),
+  });
+
+  res.status(201).json({
+    ...group,
+    inviteUrl: `${config.baseUrl}/rejoindre.html?i=${group.invite_token}`,
+  });
+}));
+
+/**
+ * Apercu d'une invitation, accessible sans etre connecte : l'invite doit savoir
+ * ou il met les pieds avant de s'authentifier. On ne divulgue que le nom du
+ * groupe, son proprietaire et le nombre de membres — jamais la liste ni les
+ * donnees de jeu.
+ */
+app.get('/invite/:token', wrap(async (req, res) => {
+  const group = await groupByInviteToken(req.params.token);
+  if (!group) return res.status(404).json({ error: 'Invitation invalide ou expirée' });
+
+  res.json({
+    name: group.name,
+    owner: group.owner,
+    members: Number(group.members),
+    alreadyMember: req.userId ? await isGroupMember(group.id, req.userId) : false,
+  });
+}));
+
+app.post('/invite/:token/accept', requireAuth, wrap(async (req, res) => {
+  const group = await groupByInviteToken(req.params.token);
+  if (!group) return res.status(404).json({ error: 'Invitation invalide ou expirée' });
+
+  const joined = await joinGroup({ groupId: group.id, userId: req.userId });
+  res.json({ groupId: group.id, name: group.name, nouveau: joined });
+}));
+
+// ---------------------------------------------------------------------------
+// Web Push
+// ---------------------------------------------------------------------------
 
 app.get('/push/public-key', (_req, res) => res.json({ publicKey: getPublicKey() }));
 
-app.post('/push/subscribe', wrap(async (req, res) => {
-  const { userId, subscription } = req.body;
-  if (!userId || !subscription?.endpoint || !subscription?.keys) {
-    return res.status(400).json({ error: 'userId et subscription requis' });
+app.post('/push/subscribe', requireAuth, wrap(async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription?.endpoint || !subscription?.keys) {
+    return res.status(400).json({ error: 'subscription requis' });
   }
 
   await query(
@@ -149,28 +302,24 @@ app.post('/push/subscribe', wrap(async (req, res) => {
      VALUES ($1, $2, $3)
      ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id,
                                           keys    = EXCLUDED.keys`,
-    [userId, subscription.endpoint, JSON.stringify(subscription.keys)],
+    [req.userId, subscription.endpoint, JSON.stringify(subscription.keys)],
   );
   res.status(201).json({ ok: true });
 }));
 
-// Envoie une notif de test a un user, sans passer par la detection.
-// Pratique pour verifier que le navigateur recoit bien avant de jouer.
-app.post('/push/test', wrap(async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: 'userId requis' });
-
-  const result = await pushToUser(userId, {
+app.post('/push/test', requireAuth, wrap(async (req, res) => {
+  res.json(await pushToUser(req.userId, {
     title: 'On lance ?',
     body: 'Si tu vois ce message, les notifs marchent.',
     tone: 'hype',
-  });
-  res.json(result);
+  }));
 }));
 
-// --- Historique et notifications ------------------------------------------
+// ---------------------------------------------------------------------------
+// Donnees de groupe — reservees aux membres
+// ---------------------------------------------------------------------------
 
-app.get('/groups/:id/matches', wrap(async (req, res) => {
+app.get('/groups/:id/matches', requireMember, wrap(async (req, res) => {
   const { rows } = await query(
     `SELECT match_id, map_name, mode, started_at, standings, processed_at
      FROM detected_matches WHERE group_id = $1
@@ -180,45 +329,19 @@ app.get('/groups/:id/matches', wrap(async (req, res) => {
   res.json(rows);
 }));
 
-app.get('/users/:id/notifications', wrap(async (req, res) => {
-  // LEFT JOIN : les notifs hebdo n'ont pas de match rattache (voir notifications.js).
-  const { rows } = await query(
-    `SELECT n.id, n.tone, n.kind, n.week_start, n.rank_in_group, n.body,
-            n.status, n.created_at, d.map_name, d.match_id
-     FROM notifications n
-     LEFT JOIN detected_matches d ON d.id = n.detected_match_id
-     WHERE n.user_id = $1
-     ORDER BY n.created_at DESC LIMIT 50`,
-    [req.params.id],
-  );
-  res.json(rows);
-}));
-
-// --- Leaderboard hebdomadaire (Brique 2) -----------------------------------
-
-/**
- * Classement de la semaine en cours (calcule a la volee), ou d'une semaine
- * passee via ?week=YYYY-MM-DD.
- *
- * Note : pour une semaine deja cloturee, c'est /leaderboard/history qui fait
- * foi — ce classement-ci est recalcule a partir des membres actuels du groupe.
- */
-app.get('/groups/:id/leaderboard', wrap(async (req, res) => {
+app.get('/groups/:id/leaderboard', requireMember, wrap(async (req, res) => {
   const week = req.query.week ?? weekStartOf(new Date());
   if (!/^\d{4}-\d{2}-\d{2}$/.test(week)) {
     return res.status(400).json({ error: 'week attendu au format YYYY-MM-DD' });
   }
 
   const members = (await loadGroupMembers(req.params.id)).filter((m) => m.puuid);
-  if (members.length === 0) return res.status(404).json({ error: 'Groupe introuvable ou sans compte lie' });
-
   const rrRows = await loadWeekRr(req.params.id, week);
-  const bounds = weekBounds(week);
 
   res.json({
     weekStart: week,
     label: weekLabel(week),
-    endsAt: bounds.endsAt,
+    endsAt: weekBounds(week).endsAt,
     isCurrentWeek: week === weekStartOf(new Date()),
     standings: buildLeaderboard({ members, rrRows }),
   });
@@ -227,23 +350,19 @@ app.get('/groups/:id/leaderboard', wrap(async (req, res) => {
 /**
  * Rafraichit le RR du groupe depuis l'API, puis renvoie le classement a jour.
  *
- * Le cron horaire suffit pour la mecanique interne, mais pas pour quelqu'un qui
- * vient de gagner trois games et veut voir son classement bouger. Cette route
- * va chercher les donnees a la demande.
+ * Le cron horaire suffit a la mecanique interne, pas a quelqu'un qui vient de
+ * gagner trois games et veut voir son classement bouger.
  *
- * Garde-fou volontaire : un seul rafraichissement par minute et par groupe.
- * Sans lui, une page laissee ouverte ou un rechargement compulsif viderait le
- * quota de l'API HenrikDev en quelques minutes.
+ * Un seul rafraichissement par minute et par groupe : sans ce garde-fou, un
+ * onglet laisse ouvert viderait le quota de l'API HenrikDev.
  */
 const lastRefresh = new Map();
 const REFRESH_COOLDOWN_MS = 60_000;
 
-app.post('/groups/:id/leaderboard/refresh', wrap(async (req, res) => {
+app.post('/groups/:id/leaderboard/refresh', requireMember, wrap(async (req, res) => {
   const groupId = req.params.id;
   const week = weekStartOf(new Date());
-
   const members = (await loadGroupMembers(groupId)).filter((m) => m.puuid);
-  if (members.length === 0) return res.status(404).json({ error: 'Groupe introuvable ou sans compte lie' });
 
   const since = Date.now() - (lastRefresh.get(groupId) ?? 0);
   let refreshed = false;
@@ -254,8 +373,6 @@ app.post('/groups/:id/leaderboard/refresh', wrap(async (req, res) => {
 
     const floor = Date.now() - config.leaderboard.lookbackDays * 86_400_000;
 
-    // Sequentiel : le limiteur de debit du client HenrikDev espace deja les
-    // appels, mais on evite de lui envoyer tout le groupe d'un coup.
     for (const m of members) {
       try {
         const entries = await getRrHistory(m.puuid, { region: 'eu' });
@@ -268,43 +385,54 @@ app.post('/groups/:id/leaderboard/refresh', wrap(async (req, res) => {
           }));
         if (rows.length > 0) await saveRrEntries(rows);
       } catch (err) {
-        // Un joueur injoignable ne doit pas priver les autres du rafraichissement.
         console.error(`[api] rafraichissement RR KO pour ${m.displayName}: ${err.message}`);
       }
     }
   }
 
   const rrRows = await loadWeekRr(groupId, week);
-  const bounds = weekBounds(week);
-
   res.json({
     weekStart: week,
     label: weekLabel(week),
-    endsAt: bounds.endsAt,
+    endsAt: weekBounds(week).endsAt,
     isCurrentWeek: true,
     refreshed,
     standings: buildLeaderboard({ members, rrRows }),
   });
 }));
 
-/** Historique des vainqueurs des semaines passees (classements figes). */
-app.get('/groups/:id/leaderboard/history', wrap(async (req, res) => {
+app.get('/groups/:id/leaderboard/history', requireMember, wrap(async (req, res) => {
   res.json(await getWeeklyHistory(req.params.id));
 }));
 
-// --- Coach positionnel (Brique 3) ------------------------------------------
+// ---------------------------------------------------------------------------
+// Donnees personnelles — toujours celles de l'utilisateur connecte
+// ---------------------------------------------------------------------------
 
-/**
- * Rapport de coaching : les faits calcules (etage 1) ET leur mise en mots
- * (etage 2). Le dashboard peut afficher les deux — les chiffres restent
- * verifiables meme si la generation IA echoue.
- */
-app.get('/users/:id/coach', wrap(async (req, res) => {
+app.get('/me/notifications', requireAuth, wrap(async (req, res) => {
+  const { rows } = await query(
+    `SELECT n.id, n.tone, n.kind, n.week_start, n.rank_in_group, n.body,
+            n.status, n.created_at, d.map_name, d.match_id
+     FROM notifications n
+     LEFT JOIN detected_matches d ON d.id = n.detected_match_id
+     WHERE n.user_id = $1
+     ORDER BY n.created_at DESC LIMIT 50`,
+    [req.userId],
+  );
+  res.json(rows);
+}));
+
+app.get('/me/matches', requireAuth, wrap(async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 10), 1), 50);
+  const offset = Math.max(Number(req.query.offset ?? 0), 0);
+  res.json(await loadPlayerMatches(req.userId, { limit, offset }));
+}));
+
+app.get('/me/coach', requireAuth, wrap(async (req, res) => {
   const days = Number(req.query.days ?? 14);
-  const { rows } = await query('SELECT display_name FROM users WHERE id = $1', [req.params.id]);
-  if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' });
+  const me = await getSessionUser(req.userId);
 
-  const deaths = await loadDeaths(req.params.id, { sinceDays: days });
+  const deaths = await loadDeaths(req.userId, { sinceDays: days });
   if (deaths.length === 0) {
     return res.json({
       periodLabel: `les ${days} derniers jours`,
@@ -313,92 +441,49 @@ app.get('/users/:id/coach', wrap(async (req, res) => {
     });
   }
 
-  // La mise en mots par l'IA n'est faite QUE sur demande explicite (?generate=1).
-  // Sans ce garde-fou, chaque affichage du dashboard declencherait un appel
-  // facture, pour un texte qui ne change quasiment pas d'une heure a l'autre.
-  // Les faits calcules, eux, sont toujours renvoyes : ils ne coutent rien.
-  const generate = req.query.generate === '1';
-
+  // L'IA n'est appelee que sur demande explicite : sans ce garde-fou, chaque
+  // affichage du dashboard declencherait un appel facture pour un texte qui ne
+  // change quasiment pas d'une heure a l'autre.
   res.json(
     await buildCoachReport({
-      playerName: rows[0].display_name,
+      playerName: me?.displayName ?? 'toi',
       deaths,
       periodLabel: `les ${days} derniers jours`,
-      generate,
+      generate: req.query.generate === '1',
     }),
   );
 }));
 
-/** Historique des parties d'un joueur, pagine (dashboard). */
-app.get('/users/:id/matches', wrap(async (req, res) => {
-  const limit = Math.min(Math.max(Number(req.query.limit ?? 10), 1), 50);
-  const offset = Math.max(Number(req.query.offset ?? 0), 0);
-  res.json(await loadPlayerMatches(req.params.id, { limit, offset }));
-}));
-
-/** Fiche minimale d'un joueur : nom, groupe, palier actuel. */
-app.get('/users/:id/profile', wrap(async (req, res) => {
-  const { rows } = await query(
-    `SELECT u.id, u.display_name, a.riot_name, a.riot_tag,
-            g.name AS group_name, g.id AS group_id,
-            (SELECT tier FROM match_rr WHERE user_id = u.id ORDER BY played_at DESC LIMIT 1) AS tier
-     FROM users u
-     LEFT JOIN linked_riot_accounts a ON a.user_id = u.id
-     LEFT JOIN memberships m ON m.user_id = u.id
-     LEFT JOIN groups g ON g.id = m.group_id
-     WHERE u.id = $1
-     LIMIT 1`,
-    [req.params.id],
-  );
-  if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' });
-
-  const r = rows[0];
-  res.json({
-    id: r.id,
-    displayName: r.display_name,
-    riotId: r.riot_name ? `${r.riot_name}#${r.riot_tag}` : null,
-    groupId: r.group_id,
-    groupName: r.group_name,
-    tier: r.tier,
-  });
-}));
-
-/**
- * Points de heatmap pour une map donnee.
- *
- * Les coordonnees sont deja en fraction [0, 1] de l'image de minimap : le front
- * n'a qu'a les multiplier par la taille d'affichage, aucune calibration cote
- * client.
- */
-app.get('/users/:id/heatmap', wrap(async (req, res) => {
+app.get('/me/heatmap', requireAuth, wrap(async (req, res) => {
   const mapName = req.query.map;
   if (!mapName) return res.status(400).json({ error: 'parametre map requis' });
 
-  const deaths = await loadDeaths(req.params.id, {
+  const deaths = await loadDeaths(req.userId, {
     sinceDays: Number(req.query.days ?? 30),
     mapName,
   });
-
   const calibration = await getCalibration(mapName);
 
   res.json({
     map: mapName,
     minimapUrl: calibration?.minimapUrl ?? null,
-    points: deaths
-      .filter((d) => d.minimap)
-      .map((d) => ({
-        x: d.minimap.x,
-        y: d.minimap.y,
-        isolated: d.isolated,
-        lastAlive: d.lastAlive,
-        nearestTeammate: d.nearestTeammate,
-        duelDistance: d.duelDistance,
-        round: d.round,
-        matchId: d.matchId,
-        playedAt: d.playedAt,
-      })),
+    points: deaths.filter((d) => d.minimap).map((d) => ({
+      x: d.minimap.x,
+      y: d.minimap.y,
+      isolated: d.isolated,
+      lastAlive: d.lastAlive,
+      nearestTeammate: d.nearestTeammate,
+      duelDistance: d.duelDistance,
+      round: d.round,
+      matchId: d.matchId,
+      playedAt: d.playedAt,
+    })),
   });
 }));
 
 const port = process.env.PORT ?? 3000;
-app.listen(port, () => console.log(`[api] http://localhost:${port}`));
+app.listen(port, () => {
+  console.log(`[api] ${config.baseUrl} (port ${port})`);
+  if (!discord.isConfigured()) console.warn('[api] DISCORD_CLIENT_ID/SECRET absents : connexion impossible');
+  if (!config.session.secret) console.warn('[api] SESSION_SECRET absent : les sessions ne sont pas signees');
+});

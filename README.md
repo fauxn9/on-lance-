@@ -1,4 +1,4 @@
-# On lance ? — Briques 1 & 2
+# On lance ? — Briques 1 à 4 & 6
 
 Détection automatique des matchs Valorant joués ensemble par un groupe de potes,
 notification de fin de partie avec un ton qui dépend du classement, et
@@ -45,14 +45,29 @@ leaderboard hebdomadaire basé sur le RR gagné.
 | Job d'analyse + routes coach/heatmap | ✅ |
 | Dashboard coach + heatmap | ✅ `public/coach.html` |
 
+**Briques 4 & 6 — authentification et groupes**
+
+| Élément | État |
+|---|---|
+| Connexion Discord (OAuth2, scope `identify`) | ✅ |
+| Session par cookie signé HMAC, sans table de sessions | ✅ testé |
+| Anti-CSRF sur le retour OAuth (`state`) + anti-redirection ouverte | ✅ testé |
+| Reprise d'un compte Riot orphelin (adoption de l'historique) | ✅ |
+| Refus si le Riot ID appartient à un compte Discord existant | ✅ |
+| Création de groupe et invitation par lien privé | ✅ |
+| Toute donnée de groupe réservée aux membres | ✅ |
+| Pages : connexion, invitation, groupes, tableau de bord, classement | ✅ |
+
 **Reste à faire**
 
 | Élément | État |
 |---|---|
 | Landing page | ✅ `public/landing.html` |
-| Auth | ❌ à faire avant toute ouverture hors cercle de test |
-| RLS Supabase | ❌ à activer avant d'exposer l'API Data de Supabase |
-| Chat conversationnel « pourquoi je suis mort là » | ❌ repoussé (prévu par la spec) |
+| Brique 5 — page coach branchée sur les vraies données | ❌ `coach.html` montre encore un instantané figé |
+| Brique 7 — RLS Supabase | ❌ à activer avant d'exposer l'API Data de Supabase |
+| Brique 8 — chat « pourquoi je suis mort là » | ❌ repoussé (prévu par la spec) |
+| Brique 9 — app desktop Tauri + overlay (lockfile) | ❌ |
+| Propriété vérifiée d'un Riot ID (`verified`) | ❌ dépend de la brique 9 |
 
 ## Démarrage
 
@@ -63,35 +78,51 @@ npm run db:init           # applique db/schema.sql
 npm run api               # API sur :3000
 ```
 
-## Inviter les potes
+## Inviter les potes (Briques 4 & 6)
 
-Une fois l'app en ligne, chaque pote ouvre **`/join.html`** et remplit trois
-champs : son pseudo, son Riot ID, le code du groupe. La page enchaîne toute
-seule la création du profil, l'ajout au groupe, la liaison du compte Valorant
-et l'abonnement aux notifications.
+Plus de code de groupe à recopier, et plus de profil créé par n'importe qui :
 
-Le code peut être passé dans l'URL pour lui éviter de le recopier :
+1. tu ouvres **`/groupes.html`**, tu te connectes avec Discord, tu crées ton
+   groupe ;
+2. tu copies son **lien d'invitation** et tu l'envoies ;
+3. le pote ouvre le lien, voit le nom du groupe et qui l'invite, se connecte
+   avec Discord, renseigne son Riot ID, et c'est fini.
 
-```
-https://ton-app.onrender.com/join.html?code=ONLANCE
-```
+Un groupe ne se rejoint **que** par son lien : il n'y a pas d'annuaire, et
+`GET /groups/:id/...` refuse quiconque n'est pas membre.
 
-Le Riot ID est validé (`GET /accounts/resolve`) **avant** toute écriture en
-base : un pseudo mal tapé n'a donc jamais laissé de profil orphelin derrière lui.
+### Configurer Discord
 
-Le premier groupe se crée en revanche en ligne de commande, une seule fois :
+Sur <https://discord.com/developers/applications> → ton app → OAuth2 :
 
-```bash
-curl -X POST localhost:3000/users  -H 'content-type: application/json' \
-  -d '{"displayName":"Alex"}'
+- **Redirects** : ajouter `<BASE_URL>/auth/discord/callback` pour chaque
+  adresse utilisée — `https://onlance.xyz/auth/discord/callback` en production
+  **et** `http://localhost:3000/auth/discord/callback` pour le développement ;
+- copier le **Client ID** et le **Client Secret** dans `.env`.
 
-curl -X POST localhost:3000/groups -H 'content-type: application/json' \
-  -d '{"name":"Les potes","userId":1}'          # renvoie le join_code à partager
-```
+Seul le scope `identify` est demandé : pseudo et avatar, rien d'autre — ni
+serveurs, ni messages, ni liste d'amis.
 
-⚠️ **Aucune authentification** : le code de groupe est le seul garde-fou.
-Quiconque a l'URL peut créer un profil et rejoindre. Acceptable entre potes,
-à corriger avant toute ouverture plus large.
+### Riot ID déjà connu : l'adoption
+
+Le cas est fréquent ici, parce que les profils d'avant l'authentification
+existent encore avec tout leur historique. `claimRiotAccount()` distingue
+quatre situations :
+
+| Situation | Ce qui se passe |
+|---|---|
+| Personne n'a ce Riot ID | il est lié, normalement |
+| C'est déjà le tien | le pseudo est rafraîchi, rien d'autre |
+| Un profil **sans compte Discord** le détient | **adoption** : RR, parties, morts, notifs et appartenances sont transférés sur ton compte, puis l'orphelin est supprimé |
+| Un profil **avec compte Discord** le détient | refus (`409`) — sans cette barrière, taper le Riot ID d'un autre absorberait ses données |
+
+Le Riot ID est validé auprès de Riot (`GET /accounts/resolve`) **avant** toute
+écriture : un pseudo mal tapé ne laisse rien derrière lui.
+
+⚠️ Ce que l'authentification ne prouve **pas** : que le Riot ID saisi
+t'appartienne vraiment. Discord établit qui tu es, pas ce que tu possèdes. Le
+champ `verified` reste donc à `false` partout, en attendant que l'app desktop
+lise le lockfile du client Valorant (brique 9).
 
 ## Étape 0 — vérifier l'API avant tout le reste
 
@@ -112,13 +143,13 @@ structure brute affichée à l'étape 4 du script.
 
 ```bash
 npm run vapid    # une seule fois, coller le résultat dans .env
-npm run api      # puis ouvrir http://localhost:3000/subscribe.html
+npm run api      # puis se connecter et ouvrir /dashboard.html
 ```
 
-La page `subscribe.html` fait tout : enregistrement du service worker, demande
-d'autorisation, récupération de la clé publique, abonnement côté serveur, et un
-bouton de test. Chaque étape s'affiche, donc en cas d'échec on voit laquelle a
-lâché.
+Le bandeau « Activer les notifications » du tableau de bord fait tout :
+enregistrement du service worker, demande d'autorisation, récupération de la
+clé publique, abonnement côté serveur. Il apparaît aussi à la fin du parcours
+d'invitation, juste après la saisie du Riot ID.
 
 À faire **une fois par appareil**. Une fois l'abonnement enregistré, le serveur
 peut être éteint : le Web Push est délivré au navigateur par le service de push
@@ -248,7 +279,7 @@ par semaine et par joueur, là où tout stocker aurait explosé.
 npm test
 ```
 
-47 tests sur la logique métier, sans réseau ni base : classement par ACS,
+70 tests sur la logique métier, sans réseau ni base : classement par ACS,
 attribution des tons (dont le cas à 2 joueurs), anti-doublon, fenêtre de
 lookback, délai de stabilisation, variété des messages, et pour la Brique 2 —
 normalisation du RR, découpage des semaines sur le bon fuseau, agrégation,
@@ -256,7 +287,20 @@ départages, semaine vide et égalité parfaite. Pour la Brique 3 — conversion
 distances, convention d'angle vérifiée contre l'API, bouclage des angles autour
 de 0, inversion des axes de la minimap, seuil de reconstitution du regard,
 exclusion du dernier survivant, et refus de conclure sur un échantillon trop
-petit.
+petit. Pour les Briques 4 & 6 — aller-retour du cookie de session, rejet d'une
+charge modifiée, d'une signature forgée, d'un autre secret et d'un cookie
+expiré, lecture d'un cookie parmi d'autres sans confusion de nom, en-tête
+`HttpOnly`/`SameSite`, refus des redirections hors du site, et scope Discord
+limité à `identify`.
+
+Le parcours des pages (lien d'invitation → Discord → Riot ID → notifs →
+classement → déconnexion) se rejoue dans un vrai navigateur, avec un faux
+serveur, hors de `npm test` parce qu'il demande Playwright :
+
+```bash
+npm i -D playwright && npx playwright install chromium
+node test/manuel/parcours-brique4.mjs
+```
 
 ## Déploiement (tier gratuit)
 
@@ -271,6 +315,9 @@ reçoivent leurs notifs même quand aucune machine à nous ne tourne.
 2. Settings → Secrets and variables → Actions, créer : `DATABASE_URL`,
    `HENRIK_API_KEY`, `ANTHROPIC_API_KEY`, `VAPID_PUBLIC_KEY`,
    `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+
+   Les crons n'ont pas besoin des variables Discord : personne ne se connecte
+   pendant un cron. Elles ne servent qu'au web service.
 3. Les 4 crons tournent tout seuls. L'onglet Actions permet aussi de les lancer
    à la main (« Run workflow ») pour tester.
 
@@ -306,8 +353,22 @@ plusieurs fois.
   `0 2 * * 1` (lundi 04h00 Paris en heure d'été — le planning Render est en UTC).
 - **Analyse positionnelle** : Render → Cron Job, `npm run pos:analyze`, planning
   `*/30 * * * *`. Alimente un dashboard, rien qui doive être à la minute.
-- **API** : Render Web Service (la mise en veille n'est pas gênante ici, l'API
-  n'est appelée que ponctuellement)
+- **API** : Render Web Service. Depuis la brique 4, c'est lui qui porte la
+  connexion et les pages : il doit rester joignable. Variables à ajouter en
+  plus des précédentes :
+
+  | Variable | Valeur |
+  |---|---|
+  | `DISCORD_CLIENT_ID` | l'ID de l'application Discord |
+  | `DISCORD_CLIENT_SECRET` | son secret client |
+  | `SESSION_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+  | `BASE_URL` | `https://onlance.xyz` |
+  | `NODE_ENV` | `production` (active le drapeau `Secure` du cookie) |
+
+  `BASE_URL` doit correspondre **exactement** à une Redirect déclarée côté
+  Discord, sinon le retour de connexion échoue. Et sans `SESSION_SECRET`, un
+  secret aléatoire est tiré au démarrage : ça marche, mais chaque redéploiement
+  (ou chaque réveil après mise en veille) déconnecte tout le monde.
 
 ## Points à vérifier / trancher
 
@@ -322,8 +383,18 @@ plusieurs fois.
 3. **Calibrage des messages** — les briefs de ton sont dans `TONE_BRIEFS`
    (`src/services/messages.js`). C'est le fichier à itérer après avoir vu les
    premiers messages en dry-run.
-4. **Auth** — l'API n'en a aucune. Suffisant tant que ça tourne en local ou
-   entre potes de confiance, à ajouter avant toute ouverture.
+4. **Propriété d'un Riot ID** — Discord établit qui tu es, pas ce que tu
+   possèdes. Rien n'empêche donc de saisir le Riot ID de quelqu'un qui ne s'est
+   jamais inscrit : c'est exactement le mécanisme d'adoption, et c'est
+   volontaire. Ce qui est verrouillé, c'est de reprendre un Riot ID déjà
+   rattaché à un compte Discord. La vraie preuve viendra du lockfile (brique 9),
+   via le champ `verified` — aujourd'hui à `false` partout.
+5. **Révocation d'une session** — les sessions ne sont pas stockées, donc on ne
+   peut pas en révoquer une en particulier avant ses 30 jours. Changer
+   `SESSION_SECRET` les invalide toutes d'un coup. Assumé à cette échelle.
+6. **RLS Supabase (brique 7)** — l'API applique bien ses barrières, mais la clé
+   Postgres reste toute-puissante. À activer avant d'exposer quoi que ce soit
+   d'autre que ce serveur.
 
 ## Structure
 
@@ -347,13 +418,24 @@ src/jobs/analyze-positions.js  cron d'analyse positionnelle (Brique 3)
 scripts/verify-henrik.js   diagnostic de l'API — à lancer en premier
 scripts/gen-vapid.js       génération des clés Web Push
 public/sw.js               service worker (réception des notifs)
+src/services/session.js    cookie de session signé (HMAC) — pur, testable
+src/services/discord.js    OAuth2 Discord (scope identify)
+src/services/urls.js       garde-fou anti-redirection ouverte — pur, testable
+public/ui.css              socle visuel commun à toutes les pages
+public/app.js              socle JS commun (session, en-tête, notifs, échappement)
 public/landing.html        landing page
-public/join.html           inscription des potes (Riot ID + groupe + notifs)
+public/login.html          connexion Discord
+public/rejoindre.html      parcours d'invitation (Discord → Riot ID → notifs)
+public/groupes.html        création de groupe + lien d'invitation
 public/dashboard.html      tableau de bord joueur (historique + coach)
 public/leaderboard.html    classement du groupe en direct + tableau d'honneur
-public/coach.html          dashboard coach + heatmap
-src/api/server.js          API de gestion + leaderboard + coach
+public/coach.html          démonstration du coach (instantané figé, brique 5)
+public/join.html           ancienne inscription — ne sert plus qu'à rediriger
+src/api/server.js          API : auth, groupes, leaderboard, coach
 test/logic.test.js         tests Brique 1
 test/leaderboard.test.js   tests Brique 2
 test/positional.test.js    tests Brique 3
+test/session.test.js       tests Brique 4 — sessions
+test/auth.test.js          tests Brique 4 — OAuth et redirections
+test/manuel/parcours-brique4.mjs  parcours navigateur (Playwright, hors npm test)
 ```

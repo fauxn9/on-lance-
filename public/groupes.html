@@ -1,0 +1,172 @@
+<title>Mes groupes — On lance ?</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Crée ton groupe et invite tes amis sur On lance ?">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+
+<style>
+  h1 { font-size: 26px; font-weight: 800; }
+  .page-lede { color: var(--muted); margin-top: 10px; font-size: 14.5px; max-width: 46ch; }
+  section.block { margin-top: 26px; }
+  h2 { font-size: 16px; font-weight: 800; margin-bottom: 14px; }
+
+  .grp { border: 1px solid var(--line); border-radius: 14px; background: var(--lift); padding: 18px; }
+  .grp + .grp { margin-top: 12px; }
+  .grp-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .grp-name { font-family: var(--display); font-weight: 800; font-size: 17px; }
+  .grp-links { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 13.5px; }
+
+  /* Le lien d'invitation : la seule chose a faire sur cette page, donc la plus
+     visible du bloc. */
+  .invite {
+    margin-top: 15px; display: flex; gap: 9px; align-items: stretch; flex-wrap: wrap;
+  }
+  .invite code {
+    flex: 1 1 210px; min-width: 0; padding: 10px 13px; border-radius: 10px;
+    background: #14141d; border: 1px solid var(--line); color: var(--muted);
+    font-family: var(--mono); font-size: 12px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .invite button { padding: 10px 16px; font-size: 13px; flex: none; }
+  .rolechip { color: var(--gold); border-color: rgba(230,181,58,.35); }
+</style>
+
+<div class="shell">
+  <header class="head" id="head"></header>
+
+  <h1>Mes groupes</h1>
+  <p class="page-lede">
+    Un groupe, c'est un classement hebdomadaire et des parties détectées en
+    commun. On n'y entre que par son lien d'invitation.
+  </p>
+
+  <section class="block">
+    <h2>Créer un groupe</h2>
+    <div class="card">
+      <div class="field" style="margin-top:0">
+        <label for="nom">Nom du groupe</label>
+        <input type="text" id="nom" maxlength="40" placeholder="Les cinq du soir"
+               autocomplete="off" enterkeyhint="done">
+        <p class="hint">40 caractères max. Tu en deviens le propriétaire.</p>
+      </div>
+      <div style="margin-top:20px">
+        <button class="primary full" id="creer">Créer le groupe</button>
+      </div>
+      <div class="note" id="creerNote" hidden></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2 id="listeTitre">Groupes dont je fais partie</h2>
+    <div id="liste">
+      <div class="empty">Chargement…</div>
+    </div>
+  </section>
+
+  <footer>
+    Pour rejoindre le groupe de quelqu'un d'autre, il faut son lien
+    d'invitation — il n'y a pas d'annuaire.
+  </footer>
+</div>
+
+<script type="module">
+  import { api, requireUser, renderHeader, $ } from '/app.js';
+
+  const say = (id, msg, kind = 'err') => {
+    const n = $(id);
+    n.textContent = msg;
+    n.dataset.kind = kind;
+    n.hidden = false;
+  };
+
+  const inviteUrl = (token) => `${location.origin}/rejoindre.html?i=${token}`;
+
+  const user = await requireUser();
+  if (user) {
+    renderHeader($('head'), user, { active: '/groupes.html' });
+    await charger();
+  }
+
+  async function charger() {
+    const { groups } = await api('/me/groups');
+    const box = $('liste');
+    box.innerHTML = '';
+
+    if (groups.length === 0) {
+      box.innerHTML = `<div class="empty">
+        Tu n'es dans aucun groupe pour l'instant. Crée le tien au-dessus, ou ouvre
+        le lien d'invitation d'un ami.
+      </div>`;
+      return;
+    }
+
+    for (const g of groups) {
+      const el = document.createElement('div');
+      el.className = 'grp';
+      el.innerHTML = `
+        <div class="grp-top">
+          <span class="grp-name"></span>
+          <span class="chip">${g.members} membre${g.members > 1 ? 's' : ''}</span>
+          ${g.role === 'owner' ? '<span class="chip rolechip">Propriétaire</span>' : ''}
+        </div>
+        <div class="invite">
+          <code></code>
+          <button data-copy>Copier le lien</button>
+        </div>
+        <div class="grp-links">
+          <a href="/leaderboard.html?groupe=${g.id}">Classement de la semaine</a>
+          <a href="/dashboard.html">Mon tableau de bord</a>
+        </div>`;
+
+      el.querySelector('.grp-name').textContent = g.name;
+
+      const url = inviteUrl(g.inviteToken);
+      el.querySelector('code').textContent = url;
+
+      const btn = el.querySelector('[data-copy]');
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          btn.textContent = 'Copié';
+        } catch {
+          // Presse-papiers refuse (contexte non securise, permission) : on
+          // selectionne le texte pour qu'il reste copiable a la main.
+          const c = el.querySelector('code');
+          c.style.whiteSpace = 'normal';
+          getSelection().selectAllChildren(c);
+          btn.textContent = 'Copie-le à la main';
+        }
+        setTimeout(() => { btn.textContent = 'Copier le lien'; }, 2500);
+      });
+
+      box.append(el);
+    }
+  }
+
+  $('nom').addEventListener('keydown', (e) => { if (e.key === 'Enter') creer(); });
+  $('creer').addEventListener('click', creer);
+
+  async function creer() {
+    const name = $('nom').value.trim();
+    if (!name) return say('creerNote', 'Donne un nom au groupe.');
+
+    $('creer').disabled = true;
+    $('creer').textContent = 'Création…';
+    $('creerNote').hidden = true;
+
+    try {
+      const g = await api('/groups', { method: 'POST', body: JSON.stringify({ name }) });
+      $('nom').value = '';
+      say('creerNote', `« ${g.name} » est créé. Partage son lien d'invitation ci-dessous pour que tes amis le rejoignent.`, 'ok');
+      await charger();
+    } catch (err) {
+      say('creerNote', err.message);
+    } finally {
+      $('creer').disabled = false;
+      $('creer').textContent = 'Créer le groupe';
+    }
+  }
+</script>

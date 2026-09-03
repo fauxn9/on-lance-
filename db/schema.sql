@@ -4,23 +4,37 @@
 -- Les tables des Briques 2 et 3 (leaderboard hebdo, insights positionnels) sont
 -- volontairement absentes : elles arrivent quand la Brique 1 tourne pour de vrai.
 
+-- L'identite vient de Discord (Brique 4). discord_id est nullable : les profils
+-- crees avant l'authentification n'en ont pas, et ce sont eux qui seront adoptes
+-- quand leur proprietaire reclamera son Riot ID.
 CREATE TABLE IF NOT EXISTS users (
-  id            BIGSERIAL PRIMARY KEY,
-  display_name  TEXT        NOT NULL,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id               BIGSERIAL PRIMARY KEY,
+  display_name     TEXT        NOT NULL,
+  discord_id       TEXT UNIQUE,
+  discord_username TEXT,
+  avatar_url       TEXT,
+  last_seen_at     TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS groups (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT        NOT NULL,
-  -- code court partage aux potes pour rejoindre le groupe
-  join_code   TEXT        NOT NULL UNIQUE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  id            BIGSERIAL PRIMARY KEY,
+  name          TEXT        NOT NULL,
+  -- code court, lisible, affiche dans l'interface
+  join_code     TEXT        NOT NULL UNIQUE,
+  -- jeton long et imprevisible : c'est LUI qui protege le groupe. Sans le lien
+  -- d'invitation, on ne peut pas rejoindre le groupe de quelqu'un d'autre.
+  invite_token  TEXT        NOT NULL,
+  owner_user_id BIGINT      REFERENCES users(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_invite_token ON groups(invite_token);
 
 CREATE TABLE IF NOT EXISTS memberships (
   group_id   BIGINT      NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   user_id    BIGINT      NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+  role       TEXT        NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
   joined_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (group_id, user_id)
 );
@@ -34,6 +48,12 @@ CREATE TABLE IF NOT EXISTS linked_riot_accounts (
   riot_name   TEXT        NOT NULL,
   riot_tag    TEXT        NOT NULL,
   region      TEXT        NOT NULL DEFAULT 'eu',
+  -- Preuve de possession. Reste false partout aujourd'hui : saisir un Riot ID
+  -- ne prouve pas qu'il est a vous. L'app desktop (Brique 9) lira le lockfile
+  -- du client Valorant, qui expose le compte reellement connecte sur la
+  -- machine, et pourra basculer ce champ a true.
+  verified    BOOLEAN     NOT NULL DEFAULT false,
+  verified_at TIMESTAMPTZ,
   linked_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

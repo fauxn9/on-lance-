@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { randomBytes } from 'node:crypto';
 
 function required(name) {
   const v = process.env[name];
@@ -33,6 +34,29 @@ export const config = {
     // Nombre minimum de membres du groupe dans la meme game pour declencher.
     minPlayersInMatch: Number(process.env.DETECTION_MIN_PLAYERS ?? 2),
   },
+
+  discord: {
+    clientId: process.env.DISCORD_CLIENT_ID ?? '',
+    clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
+  },
+
+  session: {
+    // Signe les cookies de session. Le changer deconnecte tout le monde, ce qui
+    // est aussi le seul moyen de revoquer les sessions en masse.
+    //
+    // Sans SESSION_SECRET, on tire un secret aleatoire au demarrage plutot que
+    // de signer avec une chaine vide : les sessions ne survivent alors pas a un
+    // redemarrage, ce qui est genant mais visible — la signature vide, elle,
+    // serait forgeable en silence.
+    secret: process.env.SESSION_SECRET || randomBytes(32).toString('hex'),
+    // Le cookie Secure ne part pas sur http://localhost : on ne l'active donc
+    // qu'en production, sinon impossible de se connecter en developpement.
+    secureCookies: process.env.NODE_ENV === 'production',
+  },
+
+  // Adresse publique du site, utilisee pour construire les URL de redirection
+  // OAuth et les liens d'invitation.
+  baseUrl: (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
 
   leaderboard: {
     // Fenetre d'import du RR. Volontairement plus large qu'une semaine : ca

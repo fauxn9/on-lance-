@@ -1,0 +1,284 @@
+<title>Rejoindre un groupe — On lance ?</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Rejoins le groupe de tes amis sur On lance ?">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
+
+<style>
+  body { padding-bottom: 40px; }
+  .invite-head { text-align: center; margin-bottom: 22px; }
+  .invite-head .mark-lg {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--accent), var(--warm));
+    margin: 0 auto 18px;
+  }
+  h1 { font-size: 24px; font-weight: 800; }
+  .group-name { color: var(--warm); }
+  .lede { color: var(--muted); margin-top: 10px; font-size: 14.5px; }
+
+  /* Fil des trois etapes : l'invite doit voir ou il en est. */
+  .rail { display: flex; gap: 8px; margin: 0 0 24px; }
+  .rail div { height: 3px; flex: 1; border-radius: 2px; background: var(--line); }
+  .rail div[data-on] { background: linear-gradient(96deg, var(--accent), var(--warm)); }
+
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+  h2 { font-size: 18px; font-weight: 800; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 9px; }
+  .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+  .done-mark {
+    width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(79,227,176,.12); border: 1px solid rgba(79,227,176,.35); margin-bottom: 16px;
+  }
+  .skel { height: 13px; border-radius: 6px; background: var(--surface); }
+  .skel + .skel { margin-top: 11px; }
+</style>
+
+<div class="shell--narrow" style="padding-top: 30px;">
+
+  <div class="invite-head">
+    <div class="mark-lg" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
+    </div>
+    <h1 id="titre">Invitation</h1>
+    <p class="lede" id="lede">On regarde de quel groupe il s'agit…</p>
+    <div class="meta" id="meta" hidden></div>
+  </div>
+
+  <div class="card">
+    <div class="rail" aria-hidden="true">
+      <div id="r1"></div><div id="r2"></div><div id="r3"></div>
+    </div>
+
+    <!-- Chargement -->
+    <section id="stLoad">
+      <div class="skel" style="width: 60%"></div>
+      <div class="skel" style="width: 90%"></div>
+      <div class="skel" style="width: 40%"></div>
+    </section>
+
+    <!-- Invitation morte -->
+    <section id="stKo" hidden>
+      <h2>Cette invitation ne mène nulle part</h2>
+      <p class="sub" id="koMsg">Le lien est incomplet ou le groupe n'existe plus. Demande à la personne qui t'a invité de te renvoyer son lien.</p>
+      <div class="actions"><a class="btn full" href="/">Voir ce qu'est On lance ?</a></div>
+    </section>
+
+    <!-- Etape 1 : identite -->
+    <section id="stAuth" hidden>
+      <h2>D'abord, qui es-tu&nbsp;?</h2>
+      <p class="sub">
+        Une connexion Discord, et c'est réglé : pas de mot de passe à créer.
+        On ne récupère que ton pseudo et ton avatar — aucun accès à tes serveurs
+        ni à tes messages.
+      </p>
+      <div class="actions">
+        <a class="btn discord full" id="goDiscord" href="#">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M20.3 4.4A19.8 19.8 0 0015.4 3l-.3.6a14.7 14.7 0 014.3 2.2 13.9 13.9 0 00-11-1.3l.2-.9A19.8 19.8 0 003.7 4.4C1 8.3.2 12.2.6 16a19.9 19.9 0 006 3l.5-1a12.9 12.9 0 01-1.9-.9l.4-.3a14.2 14.2 0 0012.8 0l.4.3a13 13 0 01-1.9.9l.5 1a19.8 19.8 0 006-3c.5-4.5-.6-8.4-3.1-11.6zM8.5 13.6c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm7 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/>
+          </svg>
+          Continuer avec Discord
+        </a>
+      </div>
+    </section>
+
+    <!-- Etape 2 : Riot ID -->
+    <section id="stRiot" hidden>
+      <h2>Ton compte Valorant</h2>
+      <p class="sub">
+        C'est lui qui alimente ton RR, ton historique et ton coach. Il te faut le
+        Riot ID complet, tag inclus.
+      </p>
+
+      <div class="field">
+        <label for="riot">Riot ID</label>
+        <input type="text" id="riot" placeholder="pseudo#TAG" autocapitalize="off"
+               autocomplete="off" spellcheck="false" enterkeyhint="done">
+        <p class="hint">Visible en jeu dans Paramètres → Compte, ou dans ton profil Riot.</p>
+      </div>
+
+      <div class="actions">
+        <button class="primary full" id="linkBtn">Valider mon compte</button>
+      </div>
+      <div class="note" id="riotNote" hidden></div>
+    </section>
+
+    <!-- Etape 3 : c'est bon -->
+    <section id="stOk" hidden>
+      <div class="done-mark" aria-hidden="true">
+        <svg width="19" height="19" viewBox="0 0 20 20" fill="none"><path d="M5 10.4l3.2 3.2L15 6.6" stroke="#4fe3b0" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2 id="okTitre">Tu es dans le groupe</h2>
+      <p class="sub" id="okSub"></p>
+
+      <div class="actions">
+        <button class="primary full" id="notifBtn" hidden>Activer les notifications</button>
+        <a class="btn full" id="goBoard" href="/leaderboard.html">Voir le classement</a>
+        <a class="btn full" href="/dashboard.html">Mon tableau de bord</a>
+      </div>
+      <div class="note" id="okNote" hidden></div>
+    </section>
+  </div>
+
+  <footer class="shell--narrow" style="text-align:center; border: 0;">
+    On lance ? — le suivi Valorant d'un groupe d'amis.
+  </footer>
+</div>
+
+<script type="module">
+  import { api, session, loginUrl, enablePush, pushState, $ } from '/app.js';
+
+  const token = new URLSearchParams(location.search).get('i');
+  const here = () => `/rejoindre.html?i=${encodeURIComponent(token)}`;
+
+  const etapes = ['stLoad', 'stKo', 'stAuth', 'stRiot', 'stOk'];
+  const show = (id, rail = 0) => {
+    for (const e of etapes) $(e).hidden = e !== id;
+    for (const [i, r] of ['r1', 'r2', 'r3'].entries()) {
+      if (i < rail) $(r).dataset.on = '1';
+      else delete $(r).dataset.on;
+    }
+  };
+  const say = (id, msg, kind = 'err') => {
+    const n = $(id);
+    n.textContent = msg;
+    n.dataset.kind = kind;
+    n.hidden = false;
+  };
+
+  if (!token) {
+    $('lede').textContent = 'Lien d’invitation incomplet.';
+    show('stKo');
+  } else {
+    demarrer().catch((err) => {
+      $('lede').textContent = 'Quelque chose s’est mal passé.';
+      $('koMsg').textContent = err.message;
+      show('stKo');
+    });
+  }
+
+  async function demarrer() {
+    // L'apercu est public : on affiche de quel groupe il s'agit AVANT de
+    // demander une connexion. Personne ne se connecte a l'aveugle.
+    let apercu;
+    try {
+      apercu = await api(`/invite/${encodeURIComponent(token)}`);
+    } catch (err) {
+      $('lede').textContent = err.status === 404
+        ? 'Cette invitation n’est plus valable.'
+        : err.message;
+      show('stKo');
+      return;
+    }
+
+    $('titre').innerHTML = `Rejoindre <span class="group-name"></span>`;
+    $('titre').querySelector('.group-name').textContent = apercu.name;
+    $('lede').textContent = `${apercu.owner} t’invite à suivre vos parties ensemble.`;
+    $('meta').hidden = false;
+    $('meta').innerHTML = '';
+    for (const t of [
+      `${apercu.members} membre${apercu.members > 1 ? 's' : ''}`,
+      'Classement hebdo',
+      'Coach positionnel',
+    ]) {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = t;
+      $('meta').append(c);
+    }
+
+    const { user } = await session();
+    if (!user) {
+      $('goDiscord').href = loginUrl(here());
+      show('stAuth', 1);
+      return;
+    }
+
+    // Connecte : l'adhesion se fait sans clic de plus, il a deja cliqué sur le
+    // lien puis accepte la connexion. joinGroup est idempotent.
+    const rejoint = await api(`/invite/${encodeURIComponent(token)}/accept`, { method: 'POST' });
+
+    if (user.riotId) {
+      await termine(rejoint, user.riotId, 0);
+      return;
+    }
+
+    show('stRiot', 2);
+    $('riot').focus();
+    $('riot').addEventListener('keydown', (e) => { if (e.key === 'Enter') lier(rejoint); });
+    $('linkBtn').addEventListener('click', () => lier(rejoint));
+  }
+
+  async function lier(rejoint) {
+    const brut = $('riot').value.trim().replace(/^#/, '');
+    const coupe = brut.lastIndexOf('#');
+    const riotName = coupe > 0 ? brut.slice(0, coupe).trim() : '';
+    const riotTag = coupe > 0 ? brut.slice(coupe + 1).trim() : '';
+
+    if (!riotName || !riotTag) {
+      say('riotNote', 'Il manque le tag : écris-le sous la forme pseudo#TAG.');
+      return;
+    }
+
+    $('linkBtn').disabled = true;
+    $('linkBtn').textContent = 'Vérification chez Riot…';
+    $('riotNote').hidden = true;
+
+    try {
+      const r = await api('/accounts/link', {
+        method: 'POST',
+        body: JSON.stringify({ riotName, riotTag }),
+      });
+      await termine(rejoint, r.riotId, r.recupere ?? 0);
+    } catch (err) {
+      say('riotNote', err.code === 'deja_pris'
+        ? `${err.message} Si c'est bien toi, connecte-toi avec le Discord utilisé la première fois.`
+        : err.message);
+      $('linkBtn').disabled = false;
+      $('linkBtn').textContent = 'Valider mon compte';
+    }
+  }
+
+  async function termine(rejoint, riotId, recupere) {
+    show('stOk', 3);
+    $('okTitre').textContent = rejoint.nouveau
+      ? `Bienvenue dans ${rejoint.name}`
+      : `Tu es déjà dans ${rejoint.name}`;
+
+    const bouts = [`Compte lié : ${riotId}.`];
+    // L'adoption est le cas de figure qui merite d'etre dit : ses parties
+    // d'avant l'authentification viennent d'etre rattachees a son compte.
+    if (recupere > 0) {
+      bouts.push(`On a retrouvé ${recupere} partie${recupere > 1 ? 's' : ''} déjà enregistrée${recupere > 1 ? 's' : ''} sous ce Riot ID : ton historique est conservé.`);
+    }
+    bouts.push('Tes parties classées seront détectées automatiquement dans l’heure.');
+    $('okSub').textContent = bouts.join(' ');
+    $('goBoard').href = `/leaderboard.html?groupe=${rejoint.groupId}`;
+
+    const etat = await pushState().catch(() => 'unsupported');
+    if (etat === 'off') {
+      $('notifBtn').hidden = false;
+      $('notifBtn').addEventListener('click', activer);
+    } else if (etat === 'on') {
+      say('okNote', 'Notifications déjà actives sur cet appareil.', 'ok');
+    } else if (etat === 'blocked') {
+      say('okNote', 'Les notifications sont bloquées pour ce site. Tu peux les réautoriser via l’icône à gauche de l’adresse.', 'info');
+    }
+  }
+
+  async function activer() {
+    $('notifBtn').disabled = true;
+    $('notifBtn').textContent = 'Autorisation…';
+    try {
+      await enablePush();
+      $('notifBtn').hidden = true;
+      say('okNote', 'C’est actif. Tu recevras le résumé de fin de partie et le bilan du lundi.', 'ok');
+    } catch (err) {
+      say('okNote', err.message);
+      $('notifBtn').disabled = false;
+      $('notifBtn').textContent = 'Activer les notifications';
+    }
+  }
+</script>

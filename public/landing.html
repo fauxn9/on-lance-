@@ -599,9 +599,9 @@
     </div>
     <div class="nav-links">
       <a href="#fonctionnement">Fonctionnement</a>
-      <a href="/leaderboard.html">Leaderboard</a>
       <a href="#coach">Coach</a>
-      <a class="nav-cta" href="/dashboard.html">Mon tableau de bord</a>
+      <a href="#etat">État du projet</a>
+      <a class="nav-cta" id="navCta" href="/login.html">Se connecter</a>
     </div>
   </nav>
 </div>
@@ -620,16 +620,16 @@
       </p>
 
       <div class="cta-row">
-        <a class="btn btn-primary" href="/join.html">
-          Lier mon Riot ID
+        <a class="btn btn-primary" href="/groupes.html">
+          Créer mon groupe
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M3 8h9m0 0l-3.5-3.5M12 8l-3.5 3.5" stroke="#16040a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </a>
-        <a class="btn btn-ghost" href="/leaderboard.html">Voir le leaderboard</a>
+        <a class="btn btn-ghost" href="/coach.html">Voir le coach à l'œuvre</a>
       </div>
 
-      <p class="hero-note">Gratuit pendant la phase de test · PC &amp; navigateur · aucune app à installer</p>
+      <p class="hero-note">Connexion Discord · invitation par lien · aucune app à installer</p>
     </div>
 
     <div>
@@ -974,9 +974,9 @@
         <div class="status-row">
           <div>
             <h3>Comptes et invitations</h3>
-            <p>Connexion propre, invitation des potes par lien, gestion de plusieurs groupes.</p>
+            <p>Connexion Discord, invitation par lien privé, gestion de plusieurs groupes. Un groupe ne se rejoint que sur invitation.</p>
           </div>
-          <span class="pill pill--pending">à venir</span>
+          <span class="pill pill--live">en ligne</span>
         </div>
       </div>
     </div>
@@ -985,10 +985,10 @@
   <div class="closer">
     <div class="shell">
       <h2>Alors, on lance ?</h2>
-      <p>Un code de groupe, un Riot ID par personne, et la prochaine game est déjà comptée.</p>
+      <p>Tu crées ton groupe, tu envoies le lien à tes amis, et la prochaine game est déjà comptée.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/join.html">
-          Rejoindre le groupe
+        <a class="btn btn-primary" href="/groupes.html">
+          Créer mon groupe
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M3 8h9m0 0l-3.5-3.5M12 8l-3.5 3.5" stroke="#16040a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -1004,3 +1004,16 @@
     non affilié à Riot Games
   </div>
 </footer>
+
+<script type="module">
+  // Le seul role de ce script : ne pas proposer de se connecter a quelqu'un qui
+  // l'est deja. La page reste entierement lisible sans lui.
+  try {
+    const { user } = await (await fetch('/auth/me')).json();
+    if (user) {
+      const cta = document.getElementById('navCta');
+      cta.href = '/dashboard.html';
+      cta.textContent = 'Mon tableau de bord';
+    }
+  } catch { /* rien a faire */ }
+</script>

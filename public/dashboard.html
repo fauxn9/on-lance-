@@ -1,4 +1,4 @@
-<title>Mon tableau de bord</title>
+<title>Mon tableau de bord — On lance ?</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Historique de tes parties, statistiques et analyse de ton positionnement.">
 <meta property="og:type" content="website">
@@ -18,59 +18,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
 
 <style>
-  :root {
-    --ground: #07070b; --lift: #0c0c12; --surface: #101018;
-    --line: #1e1e29; --line-soft: #17171f;
-    --accent: #ff4655; --warm: #ff8a5b; --gain: #4fe3b0; --loss: #e04a68;
-    --cool: #6f93ff; --neutral: #85818a;
-    --ink: #f8f6f1; --muted: #bcb7ae; --faint: #85818a;
-    --display: 'Manrope', system-ui, sans-serif;
-    --body: 'Inter', -apple-system, sans-serif;
-    --mono: 'JetBrains Mono', ui-monospace, monospace;
-  }
-  * { box-sizing: border-box; }
-  /* Un `display` declare dans la feuille de style l'emporte sur l'attribut
-     `hidden` du HTML : sans cette regle, tout element masque qui a aussi un
-     display explicite reste visible. */
-  [hidden] { display: none !important; }
-  body {
-    margin: 0; background: var(--ground); color: var(--ink);
-    font-family: var(--body); font-size: 15px; line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-  .shell { width: min(100% - 32px, 880px); margin-inline: auto; }
-  h1, h2 { font-family: var(--display); margin: 0; letter-spacing: -0.02em; }
-  p { margin: 0; }
-  a { color: var(--warm); }
-  :focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; border-radius: 6px; }
-
-  .eyebrow {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--faint);
-  }
-
-  /* --- En-tete ------------------------------------------------------------ */
-
-  header { padding: 34px 0 26px; }
-  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
-  .brand { display: flex; align-items: center; gap: 11px; font-family: var(--display); font-weight: 800; font-size: 15px; }
-  .brand .q { color: var(--accent); }
-  .mark {
-    width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center;
-    background: linear-gradient(140deg, var(--accent), var(--warm));
-  }
-  .nav-link { font-size: 13.5px; color: var(--muted); text-decoration: none; }
-  .nav-link:hover { color: var(--ink); }
-
-  h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 800; }
+  h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 800; margin-top: 6px; }
   .sub { margin-top: 9px; color: var(--muted); font-size: 14.5px; }
-  .chip {
-    display: inline-block; font-family: var(--mono); font-size: 11.5px;
-    border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
-    color: var(--muted); margin-left: 8px; vertical-align: 2px;
-  }
+  .sub .chip { margin-right: 7px; }
 
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 11px; margin-top: 24px; }
   @media (max-width: 700px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); } }
@@ -110,6 +63,7 @@
   section { padding: 34px 0; border-top: 1px solid var(--line-soft); }
   .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
   .section-head h2 { font-size: 20px; font-weight: 800; }
+  button.small { padding: 10px 16px; font-size: 13px; }
 
   /* --- Coach -------------------------------------------------------------- */
 
@@ -129,16 +83,6 @@
     margin-top: 18px; padding: 15px 17px; border-radius: 11px; font-size: 14.5px;
     border: 1px solid rgba(255,70,85,.28); background: rgba(255,70,85,.05); color: var(--ink);
   }
-
-  button {
-    padding: 11px 18px; border-radius: 10px; border: 1px solid var(--line);
-    background: transparent; color: var(--ink); font-family: var(--display);
-    font-weight: 700; font-size: 13.5px; cursor: pointer;
-    transition: border-color .15s ease, transform .15s ease, opacity .15s ease;
-  }
-  button:hover:not(:disabled) { border-color: #2f2f3d; transform: translateY(-1px); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  button.primary { background: linear-gradient(96deg, var(--accent), var(--warm)); color: #16040a; border-color: transparent; }
   .more { width: 100%; margin-top: 16px; }
 
   /* --- Historique --------------------------------------------------------- */
@@ -199,62 +143,60 @@
     border-radius: 5px; padding: 2px 6px; margin-left: 7px; vertical-align: 1px;
   }
 
-  .empty, .error {
-    padding: 22px; border: 1px dashed var(--line); border-radius: 13px;
-    color: var(--muted); font-size: 14px; text-align: center;
+  .error {
+    padding: 22px; border: 1px solid rgba(255,70,85,.3); border-radius: 13px;
+    color: var(--accent); font-size: 14px; text-align: center;
   }
-  .error { border-style: solid; border-color: rgba(255,70,85,.3); color: var(--accent); }
-
-  .who { display: flex; gap: 9px; align-items: center; margin-top: 14px; }
-  .who input {
-    width: 90px; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line);
-    background: #14141d; color: var(--ink); font-family: var(--mono); font-size: 14px;
-  }
-
-  footer { padding: 26px 0 40px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--faint); }
 </style>
 
 <div class="shell">
-  <header>
-    <div class="top">
-      <div class="brand">
-        <span class="mark" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
-        </span>
-        <span>On lance <span class="q">?</span></span>
+  <header class="head" id="head"></header>
+
+  <span class="eyebrow">Tableau de bord</span>
+  <h1 id="title">Chargement…</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <!-- Un abonnement push appartient a UN navigateur sur UN appareil : celui
+       qui s'est abonne sur son PC doit refaire la manip sur son telephone.
+       D'ou ce bloc ici, sur la page qu'on ouvre depuis n'importe quel appareil. -->
+  <div class="notif-card" id="notifCard" hidden>
+    <div class="notif-text">
+      <strong id="notifTitle">Notifications</strong>
+      <span id="notifSub"></span>
+    </div>
+    <button id="notifBtn" class="primary">Activer</button>
+  </div>
+
+  <!-- Sans Riot ID il n'y a ni partie, ni RR, ni coach : le formulaire est donc
+       ici et pas seulement dans le parcours d'invitation, sinon quelqu'un qui
+       cree son propre groupe n'aurait aucun endroit pour le renseigner. -->
+  <section id="riotBox" hidden style="border-top:0">
+    <div class="card">
+      <h2 style="font-size:17px;font-weight:800">Rattache ton compte Valorant</h2>
+      <p style="color:var(--muted);font-size:14px;margin-top:9px">
+        Tant qu'il manque, il n'y a ni parties, ni RR, ni coach à afficher.
+        Il te faut le Riot ID complet, tag inclus.
+      </p>
+      <div class="field">
+        <label for="riot">Riot ID</label>
+        <input type="text" id="riot" placeholder="pseudo#TAG" autocapitalize="off"
+               autocomplete="off" spellcheck="false" enterkeyhint="done">
+        <p class="hint">Visible en jeu dans Paramètres → Compte.</p>
       </div>
-      <a class="nav-link" href="/">Accueil</a>
-    </div>
-
-    <span class="eyebrow" id="eyebrow">Tableau de bord</span>
-    <h1 id="title">Chargement…</h1>
-    <p class="sub" id="sub"></p>
-
-    <div class="who" id="who" hidden>
-      <label for="uid" style="font-size:13px;color:var(--muted)">Ton identifiant :</label>
-      <input id="uid" type="number" min="1" value="1">
-      <button id="uidGo">Voir</button>
-    </div>
-
-    <div class="tiles" id="tiles"></div>
-
-    <!-- Un abonnement push appartient a UN navigateur sur UN appareil : celui
-         qui s'est abonne sur son PC doit refaire la manip sur son telephone.
-         D'ou ce bloc ici, sur la page qu'on ouvre depuis n'importe quel appareil. -->
-    <div class="notif-card" id="notifCard" hidden>
-      <div class="notif-text">
-        <strong id="notifTitle">Notifications</strong>
-        <span id="notifSub"></span>
+      <div style="margin-top:20px">
+        <button class="primary full" id="linkBtn">Valider mon compte</button>
       </div>
-      <button id="notifBtn" class="primary">Activer</button>
+      <div class="note" id="riotNote" hidden></div>
     </div>
-  </header>
+  </section>
 
-  <main>
+  <main id="main" hidden>
     <section>
       <div class="section-head">
         <h2>Coach positionnel</h2>
-        <button id="genBtn" hidden>Générer l'analyse</button>
+        <button class="small" id="genBtn" hidden>Générer l'analyse</button>
       </div>
       <div id="coach"></div>
     </section>
@@ -269,50 +211,22 @@
     </section>
   </main>
 
-  <footer class="shell">
-    Les parties se remplissent automatiquement toutes les heures. Le classement du
-    groupe est sur <a href="/coach.html">la page coach</a>.
+  <footer>
+    Les parties se remplissent automatiquement toutes les heures.
+    Le classement de la semaine est sur <a href="/leaderboard.html">la page classement</a>.
   </footer>
 </div>
 
-<script>
-  const $ = (id) => document.getElementById(id);
+<script type="module">
+  import { api, requireUser, renderHeader, pushState, enablePush, signed, fr, esc, $ } from '/app.js';
+
   const PAGE = 10;
-
-  // Pas d'authentification pour l'instant : l'identifiant vient de l'URL, sinon
-  // du dernier utilisé sur cet appareil. C'est volontairement simple, et
-  // documenté comme la première chose à corriger avant d'ouvrir plus largement.
-  const params = new URLSearchParams(location.search);
-  let userId = params.get('user') ?? localStorage.getItem('onlance_user') ?? null;
-
   let offset = 0;
-
-  const fr = (n, d = 1) => (n === null || n === undefined ? '—' : Number(n).toFixed(d).replace('.', ','));
-  const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+  let allMatches = [];
 
   const dateFmt = new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   });
-
-  async function get(url) {
-    const res = await fetch(url);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error ?? `Erreur ${res.status}`);
-    return data;
-  }
-
-  // --- Profil ----------------------------------------------------------------
-
-  async function loadProfile() {
-    const p = await get(`/users/${userId}/profile`);
-    $('title').textContent = p.displayName;
-    $('sub').innerHTML =
-      (p.riotId ? `<span class="chip">${p.riotId}</span>` : '')
-      + (p.tier ? `<span class="chip">${p.tier}</span>` : '')
-      + (p.groupName ? `<span class="chip">${p.groupName}</span>` : '');
-    localStorage.setItem('onlance_user', userId);
-    return p;
-  }
 
   // --- Tuiles : calculees sur les parties chargees ---------------------------
 
@@ -358,9 +272,9 @@
       <article class="game ${state}">
         <span class="stripe"></span>
         <div class="map-cell">
-          <span class="map-name">${m.map ?? 'Map inconnue'}${m.withGroup ? '<span class="group-tag">GROUPE</span>' : ''}</span>
+          <span class="map-name">${esc(m.map ?? 'Map inconnue')}${m.withGroup ? '<span class="group-tag">GROUPE</span>' : ''}</span>
           <span class="map-meta">
-            <span class="agent">${m.agent ?? '—'}</span> · ${dateFmt.format(new Date(m.playedAt))}
+            <span class="agent">${esc(m.agent ?? '—')}</span> · ${dateFmt.format(new Date(m.playedAt))}
           </span>
         </div>
         <div class="kda-cell"><span class="label">K/D/A</span>${m.kills}/${m.deaths}/${m.assists}</div>
@@ -369,12 +283,10 @@
       </article>`;
   }
 
-  let allMatches = [];
-
   async function loadMatches(reset = false) {
     if (reset) { offset = 0; allMatches = []; $('games').innerHTML = ''; }
 
-    const data = await get(`/users/${userId}/matches?limit=${PAGE}&offset=${offset}`);
+    const data = await api(`/me/matches?limit=${PAGE}&offset=${offset}`);
 
     if (data.matches.length === 0 && offset === 0) {
       $('games').innerHTML = `<div class="empty">
@@ -400,7 +312,7 @@
     try {
       await loadMatches();
     } catch (err) {
-      $('games').insertAdjacentHTML('beforeend', `<div class="error">${err.message}</div>`);
+      $('games').insertAdjacentHTML('beforeend', `<div class="error">${esc(err.message)}</div>`);
     } finally {
       $('moreBtn').disabled = false;
       $('moreBtn').textContent = 'Voir plus de parties';
@@ -411,22 +323,24 @@
 
   function renderCoach(report) {
     if (!report.patterns || report.patterns.length === 0) {
-      $('coach').innerHTML = `<div class="empty">${
-        report.message ?? "Pas encore assez de parties analysées pour dégager un pattern fiable."
-      }</div>`;
+      $('coach').innerHTML = `<div class="empty">${esc(
+        report.message ?? "Pas encore assez de parties analysées pour dégager un pattern fiable.",
+      )}</div>`;
       return;
     }
 
+    // Les constats viennent du code, le texte du coach de l'IA : ni l'un ni
+    // l'autre n'est du HTML, donc rien n'est interprete comme tel.
     $('coach').innerHTML = `
       <div class="coach">
         <ul class="facts">
           ${report.patterns.map((p) => `
             <li>
-              <span class="sev sev--${p.severity}">${p.severity.toUpperCase()}</span>
-              <p>${p.fact}</p>
+              <span class="sev sev--${esc(p.severity)}">${esc(p.severity).toUpperCase()}</span>
+              <p>${esc(p.fact)}</p>
             </li>`).join('')}
         </ul>
-        ${report.text ? `<p class="coach-text">${report.text}</p>` : ''}
+        ${report.text ? `<p class="coach-text">${esc(report.text)}</p>` : ''}
       </div>`;
     $('genBtn').hidden = Boolean(report.text);
   }
@@ -435,10 +349,10 @@
     $('genBtn').disabled = true;
     $('genBtn').textContent = 'Génération…';
     try {
-      // ?generate=1 : seul cas où l'IA est appelée, donc facturée.
-      renderCoach(await get(`/users/${userId}/coach?generate=1`));
+      // ?generate=1 : seul cas ou l'IA est appelee, donc facturee.
+      renderCoach(await api('/me/coach?generate=1'));
     } catch (err) {
-      $('coach').insertAdjacentHTML('beforeend', `<div class="error">${err.message}</div>`);
+      $('coach').insertAdjacentHTML('beforeend', `<div class="error">${esc(err.message)}</div>`);
     } finally {
       $('genBtn').disabled = false;
       $('genBtn').textContent = "Générer l'analyse";
@@ -446,12 +360,6 @@
   });
 
   // --- Notifications sur cet appareil ---------------------------------------
-
-  function toUint8(base64url) {
-    const pad = '='.repeat((4 - (base64url.length % 4)) % 4);
-    const raw = atob((base64url + pad).replace(/-/g, '+').replace(/_/g, '/'));
-    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-  }
 
   function notifState(state, title, sub, btn) {
     const card = $('notifCard');
@@ -464,98 +372,119 @@
   }
 
   async function checkNotifications() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      return notifState('off', 'Notifications indisponibles',
+    const etat = await pushState();
+    if (etat === 'unsupported') {
+      notifState('off', 'Notifications indisponibles',
         'Ce navigateur ne gère pas les notifications push.', null);
-    }
-
-    if (Notification.permission === 'denied') {
-      return notifState('error', 'Notifications bloquées',
+    } else if (etat === 'blocked') {
+      notifState('error', 'Notifications bloquées',
         "Réautorise le site via l'icône à gauche de l'adresse.", null);
-    }
-
-    // Un abonnement existant est propre a ce navigateur : sa presence suffit a
-    // savoir si cet appareil est deja couvert, sans rien demander au serveur.
-    const reg = await navigator.serviceWorker.getRegistration();
-    const existing = reg ? await reg.pushManager.getSubscription() : null;
-
-    if (existing && Notification.permission === 'granted') {
-      return notifState('on', 'Notifications activées sur cet appareil',
+    } else if (etat === 'on') {
+      notifState('on', 'Notifications activées sur cet appareil',
         'Tu recevras le classement à la fin de chaque partie du groupe.', null);
+    } else {
+      notifState('off', 'Activer les notifications ici',
+        'À faire une fois par appareil — ton téléphone et ton PC sont séparés.', 'Activer');
     }
-
-    notifState('off', 'Activer les notifications ici',
-      'À faire une fois par appareil — ton téléphone et ton PC sont séparés.', 'Activer');
   }
 
   $('notifBtn').addEventListener('click', async () => {
     $('notifBtn').disabled = true;
     $('notifBtn').textContent = 'Activation…';
-
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
-
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') throw new Error('Autorisation refusée.');
-
-      const { publicKey } = await get('/push/public-key');
-      if (!publicKey) throw new Error('Clé de notification absente côté serveur.');
-
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: toUint8(publicKey),
-      });
-
-      const res = await fetch('/push/subscribe', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ userId: Number(userId), subscription: sub.toJSON() }),
-      });
-      if (!res.ok) throw new Error(`Enregistrement refusé (${res.status}).`);
-
+      await enablePush();
       notifState('on', 'Notifications activées sur cet appareil',
         'Tu recevras le classement à la fin de chaque partie du groupe.', null);
     } catch (err) {
-      // Brave desactive par defaut le service de push de Google et renvoie une
-      // erreur incomprehensible : on la traduit plutot que de la relayer.
-      const brave = /push service error/i.test(err.message);
-      notifState('error', 'Activation impossible',
-        brave
-          ? 'Sur Brave : Réglages → Confidentialité → active « Utiliser les services Google pour la messagerie push », puis redémarre le navigateur.'
-          : err.message,
-        'Réessayer');
+      notifState('error', 'Activation impossible', err.message, 'Réessayer');
       $('notifBtn').disabled = false;
     }
   });
 
-  // --- Demarrage -------------------------------------------------------------
+  // --- Rattachement du compte Valorant --------------------------------------
 
-  $('uidGo').addEventListener('click', () => {
-    location.search = `?user=${$('uid').value}`;
-  });
+  const dis = (msg, kind = 'err') => {
+    const n = $('riotNote');
+    n.textContent = msg;
+    n.dataset.kind = kind;
+    n.hidden = false;
+  };
 
-  async function start() {
-    if (!userId) {
-      $('title').textContent = 'Quel joueur ?';
-      $('sub').textContent = "Entre l'identifiant reçu à ton inscription.";
-      $('who').hidden = false;
-      return;
+  async function lier() {
+    const brut = $('riot').value.trim().replace(/^#/, '');
+    const coupe = brut.lastIndexOf('#');
+    const riotName = coupe > 0 ? brut.slice(0, coupe).trim() : '';
+    const riotTag = coupe > 0 ? brut.slice(coupe + 1).trim() : '';
+
+    if (!riotName || !riotTag) {
+      return dis('Il manque le tag : écris-le sous la forme pseudo#TAG.');
     }
 
+    $('linkBtn').disabled = true;
+    $('linkBtn').textContent = 'Vérification chez Riot…';
+    $('riotNote').hidden = true;
+
     try {
-      await loadProfile();
-      checkNotifications().catch(() => {}); // jamais bloquant pour la page
-      await loadMatches(true);
-      const coach = await get(`/users/${userId}/coach`);
-      renderCoach(coach);
-      $('genBtn').hidden = !coach.patterns || coach.patterns.length === 0;
+      const r = await api('/accounts/link', {
+        method: 'POST',
+        body: JSON.stringify({ riotName, riotTag }),
+      });
+      // L'adoption merite d'etre annoncee : tout un historique vient d'etre
+      // rattache, et la page va le montrer d'un coup.
+      dis(r.recupere > 0
+        ? `${r.riotId} rattaché, avec ${r.recupere} partie${r.recupere > 1 ? 's' : ''} déjà enregistrée${r.recupere > 1 ? 's' : ''} sous ce Riot ID.`
+        : `${r.riotId} rattaché.`, 'ok');
+      setTimeout(() => location.reload(), 1200);
     } catch (err) {
-      $('title').textContent = 'Joueur introuvable';
-      $('sub').textContent = err.message;
-      $('who').hidden = false;
+      dis(err.code === 'deja_pris'
+        ? `${err.message} Si c'est bien toi, connecte-toi avec le compte Discord utilisé la première fois.`
+        : err.message);
+      $('linkBtn').disabled = false;
+      $('linkBtn').textContent = 'Valider mon compte';
     }
   }
 
-  start();
+  $('linkBtn').addEventListener('click', lier);
+  $('riot').addEventListener('keydown', (e) => { if (e.key === 'Enter') lier(); });
+
+  // --- Demarrage -------------------------------------------------------------
+
+  const user = await requireUser();
+  if (user) await start(user);
+
+  async function start(user) {
+    renderHeader($('head'), user, { active: '/dashboard.html' });
+
+    $('title').textContent = user.displayName;
+    const chips = [];
+    if (user.riotId) chips.push(user.riotId);
+    if (user.tier) chips.push(user.tier);
+    if (user.discordUsername) chips.push(`@${user.discordUsername}`);
+    $('sub').innerHTML = '';
+    for (const c of chips) {
+      const s = document.createElement('span');
+      s.className = 'chip';
+      s.textContent = c;
+      $('sub').append(s);
+    }
+
+    checkNotifications().catch(() => {}); // jamais bloquant pour la page
+
+    if (!user.riotId) {
+      $('riotBox').hidden = false;
+      $('riot').focus();
+      return;
+    }
+
+    $('main').hidden = false;
+
+    try {
+      await loadMatches(true);
+      const coach = await api('/me/coach');
+      renderCoach(coach);
+      $('genBtn').hidden = !coach.patterns || coach.patterns.length === 0;
+    } catch (err) {
+      $('coach').innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    }
+  }
 </script>

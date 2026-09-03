@@ -1,4 +1,4 @@
-<title>Leaderboard du groupe</title>
+<title>Classement de la semaine — On lance ?</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Qui a pris le plus de RR cette semaine ? Remise à zéro chaque lundi, et le vainqueur reste au tableau d'honneur.">
 <meta property="og:type" content="website">
@@ -18,48 +18,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/ui.css">
 
 <style>
-  :root {
-    --ground: #07070b; --lift: #0c0c12; --surface: #101018;
-    --line: #1e1e29; --line-soft: #17171f;
-    --accent: #ff4655; --warm: #ff8a5b; --gain: #4fe3b0; --loss: #e04a68;
-    --cool: #6f93ff; --gold: #e6b53a; --neutral: #85818a;
-    --ink: #f8f6f1; --muted: #bcb7ae; --faint: #85818a;
-    --display: 'Manrope', system-ui, sans-serif;
-    --body: 'Inter', -apple-system, sans-serif;
-    --mono: 'JetBrains Mono', ui-monospace, monospace;
-  }
-  * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  body {
-    margin: 0; background: var(--ground); color: var(--ink);
-    font-family: var(--body); font-size: 15px; line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-  .shell { width: min(100% - 32px, 760px); margin-inline: auto; }
-  h1, h2 { font-family: var(--display); margin: 0; letter-spacing: -0.02em; }
-  p { margin: 0; }
-  a { color: var(--warm); }
-  :focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; border-radius: 6px; }
-
-  .eyebrow {
-    font-size: 11px; font-weight: 600; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--faint);
-  }
-
-  header { padding: 30px 0 22px; }
-  .top { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 24px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 15px; }
-  .brand .q { color: var(--accent); }
-  .mark {
-    width: 29px; height: 29px; border-radius: 9px; flex: none; display: grid; place-items: center;
-    background: linear-gradient(140deg, var(--accent), var(--warm));
-  }
-  .nav-link { font-size: 13.5px; color: var(--muted); text-decoration: none; }
-  .nav-link:hover { color: var(--ink); }
-
-  h1 { font-size: clamp(25px, 5vw, 32px); font-weight: 800; }
+  .shell { width: min(100% - 32px, 760px); }
+  h1 { font-size: clamp(25px, 5vw, 32px); font-weight: 800; margin-top: 6px; }
 
   /* Bandeau d'etat : semaine en cours, compte a rebours, rafraichissement */
   .status {
@@ -71,19 +34,18 @@
   .status-left strong { font-family: var(--display); font-size: 14.5px; }
   .countdown { font-family: var(--mono); font-size: 12.5px; color: var(--faint); }
   .countdown b { color: var(--warm); font-weight: 700; }
-
-  button {
-    padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line);
-    background: transparent; color: var(--ink); font-family: var(--display);
-    font-weight: 700; font-size: 13.5px; cursor: pointer; white-space: nowrap;
-    transition: border-color .15s ease, transform .15s ease, opacity .15s ease;
-  }
-  button:hover:not(:disabled) { border-color: #2f2f3d; transform: translateY(-1px); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
+  .status button { padding: 10px 16px; font-size: 13.5px; white-space: nowrap; }
 
   @media (max-width: 520px) {
     .status { flex-direction: column; align-items: stretch; }
     .status button { width: 100%; }
+  }
+
+  /* Selecteur de groupe : n'apparait que si on appartient a plusieurs groupes */
+  .grouppick { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .grouppick select {
+    padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: #14141d; color: var(--ink); font-family: var(--body); font-size: 13.5px;
   }
 
   section { padding: 30px 0; border-top: 1px solid var(--line-soft); }
@@ -106,6 +68,8 @@
   }
   /* Flash quand une ligne change apres un rafraichissement */
   .row--moved { background: rgba(79,227,176,.1); border-color: rgba(79,227,176,.35); }
+  /* Sa propre ligne, pour se retrouver d'un coup d'oeil */
+  .row--me { box-shadow: inset 3px 0 0 var(--cool); }
 
   .pos {
     font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--faint);
@@ -113,7 +77,7 @@
   }
   .row--lead .pos { color: var(--gold); }
 
-  .who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .whom { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .name { font-family: var(--display); font-weight: 700; font-size: 15.5px; }
   .meta { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
 
@@ -147,40 +111,31 @@
   .past-winner .crown { margin-right: 6px; }
   .past-rr { font-family: var(--mono); font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-  .empty {
-    padding: 22px; border: 1px dashed var(--line); border-radius: 12px;
-    color: var(--muted); font-size: 14px; text-align: center;
-  }
   .error { border: 1px solid rgba(255,70,85,.3); color: var(--accent); border-radius: 12px; padding: 18px; font-size: 14px; }
-
-  footer { padding: 24px 0 40px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--faint); }
 </style>
 
 <div class="shell">
-  <header>
-    <div class="top">
-      <div class="brand">
-        <span class="mark" aria-hidden="true">
-          <svg width="15" height="15" viewBox="0 0 32 32"><path d="M7 8l9 16 9-16h-5.2L16 15.8 12.2 8z" fill="#16040a"/></svg>
-        </span>
-        <span>On lance <span class="q">?</span></span>
-      </div>
-      <a class="nav-link" href="/dashboard.html">Mon tableau de bord</a>
+  <header class="head" id="head"></header>
+
+  <span class="eyebrow" id="groupName">Classement</span>
+  <h1 id="weekLabel">Chargement…</h1>
+
+  <div class="grouppick" id="pick" hidden>
+    <label for="grp" style="margin:0">Groupe</label>
+    <select id="grp"></select>
+  </div>
+
+  <div class="status" id="status" hidden>
+    <div class="status-left">
+      <strong id="statusTitle">Semaine en cours</strong>
+      <span class="countdown" id="countdown"></span>
     </div>
+    <button id="refresh">Rafraîchir</button>
+  </div>
 
-    <span class="eyebrow" id="groupName">Leaderboard</span>
-    <h1 id="weekLabel">Chargement…</h1>
+  <div class="note" id="noGroup" hidden></div>
 
-    <div class="status">
-      <div class="status-left">
-        <strong id="statusTitle">Semaine en cours</strong>
-        <span class="countdown" id="countdown"></span>
-      </div>
-      <button id="refresh">Rafraîchir</button>
-    </div>
-  </header>
-
-  <main>
+  <main id="main" hidden>
     <section style="border-top:0;padding-top:22px">
       <div class="rows" id="rows"></div>
     </section>
@@ -194,28 +149,19 @@
     </section>
   </main>
 
-  <footer class="shell">
+  <footer>
     Le classement compte le RR gagné sur la semaine. Remise à zéro chaque lundi à
     minuit, heure de Paris — le vainqueur reste au tableau d'honneur.
   </footer>
 </div>
 
-<script>
-  const $ = (id) => document.getElementById(id);
-  const params = new URLSearchParams(location.search);
-  const groupId = params.get('group') ?? localStorage.getItem('onlance_group') ?? '1';
+<script type="module">
+  import { api, requireUser, renderHeader, signed, esc, $ } from '/app.js';
 
+  let groupId = null;
   let endsAt = null;
   let previous = new Map(); // userId -> { rank, rrTotal }, pour reperer ce qui a bouge
-
-  const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
-
-  async function api(url, options) {
-    const res = await fetch(url, options);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error ?? `Erreur ${res.status}`);
-    return data;
-  }
+  let moi = null;
 
   // --- Compte a rebours jusqu'a la cloture -----------------------------------
 
@@ -243,7 +189,9 @@
     tick();
 
     if (data.standings.length === 0) {
-      $('rows').innerHTML = '<div class="empty">Aucun membre avec un compte Riot lié.</div>';
+      $('rows').innerHTML = `<div class="empty">
+        Personne dans ce groupe n'a encore lié son compte Valorant.
+      </div>`;
       return;
     }
 
@@ -255,12 +203,13 @@
       const cls = ['row'];
       if (s.rank === 1 && s.matches > 0) cls.push('row--lead');
       if (gagne) cls.push('row--moved');
+      if (moi !== null && Number(s.userId) === Number(moi)) cls.push('row--me');
 
       return `
         <article class="${cls.join(' ')}">
           <span class="pos">${s.rank}</span>
-          <span class="who">
-            <span class="name">${s.displayName}${s.rank === 1 && s.matches > 0 ? ' 👑' : ''}</span>
+          <span class="whom">
+            <span class="name">${esc(s.displayName)}${s.rank === 1 && s.matches > 0 ? ' 👑' : ''}</span>
             <span class="meta">${s.matches} partie${s.matches > 1 ? 's' : ''}${
               s.bestGain !== null ? ` · meilleur ${signed(s.bestGain)}` : ''
             }</span>
@@ -283,13 +232,12 @@
         ? await api(`/groups/${groupId}/leaderboard/refresh`, { method: 'POST' })
         : await api(`/groups/${groupId}/leaderboard`);
       render(data);
-      localStorage.setItem('onlance_group', groupId);
 
       if (live && data.refreshed === false) {
         $('countdown').innerHTML += ' · déjà à jour il y a moins d\'une minute';
       }
     } catch (err) {
-      $('rows').innerHTML = `<div class="error">${err.message}</div>`;
+      $('rows').innerHTML = `<div class="error">${esc(err.message)}</div>`;
     } finally {
       btn.disabled = false;
       btn.textContent = 'Rafraîchir';
@@ -315,7 +263,7 @@
         <div class="past-row">
           <span class="past-week">Semaine du ${weekFmt.format(new Date(r.week_start))}</span>
           <span class="past-winner">
-            <span class="crown">👑</span>${r.winner_name ?? '—'}
+            <span class="crown">👑</span>${esc(r.winner_name ?? '—')}
             <span class="past-rr ${r.winner_rr > 0 ? 'up' : 'down'}">${
               r.winner_rr === null ? '' : signed(r.winner_rr) + ' RR'
             }</span>
@@ -326,12 +274,65 @@
     }
   }
 
-  // Au chargement : affichage immediat depuis la base, puis mise a jour live.
-  // On ne fait pas attendre l'utilisateur devant un ecran vide pendant que
-  // l'API Valorant repond.
-  (async () => {
+  // --- Demarrage -------------------------------------------------------------
+
+  const user = await requireUser();
+  if (user) await start(user);
+
+  async function start(user) {
+    renderHeader($('head'), user, { active: '/leaderboard.html' });
+    moi = user.id;
+
+    // Le groupe vient de l'URL quand on arrive depuis une invitation ou la page
+    // groupes ; sinon du dernier consulte sur cet appareil ; sinon le premier.
+    const voulu = new URLSearchParams(location.search).get('groupe')
+      ?? localStorage.getItem('onlance_group');
+
+    const { groups } = await api('/me/groups');
+
+    if (groups.length === 0) {
+      $('weekLabel').textContent = 'Aucun groupe';
+      const n = $('noGroup');
+      n.dataset.kind = 'info';
+      n.hidden = false;
+      n.innerHTML = `Tu n'es dans aucun groupe : il n'y a donc pas de classement à
+        afficher. Ouvre le lien d'invitation d'un ami, ou
+        <a href="/groupes.html">crée ton groupe</a>.`;
+      return;
+    }
+
+    const choisi = groups.find((g) => String(g.id) === String(voulu)) ?? groups[0];
+    appliquer(choisi);
+
+    if (groups.length > 1) {
+      $('pick').hidden = false;
+      $('grp').innerHTML = groups
+        .map((g) => `<option value="${g.id}"${g.id === choisi.id ? ' selected' : ''}></option>`)
+        .join('');
+      for (const [i, opt] of [...$('grp').options].entries()) opt.textContent = groups[i].name;
+
+      $('grp').addEventListener('change', async () => {
+        appliquer(groups.find((g) => String(g.id) === $('grp').value));
+        previous = new Map();
+        await load();
+        await loadPast();
+      });
+    }
+
+    $('status').hidden = false;
+    $('main').hidden = false;
+
+    // Affichage immediat depuis la base, puis mise a jour live : on ne fait pas
+    // attendre devant un ecran vide pendant que l'API Valorant repond.
     await load();
     await loadPast();
     load({ live: true });
-  })();
+  }
+
+  function appliquer(g) {
+    groupId = g.id;
+    $('groupName').textContent = g.name;
+    localStorage.setItem('onlance_group', String(g.id));
+    history.replaceState(null, '', `/leaderboard.html?groupe=${g.id}`);
+  }
 </script>
