@@ -85,6 +85,17 @@ l'API. RLS est activé sans politique : le serveur utilise le rôle `postgres`
 aucune ligne. Les règles d'accès restent écrites à un seul endroit, l'API, où
 elles sont testées.
 
+**Phase d'amélioration (en cours)**
+
+| Élément | État |
+|---|---|
+| Barème du coach relatif au rang (8 axes, 3 constats retenus) | ✅ testé — voir `docs/bareme-coach.md` |
+| Groupe de comparaison mesuré sur les 10 joueurs de chaque match | ✅ table `match_players` |
+| Branchement sur le job d'analyse et la page coach | ✅ |
+| Images agent et map incrustées dans l'historique | ✅ via `/visuels` |
+| Panneau déroulant au clic sur un match (les 10 joueurs) | ✅ |
+| Rattrapage de l'historique | ✅ `npm run backfill:players` |
+
 **Reste à faire**
 
 | Élément | État |
@@ -452,6 +463,11 @@ public/sw.js               service worker (réception des notifs)
 src/services/session.js    cookie de session signé (HMAC) — pur, testable
 src/services/discord.js    OAuth2 Discord (scope identify)
 src/services/urls.js       garde-fou anti-redirection ouverte — pur, testable
+src/services/http.js       enrobage des handlers async d'Express — pur, testable
+src/services/tiers.js      echelle de rang Valorant (tier.id) — pur, testable
+src/services/analysis.js   barème du coach relatif au rang — pur, testable
+src/services/visuels.js    icônes d'agents et visuels de maps (cache 24 h)
+scripts/backfill-match-players.js  rattrapage des feuilles de match
 public/ui.css              socle visuel commun à toutes les pages
 public/app.js              socle JS commun (session, en-tête, notifs, échappement)
 public/landing.html        landing page
@@ -468,5 +484,9 @@ test/leaderboard.test.js   tests Brique 2
 test/positional.test.js    tests Brique 3
 test/session.test.js       tests Brique 4 — sessions
 test/auth.test.js          tests Brique 4 — OAuth et redirections
+test/http.test.js          tests de l'enrobage des handlers
+test/stats-inventees.test.js  garde-fou contre les statistiques inventees
+test/analysis.test.js      tests du barème relatif au rang
+docs/bareme-coach.md       comment le coach choisit ses trois constats
 test/manuel/parcours-brique4.mjs  parcours navigateur (Playwright, hors npm test)
 ```

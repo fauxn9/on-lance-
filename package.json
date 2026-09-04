@@ -19,7 +19,8 @@
     "db:init": "node src/db/init.js",
     "verify": "node scripts/verify-henrik.js",
     "vapid": "node scripts/gen-vapid.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "backfill:players": "node scripts/backfill-match-players.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

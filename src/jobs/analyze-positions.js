@@ -2,6 +2,7 @@
 import { config } from '../config.js';
 import { getRawMatches, normalizeMatch } from '../services/henrikdev.js';
 import { analyzeMatch, aggregateDeaths } from '../services/positional.js';
+import { mesurerMatch } from '../services/analysis.js';
 import { acs, headshotPercent } from '../services/ranking.js';
 import { getCalibration } from '../services/maps.js';
 import {
@@ -9,6 +10,7 @@ import {
   getAnalyzedMatchIds,
   saveDeaths,
   saveMatchSummary,
+  saveMatchPlayers,
   closePool,
 } from '../db/index.js';
 
@@ -56,6 +58,49 @@ function summarize(raw, puuid) {
  * (puuid, match_id, round) protege de toute facon contre les doublons.
  */
 
+
+/**
+ * Ecrit les mesures des dix joueurs du match.
+ *
+ * Alimente deux choses d'un coup : le groupe de comparaison du barème du coach,
+ * et le tableau des scores affiche au clic sur une partie. Un echec ici ne doit
+ * jamais empecher l'analyse du joueur suivi de s'enregistrer — c'est un bonus,
+ * pas le coeur du job.
+ */
+async function enregistrerLesDix({ raw, matchId, mapName, toutesLesMorts }) {
+  try {
+    const mesures = mesurerMatch(raw, toutesLesMorts);
+    const playedAt = raw.metadata?.started_at ?? new Date().toISOString();
+    const equipes = new Map((raw.teams ?? []).map((t) => [String(t.team_id), t.won]));
+
+    const lignes = (raw.players ?? []).map((p) => {
+      const m = mesures.get(p.puuid) ?? {};
+      const s = p.stats ?? {};
+      return {
+        matchId, puuid: p.puuid,
+        name: p.name ?? null, tag: p.tag ?? null,
+        team: String(p.team_id ?? ''),
+        agent: p.agent?.name ?? null,
+        tierId: p.tier?.id ?? 0, tierName: p.tier?.name ?? null,
+        mapName, playedAt,
+        rounds: m.rounds ?? 0,
+        won: equipes.get(String(p.team_id ?? '')) ?? null,
+        score: s.score ?? null, kills: s.kills ?? null, deaths: s.deaths ?? null,
+        assists: s.assists ?? null, headshots: s.headshots ?? 0,
+        bodyshots: s.bodyshots ?? 0, legshots: s.legshots ?? 0,
+        degatsInfliges: s.damage?.dealt ?? 0, degatsRecus: s.damage?.received ?? 0,
+        mortsPrecoces: m.mortsPrecoces ?? 0, mortsApresPlant: m.mortsApresPlant ?? 0,
+        ouvertures: m.ouvertures ?? 0, mortsPositionnelles: m.mortsPositionnelles ?? 0,
+        mortsIsolees: m.mortsIsolees ?? 0, mortsNonTradables: m.mortsNonTradables ?? 0,
+      };
+    });
+
+    await saveMatchPlayers(lignes);
+  } catch (err) {
+    console.error(`[pos]   feuille de match non enregistree (${matchId}) : ${err.message}`);
+  }
+}
+
 async function analyzeAccount(account) {
   let matches;
   try {
@@ -90,7 +135,14 @@ async function analyzeAccount(account) {
       console.warn(`[pos]   calibration absente pour ${mapName}, heatmap indisponible sur ce match`);
     }
 
-    const deaths = analyzeMatch({ rawMatch: raw, puuids: [account.puuid], calibration });
+    // On analyse les DIX joueurs, pas seulement le compte suivi.
+    //
+    // Le surcout est nul cote API — le match est deja telecharge — et c'est ce
+    // qui rend le barème possible : sans mesurer les neuf autres, "selon le
+    // rang" n'aurait aucune reference mesuree a laquelle se comparer.
+    const tousLesPuuids = (raw.players ?? []).map((p) => p.puuid);
+    const toutesLesMorts = analyzeMatch({ rawMatch: raw, puuids: tousLesPuuids, calibration });
+    const deaths = toutesLesMorts.filter((d) => d.victimPuuid === account.puuid);
 
     if (config.dryRun) {
       const agg = aggregateDeaths(deaths);
@@ -102,6 +154,8 @@ async function analyzeAccount(account) {
       stored += deaths.length;
       continue;
     }
+
+    await enregistrerLesDix({ raw, matchId, mapName, toutesLesMorts });
 
     await saveDeaths({
       userId: account.userId,

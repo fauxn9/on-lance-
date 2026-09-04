@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import { aggregateDeaths, aggregateByMap, detectPatterns, THRESHOLDS } from './positional.js';
+import { analyser, agreger } from './analysis.js';
 
 /**
  * Etage 2 du coach — mise en mots.
@@ -39,9 +40,13 @@ Regles dures, non negociables :
   Un pattern sur 9 morts ne se presente pas comme une verite absolue.
 - tu ne conclus pas sur le niveau general du joueur, seulement sur ce que les
   faits montrent.
+- quand un fait donne une valeur ET une reference ("38 % contre 25 % a ton
+  rang"), c'est une comparaison a des joueurs du MEME niveau, pas a une moyenne
+  generale. Tu peux t'appuyer dessus, mais tu ne dis jamais que le joueur est
+  mauvais dans l'absolu : il est au-dessus ou en dessous de SON rang.
 - tu reponds uniquement avec le texte du conseil, rien d'autre.`;
 
-function buildCoachPrompt({ playerName, periodLabel, patterns, aggregate, byMap }) {
+function buildCoachPrompt({ playerName, periodLabel, patterns, aggregate, byMap, rang = null }) {
   const factList = patterns.map((p, i) => `  ${i + 1}. [${p.severity}] ${p.fact}`).join('\n');
 
   const mapLines = byMap
@@ -54,7 +59,7 @@ function buildCoachPrompt({ playerName, periodLabel, patterns, aggregate, byMap 
     )
     .join('\n');
 
-  return `JOUEUR : ${playerName}
+  return `JOUEUR : ${playerName}${rang ? ` (rang ${rang})` : ''}
 PERIODE : ${periodLabel}
 
 FAITS CALCULES SUR SES MORTS (tout est mesure, rien n'est estime)
@@ -83,6 +88,48 @@ function fallbackCoachText(patterns) {
   return patterns.slice(0, 2).map((p) => p.fact.charAt(0).toUpperCase() + p.fact.slice(1)).join('. ') + '.';
 }
 
+
+/**
+ * Le barème relatif au rang, quand les mesures des pairs sont disponibles.
+ *
+ * Renvoie null plutot que de lever : une base sans `match_players` (avant le
+ * premier passage du job) doit simplement retomber sur les seuils fixes, pas
+ * priver le joueur de son coach.
+ */
+function analyseRelative({ peerMeasures, puuid }) {
+  if (!Array.isArray(peerMeasures) || peerMeasures.length === 0 || !puuid) return null;
+
+  try {
+    // Une ligne par joueur ET par match : on regroupe avant d'agreger.
+    const parJoueur = new Map();
+    for (const m of peerMeasures) {
+      if (!parJoueur.has(m.puuid)) parJoueur.set(m.puuid, []);
+      parJoueur.get(m.puuid).push(m);
+    }
+
+    const mesures = [...parJoueur.values()].map(agreger);
+    const moi = mesures.find((m) => m.puuid === puuid);
+    if (!moi) return null;
+
+    return analyser({ moi, mesures });
+  } catch (err) {
+    console.error(`[coach] barème relatif indisponible : ${err.message}`);
+    return null;
+  }
+}
+
+/** Met un constat du barème a la forme attendue par le dashboard et le prompt. */
+const versPattern = (c) => ({
+  key: c.cle,
+  severity: c.gravite,
+  sample: c.echantillon,
+  fact: c.fait,
+  valeur: c.valeur,
+  reference: c.reference,
+  unite: c.unite,
+  pairs: c.pairs,
+});
+
 /**
  * Analyse complete d'un joueur sur une periode.
  * Renvoie a la fois les faits (affichables tels quels dans le dashboard) et
@@ -92,15 +139,30 @@ export async function buildCoachReport({
   playerName,
   deaths,
   periodLabel = 'les 14 derniers jours',
+  // Mesures des DIX joueurs de chaque partie (table match_players). C'est ce
+  // qui permet le barème relatif au rang. Sans elles, on retombe sur les seuils
+  // fixes de detectPatterns() — moins bon, mais jamais bloquant.
+  peerMeasures = null,
+  puuid = null,
   // false = on ne renvoie que les faits calcules (gratuit, instantane).
   // L'appel a l'IA n'a lieu que si l'appelant le demande explicitement.
   generate = true,
 }) {
   const aggregate = aggregateDeaths(deaths);
   const byMap = aggregateByMap(deaths);
-  const patterns = detectPatterns(aggregate);
 
-  const report = { periodLabel, aggregate, byMap, patterns, text: null, generated: false };
+  const relatif = analyseRelative({ peerMeasures, puuid });
+  // Les constats relatifs au rang priment : ils comparent a de vrais joueurs du
+  // meme niveau plutot qu'a un seuil decide a l'avance.
+  const patterns = relatif?.constats.length ? relatif.constats.map(versPattern) : detectPatterns(aggregate);
+
+  const report = {
+    periodLabel, aggregate, byMap, patterns,
+    rang: relatif?.rang ?? null,
+    groupe: relatif?.groupe ?? null,
+    relatif: Boolean(relatif?.constats.length),
+    text: null, generated: false,
+  };
 
   if (!generate) return report;
 
@@ -118,7 +180,9 @@ export async function buildCoachReport({
       messages: [
         {
           role: 'user',
-          content: buildCoachPrompt({ playerName, periodLabel, patterns, aggregate, byMap }),
+          content: buildCoachPrompt({
+            playerName, periodLabel, patterns, aggregate, byMap, rang: report.rang,
+          }),
         },
       ],
     });

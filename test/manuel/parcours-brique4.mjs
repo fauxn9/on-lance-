@@ -158,6 +158,30 @@ app.get('/me/heatmap', (q, r) => {
 
 app.get('/push/public-key', (_q, r) => r.json({ publicKey: '' }));
 
+// Visuels et feuille de match : les deux ajouts de la phase d'amelioration.
+app.get('/visuels', (_q, r) => r.json({
+  agents: { Jett: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' },
+  maps: { Ascent: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' },
+}));
+
+app.get('/me/matches/:id/scoreboard', (q, r) => {
+  // m3 simule une partie analysee avant l'ajout de la feuille de match.
+  if (q.params.id === 'm3') {
+    return r.status(404).json({ error: 'Feuille de match indisponible', code: 'pas_de_feuille' });
+  }
+  r.json({
+    matchId: q.params.id, moi: 'moi',
+    joueurs: Array.from({ length: 10 }, (_, i) => ({
+      name: i === 0 ? 'fauxn9' : `joueur${i}`, tag: 'EUW',
+      team: i < 5 ? 'Blue' : 'Red',
+      agent: 'Jett', tier: 'Platinum 1', won: i < 5,
+      acs: 260 - i * 12, kills: 20 - i, deaths: 10 + i, assists: 5,
+      headshotPct: 24, damage: 4000 - i * 150,
+      moi: i === 0,
+    })),
+  });
+});
+
 // Permet au scenario de revenir a l'etat « connecte, mais sans Riot ID ».
 app.get('/__delier', (_q, r) => { riotLie = false; r.json({ ok: true }); });
 
@@ -317,6 +341,38 @@ await verifie('tableau de bord -> tuiles, coach, pagination', async () => {
 await verifie('coach a la demande -> texte genere', async () => {
   await page.click('#genBtn');
   await page.waitForFunction(() => document.body.innerText.toLowerCase().includes('texte du coach'));
+});
+
+// 6 quater. Habillage et feuille de match
+await verifie('historique -> agent et map incrustes, panneau au clic', async () => {
+  await page.goto(`${base}/dashboard.html`);
+  await page.waitForSelector('.match');
+
+  // Les images sont posees en fond : on verifie qu'elles sont bien appliquees.
+  const agent = await page.locator('.agent-art').first().getAttribute('style');
+  const map = await page.locator('.map-art').first().getAttribute('style');
+  if (!/background-image/.test(agent ?? '')) throw new Error('image d’agent absente');
+  if (!/background-image/.test(map ?? '')) throw new Error('image de map absente');
+
+  // Ferme au depart.
+  if (await page.locator('.details').count() !== 0) throw new Error('panneau ouvert au chargement');
+
+  await page.locator('.game').first().click();
+  await page.waitForSelector('.sb tbody tr');
+  if (await page.locator('.sb tbody tr').count() !== 10) throw new Error('les 10 joueurs ne sont pas la');
+  if (await page.locator('.sb tr[data-moi="1"]').count() !== 1) throw new Error('ma ligne non reperable');
+  if (await page.locator('.sb tr[data-sep="1"]').count() !== 1) throw new Error('les deux equipes ne sont pas separees');
+  if (await page.locator('.match[data-ouvert="1"]').count() !== 1) throw new Error('etat ouvert non marque');
+
+  // Et se referme.
+  await page.locator('.game').first().click();
+  await page.waitForFunction(() => document.querySelectorAll('.details').length === 0);
+});
+
+await verifie('feuille absente -> message explicite, pas une page cassee', async () => {
+  // La 4e ligne correspond au match m3 du faux serveur.
+  await page.locator('.game').nth(3).click();
+  await attends(/feuille de match indisponible/i);
 });
 
 // 6 bis. Tableau de bord sans Riot ID : c'est le seul endroit hors invitation

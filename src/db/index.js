@@ -711,3 +711,125 @@ export async function listMyGroups(userId) {
 export async function closePool() {
   await pool.end();
 }
+
+// ---------------------------------------------------------------------------
+// Barème du coach — les dix joueurs de chaque match
+// ---------------------------------------------------------------------------
+
+/**
+ * Enregistre les mesures des dix joueurs d'un match.
+ *
+ * ON CONFLICT DO UPDATE plutot que DO NOTHING : une re-analyse doit pouvoir
+ * corriger des mesures, par exemple apres l'ajout d'un axe au barème.
+ */
+export async function saveMatchPlayers(lignes) {
+  if (lignes.length === 0) return 0;
+
+  return withTransaction(async (client) => {
+    let n = 0;
+    for (const l of lignes) {
+      const { rowCount } = await client.query(
+        `INSERT INTO match_players (
+           match_id, puuid, name, tag, team, agent, tier_id, tier_name,
+           map_name, played_at, rounds, won,
+           score, kills, deaths, assists, headshots, bodyshots, legshots,
+           damage_dealt, damage_received,
+           early_deaths, post_plant_deaths, opening_deaths,
+           positional_deaths, isolated_deaths, untradeable_deaths
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
+                   $19,$20,$21,$22,$23,$24,$25,$26,$27)
+         ON CONFLICT (match_id, puuid) DO UPDATE SET
+           tier_id = EXCLUDED.tier_id, tier_name = EXCLUDED.tier_name,
+           agent = EXCLUDED.agent, won = EXCLUDED.won,
+           score = EXCLUDED.score, kills = EXCLUDED.kills, deaths = EXCLUDED.deaths,
+           assists = EXCLUDED.assists, headshots = EXCLUDED.headshots,
+           bodyshots = EXCLUDED.bodyshots, legshots = EXCLUDED.legshots,
+           damage_dealt = EXCLUDED.damage_dealt, damage_received = EXCLUDED.damage_received,
+           early_deaths = EXCLUDED.early_deaths, post_plant_deaths = EXCLUDED.post_plant_deaths,
+           opening_deaths = EXCLUDED.opening_deaths, positional_deaths = EXCLUDED.positional_deaths,
+           isolated_deaths = EXCLUDED.isolated_deaths, untradeable_deaths = EXCLUDED.untradeable_deaths`,
+        [
+          l.matchId, l.puuid, l.name, l.tag, l.team, l.agent, l.tierId, l.tierName,
+          l.mapName, l.playedAt, l.rounds, l.won,
+          l.score, l.kills, l.deaths, l.assists, l.headshots, l.bodyshots, l.legshots,
+          l.degatsInfliges, l.degatsRecus,
+          l.mortsPrecoces, l.mortsApresPlant, l.ouvertures,
+          l.mortsPositionnelles, l.mortsIsolees, l.mortsNonTradables,
+        ],
+      );
+      n += rowCount;
+    }
+    return n;
+  });
+}
+
+const versMesures = (r) => ({
+  puuid: r.puuid,
+  tierId: r.tier_id,
+  rounds: Number(r.rounds),
+  morts: Number(r.deaths ?? 0),
+  mortsPrecoces: Number(r.early_deaths),
+  mortsApresPlant: Number(r.post_plant_deaths),
+  ouvertures: Number(r.opening_deaths),
+  mortsPositionnelles: Number(r.positional_deaths),
+  mortsIsolees: Number(r.isolated_deaths),
+  mortsNonTradables: Number(r.untradeable_deaths),
+  degatsInfliges: Number(r.damage_dealt ?? 0),
+  degatsRecus: Number(r.damage_received ?? 0),
+  tirs: Number(r.headshots ?? 0) + Number(r.bodyshots ?? 0) + Number(r.legshots ?? 0),
+  headshots: Number(r.headshots ?? 0),
+});
+
+/**
+ * Toutes les lignes joueur des matchs OU LE JOUEUR ETAIT PRESENT.
+ *
+ * C'est la restriction qui donne son sens au groupe de comparaison : on ne
+ * compare pas a l'ensemble de la base, mais aux gens croises dans ses propres
+ * parties, sur les memes maps, la meme semaine.
+ */
+export async function loadPeerMeasures(puuid, { sinceDays = 14 } = {}) {
+  const { rows } = await query(
+    `SELECT p.* FROM match_players p
+     WHERE p.match_id IN (
+       SELECT match_id FROM match_players
+       WHERE puuid = $1 AND played_at > now() - ($2 || ' days')::interval
+     )
+     AND p.played_at > now() - ($2 || ' days')::interval`,
+    [puuid, sinceDays],
+  );
+  return rows.map(versMesures);
+}
+
+/** Feuille de match complete, pour le panneau deroulant du dashboard. */
+export async function loadMatchScoreboard(matchId) {
+  const { rows } = await query(
+    `SELECT puuid, name, tag, team, agent, tier_name, won, rounds,
+            score, kills, deaths, assists, headshots, bodyshots, legshots,
+            damage_dealt
+     FROM match_players WHERE match_id = $1
+     ORDER BY score DESC NULLS LAST`,
+    [matchId],
+  );
+
+  return rows.map((r) => {
+    const tirs = Number(r.headshots ?? 0) + Number(r.bodyshots ?? 0) + Number(r.legshots ?? 0);
+    return {
+      puuid: r.puuid,
+      name: r.name, tag: r.tag, team: r.team,
+      agent: r.agent, tier: r.tier_name, won: r.won,
+      acs: r.rounds > 0 ? Math.round(Number(r.score) / Number(r.rounds)) : null,
+      kills: r.kills, deaths: r.deaths, assists: r.assists,
+      headshotPct: tirs > 0 ? Math.round((100 * Number(r.headshots)) / tirs) : null,
+      damage: r.damage_dealt,
+    };
+  });
+}
+
+/** Compte Riot rattache a un profil, ou null. */
+export async function getRiotAccount(userId) {
+  const { rows } = await query(
+    'SELECT puuid, riot_name, riot_tag, region FROM linked_riot_accounts WHERE user_id = $1 LIMIT 1',
+    [userId],
+  );
+  return rows[0] ?? null;
+}

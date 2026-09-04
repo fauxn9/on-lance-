@@ -266,6 +266,59 @@ CREATE TABLE IF NOT EXISTS analyzed_matches (
   PRIMARY KEY (puuid, match_id)
 );
 
+
+-- Les DIX joueurs de chaque match analyse.
+--
+-- Deux usages d'un seul stockage :
+--   - le groupe de comparaison du barème (voir docs/bareme-coach.md) : sans les
+--     neuf autres, "selon le rang" n'aurait aucune reference mesuree ;
+--   - le tableau des scores affiche au clic sur une partie.
+--
+-- Le job d'analyse telecharge deja ces matchs pour compter les morts du joueur
+-- suivi : remplir cette table ne coute AUCUNE requete API supplementaire.
+--
+-- On y stocke des COMPTES, pas des taux : les taux se moyennent mal d'un match
+-- a l'autre, les comptes s'additionnent. Les taux sont derives a la lecture.
+CREATE TABLE IF NOT EXISTS match_players (
+  match_id            TEXT        NOT NULL,
+  puuid               TEXT        NOT NULL,
+
+  name                TEXT,
+  tag                 TEXT,
+  team                TEXT,
+  agent               TEXT,
+  tier_id             INT         NOT NULL DEFAULT 0,
+  tier_name           TEXT,
+
+  map_name            TEXT,
+  played_at           TIMESTAMPTZ NOT NULL,
+  rounds              INT         NOT NULL DEFAULT 0,
+  won                 BOOLEAN,
+
+  score               INT,
+  kills               INT,
+  deaths              INT,
+  assists             INT,
+  headshots           INT,
+  bodyshots           INT,
+  legshots            INT,
+  damage_dealt        INT,
+  damage_received     INT,
+
+  early_deaths        INT         NOT NULL DEFAULT 0,
+  post_plant_deaths   INT         NOT NULL DEFAULT 0,
+  opening_deaths      INT         NOT NULL DEFAULT 0,
+  positional_deaths   INT         NOT NULL DEFAULT 0,
+  isolated_deaths     INT         NOT NULL DEFAULT 0,
+  untradeable_deaths  INT         NOT NULL DEFAULT 0,
+
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (match_id, puuid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_match_players_temps ON match_players (played_at DESC);
+CREATE INDEX IF NOT EXISTS idx_match_players_puuid ON match_players (puuid, played_at DESC);
+
 -- ---------------------------------------------------------------------------
 -- Brique 7 — Row Level Security
 -- ---------------------------------------------------------------------------
@@ -302,3 +355,4 @@ ALTER TABLE weekly_winners       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE player_matches       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE player_deaths        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analyzed_matches     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_players        ENABLE ROW LEVEL SECURITY;

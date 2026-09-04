@@ -361,14 +361,30 @@
   }
 
   function renderFacts(r) {
-    $('facts').innerHTML = r.patterns.length === 0
+    // Quand le barème relatif a pu s'appliquer, on dit a quoi le joueur est
+    // compare : un constat sans sa reference se lit comme un jugement absolu.
+    const situe = r.relatif && r.rang
+      ? `<p style="font-size:12px;color:var(--faint);margin:-4px 0 14px">
+           ${r.groupe.taille} joueurs de ton rang (${esc(r.rang)}) croisés dans tes parties,
+           à ±${r.groupe.ecartDeRang} divisions.
+         </p>`
+      : `<p style="font-size:12px;color:var(--faint);margin:-4px 0 14px">
+           Seuils fixes — pas encore assez de parties analysées pour te comparer à ton rang.
+         </p>`;
+
+    $('facts').innerHTML = (r.patterns.length === 0
       ? `<li><p>Pas encore assez de morts mesurables sur la période pour dégager
            un schéma fiable. Élargis la période, ou joue quelques parties de plus.</p></li>`
       : r.patterns.map((p) => `
           <li>
             <span class="sev sev--${esc(p.severity)}">${esc(p.severity).toUpperCase()}</span>
             <p>${esc(p.fact)}</p>
-          </li>`).join('');
+          </li>`).join(''));
+
+    $('facts').insertAdjacentHTML('beforebegin', situe);
+    // Un rechargement ne doit pas empiler les bandeaux.
+    const bandeaux = $('facts').parentElement.querySelectorAll(':scope > p');
+    for (let i = 0; i < bandeaux.length - 1; i += 1) bandeaux[i].remove();
 
     if (r.text) {
       $('coach').textContent = r.text;
@@ -415,6 +431,15 @@
     const stats = rapport.byMap.find((m) => m.mapName === mapName);
     renderMapStats(stats, mapName);
 
+    // On vide le cadre TOUT DE SUITE, avant d'attendre les points de la nouvelle
+    // map : sinon on continue d'afficher la map precedente et ses morts sous les
+    // statistiques de celle qu'on vient de choisir.
+    const frame = $('frame');
+    for (const d of frame.querySelectorAll('.dot')) d.remove();
+    $('tip').hidden = true;
+    $('minimap').hidden = true;
+    $('nomap').hidden = true;
+
     // Les points d'une map ne changent pas tant que la periode ne change pas :
     // inutile de redemander a chaque aller-retour entre deux onglets.
     let data = cacheHeatmap.get(cle(mapName));
@@ -423,10 +448,6 @@
       cacheHeatmap.set(cle(mapName), data);
     }
     if (mapCourante !== mapName) return; // un autre onglet a ete clique entre-temps
-
-    const frame = $('frame');
-    for (const d of frame.querySelectorAll('.dot')) d.remove();
-    $('tip').hidden = true;
 
     $('minimap').hidden = !data.minimapUrl;
     $('nomap').hidden = Boolean(data.minimapUrl);

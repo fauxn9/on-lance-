@@ -17,6 +17,9 @@ import {
   joinGroup,
   isGroupMember,
   listMyGroups,
+  loadPeerMeasures,
+  loadMatchScoreboard,
+  getRiotAccount,
 } from '../db/index.js';
 import { config } from '../config.js';
 import { resolveAccount, getRrHistory } from '../services/henrikdev.js';
@@ -24,6 +27,7 @@ import { getPublicKey, pushToUser } from '../services/notifications.js';
 import { weekStartOf, weekLabel, weekBounds, buildLeaderboard } from '../services/leaderboard.js';
 import { buildCoachReport } from '../services/coach.js';
 import { getCalibration } from '../services/maps.js';
+import { getVisuels } from '../services/visuels.js';
 import * as discord from '../services/discord.js';
 import { safeNext } from '../services/urls.js';
 import { wrap } from '../services/http.js';
@@ -67,6 +71,18 @@ app.get('/', (_req, res) => res.sendFile(join(publicDir, 'landing.html')));
 const shortCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+/**
+ * Icônes d'agents et visuels de maps, pour l'habillage de l'historique.
+ *
+ * Publique et fortement cachee : ce sont des donnees Riot immuables, identiques
+ * pour tout le monde, et le navigateur ne doit pas les redemander a chaque
+ * navigation.
+ */
+app.get('/visuels', wrap(async (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.json(await getVisuels());
+}));
 
 // ---------------------------------------------------------------------------
 // Session
@@ -428,6 +444,12 @@ app.get('/me/coach', requireAuth, wrap(async (req, res) => {
   const days = Number(req.query.days ?? 14);
   const me = await getSessionUser(req.userId);
 
+  // Les mesures des dix joueurs de chacune de ses parties : c'est le groupe de
+  // comparaison du barème. Absentes tant que le job d'analyse n'est pas passe,
+  // auquel cas le coach retombe sur ses seuils fixes.
+  const compte = await getRiotAccount(req.userId);
+  const peerMeasures = compte ? await loadPeerMeasures(compte.puuid, { sinceDays: days }) : [];
+
   const deaths = await loadDeaths(req.userId, { sinceDays: days });
   if (deaths.length === 0) {
     return res.json({
@@ -445,9 +467,42 @@ app.get('/me/coach', requireAuth, wrap(async (req, res) => {
       playerName: me?.displayName ?? 'toi',
       deaths,
       periodLabel: `les ${days} derniers jours`,
+      peerMeasures,
+      puuid: compte?.puuid ?? null,
       generate: req.query.generate === '1',
     }),
   );
+}));
+
+/**
+ * Feuille de match complete, pour le panneau deroulant de l'historique.
+ *
+ * Reservee aux parties que le demandeur a lui-meme jouees : sans ce filtre,
+ * n'importe qui pourrait lire le tableau de n'importe quel match en devinant
+ * un identifiant.
+ */
+app.get('/me/matches/:matchId/scoreboard', requireAuth, wrap(async (req, res) => {
+  const compte = await getRiotAccount(req.userId);
+  if (!compte) return res.status(404).json({ error: 'Aucun compte Valorant rattaché' });
+
+  const joueurs = await loadMatchScoreboard(req.params.matchId);
+  if (joueurs.length === 0) {
+    return res.status(404).json({
+      error: "Feuille de match indisponible : cette partie a été analysée avant l'ajout de cette fonctionnalité.",
+      code: 'pas_de_feuille',
+    });
+  }
+
+  if (!joueurs.some((j) => j.puuid === compte.puuid)) {
+    return res.status(403).json({ error: "Tu n'as pas joué cette partie" });
+  }
+
+  // Le puuid n'a rien a faire dans une reponse publique.
+  res.json({
+    matchId: req.params.matchId,
+    moi: compte.puuid,
+    joueurs: joueurs.map(({ puuid, ...reste }) => ({ ...reste, moi: puuid === compte.puuid })),
+  });
 }));
 
 app.get('/me/heatmap', requireAuth, wrap(async (req, res) => {

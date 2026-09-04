@@ -88,35 +88,105 @@
   /* --- Historique --------------------------------------------------------- */
 
   .games { display: flex; flex-direction: column; gap: 8px; }
+  .match { border: 1px solid var(--line); border-radius: 12px; background: var(--lift); overflow: hidden; }
+  .match[data-ouvert="1"] { border-color: #2f2f3d; }
 
   .game {
+    position: relative; width: 100%; text-align: left;
     display: grid;
-    grid-template-columns: 4px minmax(0,1.3fr) minmax(0,1fr) auto auto;
+    grid-template-columns: 4px 46px minmax(0,1.3fr) minmax(0,1fr) auto auto 18px;
     align-items: center; gap: 14px;
-    border: 1px solid var(--line); border-radius: 12px; background: var(--lift);
-    padding: 13px 16px 13px 0; overflow: hidden;
+    border: 0; border-radius: 0; background: transparent;
+    padding: 13px 14px 13px 0; overflow: hidden; cursor: pointer;
+    font-family: var(--body); font-size: 15px; color: var(--ink);
+    transition: background .15s ease;
   }
+  .game:hover { background: #12121a; transform: none; border-color: transparent; }
+
+  /* La map, incrustee a droite et fondue dans la carte. Le degrade fait tout le
+     travail : sans lui l'image se colle au bord et fait vignette rapportee. */
+  .map-art {
+    position: absolute; inset: 0 0 0 auto; width: 46%;
+    background-size: cover; background-position: center;
+    opacity: .3; pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 78%);
+    mask-image: linear-gradient(90deg, transparent, #000 78%);
+  }
+  /* Le contenu passe au-dessus du calque de la map. `:not(.map-art)` est
+     indispensable : sans lui cette regle ecrase son `position: absolute`, le
+     calque redevient un element de grille et decale toutes les colonnes. */
+  .game > *:not(.map-art) { position: relative; z-index: 1; }
+
+  /* L'agent, en medaillon a gauche. Le fond sombre evite que les portraits
+     clairs bavent sur la carte. */
+  .agent-art {
+    width: 46px; height: 46px; border-radius: 11px; flex: none;
+    background: #16161f center/125% no-repeat;
+    border: 1px solid var(--line);
+  }
+
+  .chevron { color: var(--faint); transition: transform .18s ease; }
+  .match[data-ouvert="1"] .chevron { transform: rotate(90deg); color: var(--warm); }
+
   /* Sur telephone, une ligne de partie tient sur deux rangees plutot que de
-     comprimer cinq colonnes : map et RR en haut, les stats en dessous. Aucune
+     comprimer sept colonnes : map et RR en haut, les stats en dessous. Aucune
      information n'est masquee, elles sont juste reorganisees. */
   @media (max-width: 620px) {
     .game {
-      grid-template-columns: 4px minmax(0,1fr) auto;
+      grid-template-columns: 4px 40px minmax(0,1fr) auto;
       grid-template-areas:
-        "stripe map  rr"
-        "stripe kda  acs";
+        "stripe agent map  rr"
+        "stripe agent kda  acs";
       row-gap: 7px; column-gap: 12px;
-      padding: 12px 14px 12px 0;
+      padding: 12px 12px 12px 0;
     }
-    .stripe   { grid-area: stripe; }
-    .map-cell { grid-area: map; }
-    .rr-cell  { grid-area: rr; }
-    .kda-cell { grid-area: kda; }
-    .acs-cell { grid-area: acs; }
+    .stripe    { grid-area: stripe; }
+    .agent-art { grid-area: agent; width: 40px; height: 40px; }
+    .map-cell  { grid-area: map; }
+    .rr-cell   { grid-area: rr; }
+    .kda-cell  { grid-area: kda; }
+    .acs-cell  { grid-area: acs; }
     .acs-cell small { display: inline; margin-left: 4px; }
+    .chevron { display: none; }
+    .map-art { width: 55%; }
   }
 
-  .stripe { align-self: stretch; border-radius: 4px 0 0 4px; }
+  /* --- Feuille de match --------------------------------------------------- */
+
+  .details { border-top: 1px solid var(--line); padding: 4px 16px 14px; }
+  .details .chargement, .details .vide {
+    padding: 16px 0; font-size: 13.5px; color: var(--faint); text-align: center;
+  }
+
+  .sb { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .sb th {
+    text-align: right; font-family: var(--body); font-size: 10px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
+    padding: 10px 0 8px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap;
+  }
+  .sb th:first-child { text-align: left; padding-left: 0; }
+  .sb td {
+    padding: 7px 0 7px 10px; text-align: right; border-bottom: 1px solid var(--line-soft);
+    font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--muted);
+  }
+  .sb td:first-child { text-align: left; padding-left: 0; font-family: var(--body); }
+  .sb tr:last-child td { border-bottom: 0; }
+  /* Les deux equipes separees par un vrai trait : sans ca on lit dix lignes
+     alignees sans savoir qui joue contre qui. */
+  .sb tr[data-sep="1"] td { border-top: 1px solid var(--line); }
+  .sb tr[data-moi="1"] td { color: var(--ink); background: rgba(111,147,255,.07); }
+
+  .sb-who { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .sb-face {
+    width: 26px; height: 26px; border-radius: 7px; flex: none;
+    background: #16161f center/125% no-repeat; border: 1px solid var(--line);
+  }
+  .sb-name { min-width: 0; }
+  .sb-name b { display: block; font-weight: 500; font-size: 13.5px; }
+  .sb-name span { display: block; font-size: 10.5px; color: var(--faint); }
+  @media (max-width: 560px) { .sb .opt { display: none; } }
+
+  .stripe { align-self: stretch; min-height: 46px; border-radius: 4px 0 0 4px; }
   .win  .stripe { background: var(--gain); }
   .loss .stripe { background: var(--loss); }
   .draw .stripe { background: var(--neutral); }
@@ -272,6 +342,12 @@
 
   // --- Historique ------------------------------------------------------------
 
+  // Icônes d'agents et visuels de maps, servis par notre API avec un cache.
+  // Chargés une fois, jamais bloquants : sans eux l'historique s'affiche nu.
+  let visuels = { agents: {}, maps: {} };
+  const fondAgent = (nom) => (visuels.agents[nom] ? `background-image:url(${visuels.agents[nom]})` : '');
+  const fondMap = (nom) => (visuels.maps[nom] ? `background-image:url(${visuels.maps[nom]})` : '');
+
   function gameRow(m) {
     const state = m.won === true ? 'win' : m.won === false ? 'loss' : 'draw';
     const rr = m.rrChange === null || m.rrChange === undefined
@@ -279,19 +355,108 @@
       : `<span class="rr-cell ${m.rrChange > 0 ? 'up' : m.rrChange < 0 ? 'down' : ''}">${signed(m.rrChange)}</span>`;
 
     return `
-      <article class="game ${state}">
-        <span class="stripe"></span>
-        <div class="map-cell">
-          <span class="map-name">${esc(m.map ?? 'Map inconnue')}${m.withGroup ? '<span class="group-tag">GROUPE</span>' : ''}</span>
-          <span class="map-meta">
-            <span class="agent">${esc(m.agent ?? '—')}</span> · ${dateFmt.format(new Date(m.playedAt))}
+      <div class="match" data-match="${esc(m.matchId)}">
+        <button type="button" class="game ${state}" aria-expanded="false">
+          <span class="map-art" style="${fondMap(m.map)}" aria-hidden="true"></span>
+          <span class="stripe"></span>
+          <span class="agent-art" style="${fondAgent(m.agent)}"
+                role="img" aria-label="${esc(m.agent ?? 'Agent inconnu')}"></span>
+          <span class="map-cell">
+            <span class="map-name">${esc(m.map ?? 'Map inconnue')}${m.withGroup ? '<span class="group-tag">GROUPE</span>' : ''}</span>
+            <span class="map-meta">
+              <span class="agent">${esc(m.agent ?? '—')}</span> · ${dateFmt.format(new Date(m.playedAt))}
+            </span>
           </span>
-        </div>
-        <div class="kda-cell"><span class="label">K/D/A</span>${m.kills}/${m.deaths}/${m.assists}</div>
-        <div class="acs-cell">${m.acs ?? '—'}<small>ACS</small></div>
-        ${rr}
-      </article>`;
+          <span class="kda-cell"><span class="label">K/D/A</span>${m.kills}/${m.deaths}/${m.assists}</span>
+          <span class="acs-cell">${m.acs ?? '—'}<small>ACS</small></span>
+          ${rr}
+          <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>`;
   }
+
+  /* --- Feuille de match ---------------------------------------------------- */
+
+  const feuilles = new Map(); // matchId -> HTML, pour ne la demander qu'une fois
+
+  function ligneJoueur(j, precedent) {
+    // Trait de separation quand on change d'equipe.
+    const sep = precedent && precedent.team !== j.team ? ' data-sep="1"' : '';
+    return `
+      <tr${sep}${j.moi ? ' data-moi="1"' : ''}>
+        <td>
+          <span class="sb-who">
+            <span class="sb-face" style="${fondAgent(j.agent)}" aria-hidden="true"></span>
+            <span class="sb-name">
+              <b>${esc(j.name ?? '—')}${j.moi ? ' (toi)' : ''}</b>
+              <span>${esc(j.agent ?? '—')}${j.tier ? ` · ${esc(j.tier)}` : ''}</span>
+            </span>
+          </span>
+        </td>
+        <td>${j.acs ?? '—'}</td>
+        <td>${j.kills}/${j.deaths}/${j.assists}</td>
+        <td class="opt">${j.headshotPct === null ? '—' : `${j.headshotPct} %`}</td>
+        <td class="opt">${j.damage ?? '—'}</td>
+      </tr>`;
+  }
+
+  async function feuilleDeMatch(matchId) {
+    if (feuilles.has(matchId)) return feuilles.get(matchId);
+
+    let html;
+    try {
+      const { joueurs } = await api(`/me/matches/${encodeURIComponent(matchId)}/scoreboard`);
+      html = `
+        <table class="sb">
+          <thead>
+            <tr>
+              <th>Joueur</th><th>ACS</th><th>K/D/A</th>
+              <th class="opt">HS</th><th class="opt">Dégâts</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${joueurs.map((j, i) => ligneJoueur(j, joueurs[i - 1])).join('')}
+          </tbody>
+        </table>`;
+    } catch (err) {
+      html = `<div class="vide">${esc(err.message)}</div>`;
+    }
+
+    feuilles.set(matchId, html);
+    return html;
+  }
+
+  // Delegation : les lignes sont ajoutees au fil des "voir plus", un seul
+  // ecouteur evite d'en rebrancher un a chaque page chargee.
+  $('games').addEventListener('click', async (e) => {
+    const bouton = e.target.closest('.game');
+    if (!bouton) return;
+
+    const carte = bouton.closest('.match');
+    const matchId = carte.dataset.match;
+    const ouvert = carte.dataset.ouvert === '1';
+
+    if (ouvert) {
+      carte.dataset.ouvert = '0';
+      bouton.setAttribute('aria-expanded', 'false');
+      carte.querySelector('.details')?.remove();
+      return;
+    }
+
+    carte.dataset.ouvert = '1';
+    bouton.setAttribute('aria-expanded', 'true');
+
+    const zone = document.createElement('div');
+    zone.className = 'details';
+    zone.innerHTML = '<div class="chargement">Chargement de la feuille de match…</div>';
+    carte.append(zone);
+
+    const html = await feuilleDeMatch(matchId);
+    // L'utilisateur a pu refermer entre-temps.
+    if (carte.dataset.ouvert === '1') zone.innerHTML = html;
+  });
 
   async function loadMatches(reset = false) {
     if (reset) { offset = 0; allMatches = []; $('games').innerHTML = ''; }
@@ -341,8 +506,15 @@
 
     // Les constats viennent du code, le texte du coach de l'IA : ni l'un ni
     // l'autre n'est du HTML, donc rien n'est interprete comme tel.
+    const situe = report.relatif && report.rang
+      ? `<p style="font-size:12.5px;color:var(--faint);margin-bottom:14px">
+           Comparé à ${report.groupe.taille} joueurs de ton rang (${esc(report.rang)}) croisés dans tes parties.
+         </p>`
+      : '';
+
     $('coach').innerHTML = `
       <div class="coach">
+        ${situe}
         <ul class="facts">
           ${report.patterns.map((p) => `
             <li>
@@ -487,6 +659,9 @@
     }
 
     $('main').hidden = false;
+
+    // Jamais bloquant : en cas d'echec l'historique s'affiche sans images.
+    try { visuels = await api('/visuels'); } catch { /* tant pis */ }
 
     try {
       await loadMatches(true);
