@@ -137,6 +137,10 @@ app.get('/me/coach', (q, r) => {
     ],
     text: q.query.generate === '1' ? 'Texte du coach généré.' : null,
     generated: q.query.generate === '1',
+    // Forme renvoyee depuis que le barème relatif au rang est branche.
+    relatif: true,
+    rang: 'Platine 1',
+    groupe: { taille: 52, ecartDeRang: 2, suffisant: true },
   });
 });
 
@@ -159,6 +163,20 @@ app.get('/me/heatmap', (q, r) => {
 app.get('/push/public-key', (_q, r) => r.json({ publicKey: '' }));
 
 // Visuels et feuille de match : les deux ajouts de la phase d'amelioration.
+// Le chat du coach : reponse normale, refus, et question sur une mort precise.
+app.post('/me/coach/chat', (q, r) => {
+  if (/crosshair|visee/i.test(q.body.question)) {
+    return r.json({ reply: "On ne mesure pas la visee, je ne peux rien te dire dessus.", refus: true });
+  }
+  r.json({
+    reply: q.body.matchId
+      ? `Sur cette mort du round ${q.body.round}, tu etais trop loin de ton equipe.`
+      : 'Tu meurs trop tot dans les rounds, joue plus lentement en debut de round.',
+    generated: true,
+    mortTrouvee: Boolean(q.body.matchId),
+  });
+});
+
 app.get('/visuels', (_q, r) => r.json({
   agents: { Jett: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' },
   maps: { Ascent: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' },
@@ -418,8 +436,9 @@ await verifie('coach -> survol d’un point, changement de map, echantillon trop
   // conclure au lieu d'annoncer une "pire map" sur 5 morts.
   await page.click('.tab[data-map="Abyss"]');
   await attends(/trop peu pour en conclure/i);
+  // Le message d'absence de minimap n'arrive qu'apres la reponse de /me/heatmap.
+  await attends(/pas de minimap calibrée/i);
   if (await page.locator('#minimap').isVisible()) throw new Error('minimap affichee sans URL');
-  if (!(await texte()).includes('pas de minimap calibrée')) throw new Error('absence de minimap non expliquee');
   if (await page.locator('.dot').count() !== 6) throw new Error('points non recharges pour Abyss');
 });
 
@@ -430,6 +449,41 @@ await verifie('coach -> generation a la demande et periode sans donnees', async 
   await page.click('.pill[data-days="7"]');
   await attends(/aucune mort analysee/i);
   if (await page.locator('#main').isVisible()) throw new Error('sections affichees sans donnees');
+});
+
+// 6 quinquies. Le chat du coach (brique 8)
+await verifie('chat -> amorce, suggestion, reponse', async () => {
+  await page.goto(`${base}/coach.html`);
+  await attends(/demande-moi ce que tu veux/i);
+  if (await page.locator('.suggestions button').count() !== 3) throw new Error('suggestions absentes');
+
+  await page.locator('.suggestions button').first().click();
+  await attends(/joue plus lentement/i);
+  if (await page.locator('.bulle--moi').count() !== 1) throw new Error('ma question n’apparait pas');
+  if (await page.locator('.suggestions').isVisible()) throw new Error('les suggestions restent apres la 1re question');
+});
+
+await verifie('chat -> le coach admet ce qu’il ne mesure pas', async () => {
+  await page.fill('#question', 'et mon crosshair placement ?');
+  await page.click('#envoyer');
+  await attends(/on ne mesure pas la visee/i);
+  if (await page.locator('.bulle--refus').count() !== 1) throw new Error('le refus n’est pas distingue');
+});
+
+await verifie('chat -> cliquer une mort epingle la question', async () => {
+  // Meme raison que pour le survol : les points d'une heatmap se chevauchent,
+  // Playwright refuse alors le clic reel.
+  await page.locator('.dot').first().dispatchEvent('click');
+  await page.waitForFunction(() => !document.getElementById('pin').hidden);
+  const t = (await page.locator('#pin').innerText()).toLowerCase();
+  if (!/round/.test(t)) throw new Error('la mort epinglee n’est pas decrite');
+
+  await page.fill('#question', 'pourquoi je suis mort la ?');
+  await page.click('#envoyer');
+  await attends(/sur cette mort du round/i);
+
+  await page.click('#pinOff');
+  await page.waitForFunction(() => document.getElementById('pin').hidden);
 });
 
 // 7. Landing

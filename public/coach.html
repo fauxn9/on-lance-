@@ -175,6 +175,50 @@
   .bar { width: 74px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; flex: none; }
   .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--warm), var(--accent)); }
 
+  /* --- Discussion avec le coach ------------------------------------------ */
+
+  .chat { border: 1px solid var(--line); border-radius: 14px; background: var(--lift); overflow: hidden; }
+
+  /* La mort epinglee : le sujet de la question, toujours visible pendant qu'on
+     tape, sinon on oublie de quoi on parle. */
+  .pin {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 11px 16px; border-bottom: 1px solid var(--line);
+    background: rgba(111,147,255,.07); font-size: 13px; color: var(--muted);
+  }
+  .pin b { color: var(--ink); font-weight: 600; }
+  .pin button { padding: 5px 11px; font-size: 12px; flex: none; }
+
+  .fil { display: flex; flex-direction: column; gap: 12px; padding: 18px 16px; max-height: 460px; overflow-y: auto; }
+
+  .bulle { max-width: 84%; padding: 11px 14px; border-radius: 13px; font-size: 14.5px; line-height: 1.6; }
+  .bulle--moi {
+    align-self: flex-end; background: #1a1a25; border: 1px solid var(--line);
+    border-bottom-right-radius: 4px;
+  }
+  .bulle--coach {
+    align-self: flex-start; border-bottom-left-radius: 4px;
+    background: rgba(255,70,85,.06); border: 1px solid rgba(255,70,85,.24); color: var(--ink);
+  }
+  /* Une reponse ou le coach dit qu'il ne sait pas n'a pas a etre habillee en
+     verdict : elle se distingue. */
+  .bulle--refus { background: var(--surface); border-color: var(--line); color: var(--muted); }
+  .bulle--attente { color: var(--faint); font-style: italic; }
+
+  .suggestions { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 16px 14px; }
+  .suggestions button {
+    padding: 7px 13px; font-size: 12.5px; font-family: var(--body); font-weight: 400;
+    border-radius: 999px; color: var(--muted);
+  }
+
+  .saisie { display: flex; gap: 9px; padding: 13px 16px; border-top: 1px solid var(--line); }
+  .saisie input {
+    flex: 1; min-width: 0; padding: 11px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: #14141d; color: var(--ink);
+    font-family: var(--body); font-size: 14px;
+  }
+  .saisie button { flex: none; padding: 11px 18px; font-size: 13.5px; }
+
   .skel { height: 13px; border-radius: 6px; background: var(--surface); }
   .skel + .skel { margin-top: 11px; }
 </style>
@@ -264,6 +308,36 @@
           <dl class="map-stats" id="mapstats"></dl>
           <p class="verdict" id="verdict"></p>
         </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="eyebrow">Discussion</span>
+        <h2>Demande-lui</h2>
+        <p>
+          Il ne connaît que ce qui a été mesuré sur tes parties — placement,
+          distances, timing. Sur le reste il te le dira franchement plutôt que
+          d'inventer. Clique un point de la heatmap pour l'interroger sur cette
+          mort précise.
+        </p>
+      </div>
+
+      <div class="chat">
+        <div class="pin" id="pin" hidden>
+          <span id="pinTexte"></span>
+          <button id="pinOff">Retirer</button>
+        </div>
+
+        <div class="fil" id="fil"></div>
+
+        <div class="suggestions" id="suggestions"></div>
+
+        <form class="saisie" id="saisie">
+          <input type="text" id="question" maxlength="500" autocomplete="off"
+                 placeholder="Pourquoi je meurs si tôt dans les rounds ?">
+          <button class="primary" type="submit" id="envoyer">Envoyer</button>
+        </form>
       </div>
     </section>
 
@@ -485,6 +559,7 @@
     el.addEventListener('focus', montrer);
     el.addEventListener('mouseleave', () => { tip.hidden = true; });
     el.addEventListener('blur', () => { tip.hidden = true; });
+    el.addEventListener('click', () => epingler(p, mapCourante));
     frame.append(el);
   }
 
@@ -542,6 +617,93 @@
     }).join('');
   }
 
+
+  /* --- Discussion avec le coach -------------------------------------------
+   * L'historique vit dans cette page et nulle part ailleurs : fermer l'onglet
+   * l'efface. Une question sur ses propres morts n'a pas vocation a etre
+   * conservee sur un serveur.
+   */
+
+  let mortEpinglee = null;
+  const historique = [];
+
+  const SUGGESTIONS = [
+    'Pourquoi je meurs si tôt dans les rounds ?',
+    'Sur quelle map je dois corriger en priorité ?',
+    'Concrètement, je change quoi à ma prochaine game ?',
+  ];
+
+  function bulle(texte, classe) {
+    const el = document.createElement('div');
+    el.className = `bulle ${classe}`;
+    el.textContent = texte;
+    $('fil').append(el);
+    $('fil').scrollTop = $('fil').scrollHeight;
+    return el;
+  }
+
+  function epingler(point, mapName) {
+    mortEpinglee = { matchId: point.matchId, round: point.round };
+    $('pin').hidden = false;
+    $('pinTexte').innerHTML = `Question sur : <b>${esc(mapName)}, round ${point.round}</b>`
+      + (point.lastAlive
+        ? ' — dernier en vie'
+        : ` — coéquipier le plus proche à ${fr(point.nearestTeammate)} m`);
+    $('question').focus();
+    $('pin').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  $('pinOff').addEventListener('click', () => {
+    mortEpinglee = null;
+    $('pin').hidden = true;
+  });
+
+  function renderSuggestions() {
+    $('suggestions').innerHTML = '';
+    for (const t of SUGGESTIONS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = t;
+      b.addEventListener('click', () => { $('question').value = t; demander(); });
+      $('suggestions').append(b);
+    }
+  }
+
+  async function demander() {
+    const question = $('question').value.trim();
+    if (!question) return;
+
+    $('question').value = '';
+    $('envoyer').disabled = true;
+    $('suggestions').hidden = true;
+    bulle(question, 'bulle--moi');
+    const attente = bulle('Le coach regarde tes chiffres…', 'bulle--coach bulle--attente');
+
+    try {
+      const r = await api('/me/coach/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          question, days: jours, historique,
+          matchId: mortEpinglee?.matchId, round: mortEpinglee?.round,
+        }),
+      });
+
+      attente.remove();
+      bulle(r.reply, `bulle--coach${r.refus ? ' bulle--refus' : ''}`);
+
+      historique.push({ role: 'user', content: question });
+      historique.push({ role: 'assistant', content: r.reply });
+    } catch (err) {
+      attente.remove();
+      bulle(err.message, 'bulle--coach bulle--refus');
+    } finally {
+      $('envoyer').disabled = false;
+      $('question').focus();
+    }
+  }
+
+  $('saisie').addEventListener('submit', (e) => { e.preventDefault(); demander(); });
+
   /* --- Chargement ---------------------------------------------------------- */
 
   async function charger() {
@@ -566,6 +728,19 @@
     $('main').hidden = false;
     mapCourante = null;
     renderTabsEtPremiereMap();
+
+    // Le fil s'ouvre sur une phrase qui dit ce qu'il sait, pas sur un vide.
+    if ($('fil').childElementCount === 0) {
+      bulle(
+        r.relatif && r.rang
+          ? `J'ai analysé ${r.aggregate.deaths} de tes morts et je te compare à `
+            + `${r.groupe.taille} joueurs de ton rang croisés dans tes parties. Demande-moi ce que tu veux.`
+          : `J'ai analysé ${r.aggregate.deaths} de tes morts. Pas encore assez de parties `
+            + 'pour te comparer à ton rang, mais je peux déjà parler placement et timing.',
+        'bulle--coach',
+      );
+      renderSuggestions();
+    }
   }
 
   function renderTabsEtPremiereMap() {

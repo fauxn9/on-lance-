@@ -203,6 +203,10 @@ CREATE TABLE IF NOT EXISTS player_deaths (
   mini_x             REAL,
   mini_y             REAL,
 
+  -- Moment de la mort dans le round : c'est lui qui alimente le constat
+  -- "morts en debut de round", le plus fort du barème.
+  time_in_round_ms   INT,
+
   duel_distance_m    REAL,
   nearest_teammate_m REAL,       -- NULL = dernier en vie, pas une donnee manquante
   living_teammates   INT         NOT NULL DEFAULT 0,

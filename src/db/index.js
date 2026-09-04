@@ -408,9 +408,10 @@ export async function saveDeaths({ userId, puuid, matchId, deaths }) {
            user_id, puuid, match_id, round, played_at, map_name, agent, weapon,
            loc_x, loc_y, mini_x, mini_y,
            duel_distance_m, nearest_teammate_m, living_teammates,
-           last_alive, isolated, trade_possible, view_delta_deg, view_gap_ms
+           last_alive, isolated, trade_possible, view_delta_deg, view_gap_ms,
+           time_in_round_ms
          )
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
          ON CONFLICT (puuid, match_id, round) DO NOTHING`,
         [
           userId, puuid, matchId, d.round, d.playedAt, d.mapName, d.agent, d.weapon,
@@ -418,6 +419,7 @@ export async function saveDeaths({ userId, puuid, matchId, deaths }) {
           d.duelDistance, d.nearestTeammate, d.livingTeammates,
           d.lastAlive, d.isolated, d.tradePossible,
           d.view?.deltaDeg ?? null, d.view?.gapMs ?? null,
+          d.timeInRoundMs ?? null,
         ],
       );
     }
@@ -452,6 +454,9 @@ export async function loadDeaths(userId, { sinceDays = 14, mapName = null } = {}
     matchId: r.match_id,
     round: r.round,
     playedAt: r.played_at,
+    // NULL sur les morts enregistrees avant l'ajout de la colonne : la
+    // description de la mort omet alors simplement le moment.
+    timeInRoundMs: r.time_in_round_ms,
     mapName: r.map_name,
     agent: r.agent,
     weapon: r.weapon,

@@ -26,6 +26,7 @@ import { resolveAccount, getRrHistory } from '../services/henrikdev.js';
 import { getPublicKey, pushToUser } from '../services/notifications.js';
 import { weekStartOf, weekLabel, weekBounds, buildLeaderboard } from '../services/leaderboard.js';
 import { buildCoachReport } from '../services/coach.js';
+import { askCoach, MAX_HISTORIQUE } from '../services/chat.js';
 import { getCalibration } from '../services/maps.js';
 import { getVisuels } from '../services/visuels.js';
 import * as discord from '../services/discord.js';
@@ -505,6 +506,78 @@ app.get('/me/matches/:matchId/scoreboard', requireAuth, wrap(async (req, res) =>
   });
 }));
 
+/**
+ * Brique 8 — poser une question au coach.
+ *
+ * La conversation n'est pas stockee : l'historique fait l'aller-retour depuis le
+ * navigateur, borne cote serveur. Rien a purger, rien a fuiter, et une question
+ * sur ses propres morts n'a pas vocation a survivre a la fermeture de l'onglet.
+ *
+ * Le contexte envoye au modele est reconstruit a chaque appel a partir de la
+ * base : impossible pour le client d'injecter des faits.
+ */
+const DERNIERE_QUESTION = new Map();
+const DELAI_ENTRE_QUESTIONS_MS = 3_000;
+
+app.post('/me/coach/chat', requireAuth, wrap(async (req, res) => {
+  const question = String(req.body?.question ?? '').trim();
+  if (!question) return res.status(400).json({ error: 'Pose une question' });
+  if (question.length > 500) {
+    return res.status(400).json({ error: 'Question trop longue (500 caractères max)' });
+  }
+
+  // Chaque question coute un appel facture sur SA cle Anthropic : on espace.
+  const depuis = Date.now() - (DERNIERE_QUESTION.get(req.userId) ?? 0);
+  if (depuis < DELAI_ENTRE_QUESTIONS_MS) {
+    return res.status(429).json({ error: 'Laisse-moi une seconde pour répondre.' });
+  }
+  DERNIERE_QUESTION.set(req.userId, Date.now());
+
+  const days = Math.min(Math.max(Number(req.body?.days ?? 14), 1), 60);
+  const me = await getSessionUser(req.userId);
+  const compte = await getRiotAccount(req.userId);
+
+  const deaths = await loadDeaths(req.userId, { sinceDays: days });
+  if (deaths.length === 0) {
+    return res.json({
+      reply: "Je n'ai encore aucune mort analysée sur cette période, donc rien à te dire "
+        + "qui vaille quelque chose. Le job d'analyse tourne toutes les heures.",
+      generated: false,
+    });
+  }
+
+  const peerMeasures = compte ? await loadPeerMeasures(compte.puuid, { sinceDays: days }) : [];
+
+  const report = await buildCoachReport({
+    playerName: me?.displayName ?? 'toi',
+    deaths,
+    periodLabel: `les ${days} derniers jours`,
+    peerMeasures,
+    puuid: compte?.puuid ?? null,
+    generate: false, // on ne veut que les faits : c'est le chat qui parle
+  });
+
+  // Une mort precise, designee par le match et le round. On la retrouve dans ce
+  // qu'on vient de charger plutot que de faire confiance au client.
+  let mortChoisie = null;
+  const { matchId, round } = req.body ?? {};
+  if (matchId && round !== undefined) {
+    mortChoisie = deaths.find((d) => d.matchId === matchId && d.round === Number(round)) ?? null;
+  }
+
+  const historique = Array.isArray(req.body?.historique)
+    ? req.body.historique.slice(-MAX_HISTORIQUE)
+    : [];
+
+  const out = await askCoach({
+    playerName: me?.displayName ?? 'toi',
+    periodLabel: `les ${days} derniers jours`,
+    report, mortChoisie, question, historique,
+  });
+
+  res.json({ ...out, mortTrouvee: Boolean(mortChoisie) });
+}));
+
 app.get('/me/heatmap', requireAuth, wrap(async (req, res) => {
   const mapName = req.query.map;
   if (!mapName) return res.status(400).json({ error: 'parametre map requis' });
@@ -528,6 +601,9 @@ app.get('/me/heatmap', requireAuth, wrap(async (req, res) => {
       round: d.round,
       matchId: d.matchId,
       playedAt: d.playedAt,
+      weapon: d.weapon,
+      timeInRoundMs: d.timeInRoundMs,
+      tradePossible: d.tradePossible,
     })),
   });
 }));

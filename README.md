@@ -1,4 +1,4 @@
-# On lance ? — Briques 1 à 7
+# On lance ? — Briques 1 à 8
 
 Détection automatique des matchs Valorant joués ensemble par un groupe de potes,
 notification de fin de partie avec un ton qui dépend du classement, et
@@ -96,12 +96,28 @@ elles sont testées.
 | Panneau déroulant au clic sur un match (les 10 joueurs) | ✅ |
 | Rattrapage de l'historique | ✅ `npm run backfill:players` |
 
+**Brique 8 — la discussion avec le coach**
+
+| Élément | État |
+|---|---|
+| `POST /me/coach/chat` : contexte reconstruit en base à chaque appel | ✅ |
+| Contexte composé **uniquement** de faits calculés, jamais de coordonnées | ✅ testé |
+| Clic sur un point de la heatmap → question sur cette mort précise | ✅ |
+| Le coach dit ce qu'il ne mesure pas au lieu de deviner | ✅ |
+| Garde-fou anti-statistique inventée appliqué aux réponses | ✅ |
+| Historique borné, non stocké côté serveur | ✅ |
+| Une question toutes les 3 s par personne (la clé Anthropic est la sienne) | ✅ |
+
+Un chat casse par nature la règle « le code mesure, l'IA raconte » : on ne
+contrôle plus la question. Le modèle ne reçoit donc jamais de JSON de match, mais
+un contexte figé construit par `buildContext()` — une fonction pure, testée, qui
+définit exactement la frontière entre ce que le coach sait et ce qu'il ignore.
+
 **Reste à faire**
 
 | Élément | État |
 |---|---|
 | Landing page | ✅ `public/landing.html` |
-| Brique 8 — chat « pourquoi je suis mort là » | ❌ repoussé (prévu par la spec) |
 | Brique 9 — app desktop Tauri + overlay (lockfile) | ❌ |
 | Propriété vérifiée d'un Riot ID (`verified`) | ❌ dépend de la brique 9 |
 
@@ -315,7 +331,7 @@ par semaine et par joueur, là où tout stocker aurait explosé.
 npm test
 ```
 
-70 tests sur la logique métier, sans réseau ni base : classement par ACS,
+119 tests sur la logique métier, sans réseau ni base : classement par ACS,
 attribution des tons (dont le cas à 2 joueurs), anti-doublon, fenêtre de
 lookback, délai de stabilisation, variété des messages, et pour la Brique 2 —
 normalisation du RR, découpage des semaines sur le bon fuseau, agrégation,
@@ -330,7 +346,7 @@ expiré, lecture d'un cookie parmi d'autres sans confusion de nom, en-tête
 limité à `identify`.
 
 Le parcours des pages (lien d'invitation → Discord → Riot ID → notifs →
-classement → coach → déconnexion, 17 étapes) se rejoue dans un vrai navigateur,
+classement → coach → chat → déconnexion, 22 étapes) se rejoue dans un vrai navigateur,
 avec un faux serveur, hors de `npm test` parce qu'il demande Playwright :
 
 ```bash
@@ -467,6 +483,7 @@ src/services/http.js       enrobage des handlers async d'Express — pur, testab
 src/services/tiers.js      echelle de rang Valorant (tier.id) — pur, testable
 src/services/analysis.js   barème du coach relatif au rang — pur, testable
 src/services/visuels.js    icônes d'agents et visuels de maps (cache 24 h)
+src/services/chat.js       discussion avec le coach (Brique 8) — contexte pur, testable
 scripts/backfill-match-players.js  rattrapage des feuilles de match
 public/ui.css              socle visuel commun à toutes les pages
 public/app.js              socle JS commun (session, en-tête, notifs, échappement)
@@ -487,6 +504,7 @@ test/auth.test.js          tests Brique 4 — OAuth et redirections
 test/http.test.js          tests de l'enrobage des handlers
 test/stats-inventees.test.js  garde-fou contre les statistiques inventees
 test/analysis.test.js      tests du barème relatif au rang
+test/chat.test.js          tests du contexte de discussion
 docs/bareme-coach.md       comment le coach choisit ses trois constats
 test/manuel/parcours-brique4.mjs  parcours navigateur (Playwright, hors npm test)
 ```
