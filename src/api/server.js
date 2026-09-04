@@ -27,6 +27,7 @@ import { getPublicKey, pushToUser } from '../services/notifications.js';
 import { weekStartOf, weekLabel, weekBounds, buildLeaderboard } from '../services/leaderboard.js';
 import { buildCoachReport } from '../services/coach.js';
 import { askCoach, MAX_HISTORIQUE } from '../services/chat.js';
+import { verifierQuota, consommerQuota } from '../services/quota.js';
 import { getCalibration } from '../services/maps.js';
 import { getVisuels } from '../services/visuels.js';
 import * as discord from '../services/discord.js';
@@ -516,8 +517,8 @@ app.get('/me/matches/:matchId/scoreboard', requireAuth, wrap(async (req, res) =>
  * Le contexte envoye au modele est reconstruit a chaque appel a partir de la
  * base : impossible pour le client d'injecter des faits.
  */
-const DERNIERE_QUESTION = new Map();
-const DELAI_ENTRE_QUESTIONS_MS = 3_000;
+const QUOTA_EPUISE = "Désolé ! L'accès à l'IA n'est pas encore autorisé en illimité, "
+  + 'faute de fonds. Dès que le projet prendra plus d\'ampleur, les chats deviendront illimités !';
 
 app.post('/me/coach/chat', requireAuth, wrap(async (req, res) => {
   const question = String(req.body?.question ?? '').trim();
@@ -526,12 +527,15 @@ app.post('/me/coach/chat', requireAuth, wrap(async (req, res) => {
     return res.status(400).json({ error: 'Question trop longue (500 caractères max)' });
   }
 
-  // Chaque question coute un appel facture sur SA cle Anthropic : on espace.
-  const depuis = Date.now() - (DERNIERE_QUESTION.get(req.userId) ?? 0);
-  if (depuis < DELAI_ENTRE_QUESTIONS_MS) {
-    return res.status(429).json({ error: 'Laisse-moi une seconde pour répondre.' });
+  const fenetreMs = config.chat.fenetreMinutes * 60_000;
+  const quota = verifierQuota(req.userId, { max: config.chat.max, fenetreMs });
+  if (!quota.autorise) {
+    return res.status(429).json({
+      error: QUOTA_EPUISE,
+      code: 'quota',
+      reprendDansSecondes: Math.ceil(quota.reprendDansMs / 1000),
+    });
   }
-  DERNIERE_QUESTION.set(req.userId, Date.now());
 
   const days = Math.min(Math.max(Number(req.body?.days ?? 14), 1), 60);
   const me = await getSessionUser(req.userId);
@@ -545,6 +549,10 @@ app.post('/me/coach/chat', requireAuth, wrap(async (req, res) => {
       generated: false,
     });
   }
+
+  // A partir d'ici on va appeler le modele : la question est comptee. Une
+  // periode sans donnees, elle, n'entame pas le quota.
+  consommerQuota(req.userId);
 
   const peerMeasures = compte ? await loadPeerMeasures(compte.puuid, { sinceDays: days }) : [];
 
@@ -575,7 +583,13 @@ app.post('/me/coach/chat', requireAuth, wrap(async (req, res) => {
     report, mortChoisie, question, historique,
   });
 
-  res.json({ ...out, mortTrouvee: Boolean(mortChoisie) });
+  res.json({
+    ...out,
+    mortTrouvee: Boolean(mortChoisie),
+    // Le nombre restant s'affiche a cote du champ : mieux vaut le savoir avant
+    // de taper que de se le voir refuser apres.
+    restantes: quota.restantes - 1,
+  });
 }));
 
 app.get('/me/heatmap', requireAuth, wrap(async (req, res) => {

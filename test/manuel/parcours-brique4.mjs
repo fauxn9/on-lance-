@@ -164,7 +164,17 @@ app.get('/push/public-key', (_q, r) => r.json({ publicKey: '' }));
 
 // Visuels et feuille de match : les deux ajouts de la phase d'amelioration.
 // Le chat du coach : reponse normale, refus, et question sur une mort precise.
+let posees = 0;
+app.get('/__quota-reset', (_q, r) => { posees = 0; r.json({ ok: true }); });
+
 app.post('/me/coach/chat', (q, r) => {
+  if (posees >= 3) {
+    return r.status(429).json({
+      error: "Désolé ! L'accès à l'IA n'est pas encore autorisé en illimité, faute de fonds.",
+      code: 'quota', reprendDansSecondes: 1800,
+    });
+  }
+  posees += 1;
   if (/crosshair|visee/i.test(q.body.question)) {
     return r.json({ reply: "On ne mesure pas la visee, je ne peux rien te dire dessus.", refus: true });
   }
@@ -174,6 +184,7 @@ app.post('/me/coach/chat', (q, r) => {
       : 'Tu meurs trop tot dans les rounds, joue plus lentement en debut de round.',
     generated: true,
     mortTrouvee: Boolean(q.body.matchId),
+    restantes: 3 - posees,
   });
 });
 
@@ -225,7 +236,7 @@ page.on('pageerror', (e) => erreurs.push(`[pageerror] ${e.message}`));
 page.on('console', (m) => {
   const t = m.text();
   if (m.type() !== 'error') return;
-  if (/net::ERR_FAILED|fonts\.googleapis|status of (404|409)/.test(t)) return; // ressources externes coupees exprès
+  if (/net::ERR_FAILED|fonts\.googleapis|status of (404|409|429)/.test(t)) return; // ressources externes coupees exprès
   erreurs.push(`[console] ${t}`);
 });
 
@@ -484,6 +495,30 @@ await verifie('chat -> cliquer une mort epingle la question', async () => {
 
   await page.click('#pinOff');
   await page.waitForFunction(() => document.getElementById('pin').hidden);
+});
+
+await verifie('chat -> quota epuise : message, compteur et champ verrouille', async () => {
+  await page.request.get(`${base}/__quota-reset`);
+  await page.goto(`${base}/coach.html`);
+  await attends(/demande-moi ce que tu veux/i);
+
+  // Trois questions passent, et le compteur descend a chaque fois.
+  for (const [i, q] of ['une', 'deux', 'trois'].entries()) {
+    await page.fill('#question', `question ${q} ?`);
+    await page.click('#envoyer');
+    await attends(new RegExp(`${2 - i} questions? restantes?`));
+  }
+
+  // La quatrieme est refusee.
+  await page.fill('#question', 'une derniere ?');
+  await page.click('#envoyer');
+  await attends(/pas encore autorisé en illimité/i);
+
+  await page.waitForFunction(() => document.getElementById('question').disabled);
+  const ph = await page.locator('#question').getAttribute('placeholder');
+  if (!/Nouvelles questions dans \d+ min/.test(ph ?? '')) {
+    throw new Error(`decompte absent : ${ph}`);
+  }
 });
 
 // 7. Landing

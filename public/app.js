@@ -29,6 +29,9 @@ export async function api(url, options) {
     const err = new Error(data.error ?? `Erreur ${res.status}`);
     err.status = res.status;
     err.code = data.code;
+    // Le corps entier : certaines reponses portent plus que le message, comme
+    // le temps d'attente restant sur un quota epuise.
+    err.data = data;
     throw err;
   }
   return data;

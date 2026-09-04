@@ -106,7 +106,7 @@ elles sont testées.
 | Le coach dit ce qu'il ne mesure pas au lieu de deviner | ✅ |
 | Garde-fou anti-statistique inventée appliqué aux réponses | ✅ |
 | Historique borné, non stocké côté serveur | ✅ |
-| Une question toutes les 3 s par personne (la clé Anthropic est la sienne) | ✅ |
+| Quota : 3 questions par 30 min et par personne, réglable sans redéploiement | ✅ testé |
 
 Un chat casse par nature la règle « le code mesure, l'IA raconte » : on ne
 contrôle plus la question. Le modèle ne reçoit donc jamais de JSON de match, mais
@@ -331,7 +331,7 @@ par semaine et par joueur, là où tout stocker aurait explosé.
 npm test
 ```
 
-119 tests sur la logique métier, sans réseau ni base : classement par ACS,
+126 tests sur la logique métier, sans réseau ni base : classement par ACS,
 attribution des tons (dont le cas à 2 joueurs), anti-doublon, fenêtre de
 lookback, délai de stabilisation, variété des messages, et pour la Brique 2 —
 normalisation du RR, découpage des semaines sur le bon fuseau, agrégation,
@@ -346,7 +346,7 @@ expiré, lecture d'un cookie parmi d'autres sans confusion de nom, en-tête
 limité à `identify`.
 
 Le parcours des pages (lien d'invitation → Discord → Riot ID → notifs →
-classement → coach → chat → déconnexion, 22 étapes) se rejoue dans un vrai navigateur,
+classement → coach → chat → déconnexion, 23 étapes) se rejoue dans un vrai navigateur,
 avec un faux serveur, hors de `npm test` parce qu'il demande Playwright :
 
 ```bash
@@ -484,6 +484,7 @@ src/services/tiers.js      echelle de rang Valorant (tier.id) — pur, testable
 src/services/analysis.js   barème du coach relatif au rang — pur, testable
 src/services/visuels.js    icônes d'agents et visuels de maps (cache 24 h)
 src/services/chat.js       discussion avec le coach (Brique 8) — contexte pur, testable
+src/services/quota.js      quota de questions, fenêtre glissante — pur, testable
 scripts/backfill-match-players.js  rattrapage des feuilles de match
 public/ui.css              socle visuel commun à toutes les pages
 public/app.js              socle JS commun (session, en-tête, notifs, échappement)
@@ -505,6 +506,7 @@ test/http.test.js          tests de l'enrobage des handlers
 test/stats-inventees.test.js  garde-fou contre les statistiques inventees
 test/analysis.test.js      tests du barème relatif au rang
 test/chat.test.js          tests du contexte de discussion
+test/quota.test.js         tests du quota de questions
 docs/bareme-coach.md       comment le coach choisit ses trois constats
 test/manuel/parcours-brique4.mjs  parcours navigateur (Playwright, hors npm test)
 ```

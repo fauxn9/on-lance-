@@ -35,6 +35,14 @@ export const config = {
     minPlayersInMatch: Number(process.env.DETECTION_MIN_PLAYERS ?? 2),
   },
 
+  // Brique 8 — chaque question au coach est un appel facture sur une cle perso.
+  // Reglable sans toucher au code : le jour ou le projet peut se le permettre,
+  // il suffit de monter CHAT_MAX.
+  chat: {
+    max: Number(process.env.CHAT_MAX ?? 3),
+    fenetreMinutes: Number(process.env.CHAT_FENETRE_MIN ?? 30),
+  },
+
   discord: {
     clientId: process.env.DISCORD_CLIENT_ID ?? '',
     clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',

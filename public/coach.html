@@ -219,6 +219,14 @@
   }
   .saisie button { flex: none; padding: 11px 18px; font-size: 13.5px; }
 
+  .restantes {
+    padding: 0 16px 13px; font-size: 11.5px; color: var(--faint);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .jauge { display: inline-flex; gap: 4px; }
+  .jauge i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+  .jauge i[data-reste="1"] { background: var(--warm); }
+
   .skel { height: 13px; border-radius: 6px; background: var(--surface); }
   .skel + .skel { margin-top: 11px; }
 </style>
@@ -332,6 +340,8 @@
         <div class="fil" id="fil"></div>
 
         <div class="suggestions" id="suggestions"></div>
+
+        <p class="restantes" id="restantes" hidden></p>
 
         <form class="saisie" id="saisie">
           <input type="text" id="question" maxlength="500" autocomplete="off"
@@ -625,6 +635,8 @@
    */
 
   let mortEpinglee = null;
+  let restantes = null;      // null tant qu'on n'a pas encore pose de question
+  let minuteur = null;
   const historique = [];
 
   const SUGGESTIONS = [
@@ -693,13 +705,63 @@
 
       historique.push({ role: 'user', content: question });
       historique.push({ role: 'assistant', content: r.reply });
+
+      if (typeof r.restantes === 'number') { restantes = r.restantes; majRestantes(); }
     } catch (err) {
       attente.remove();
       bulle(err.message, 'bulle--coach bulle--refus');
+
+      if (err.code === 'quota') {
+        restantes = 0;
+        majRestantes();
+        attendre(err.data?.reprendDansSecondes ?? 30 * 60);
+      }
     } finally {
-      $('envoyer').disabled = false;
+      if (!$('question').disabled) $('envoyer').disabled = false;
       $('question').focus();
     }
+  }
+
+  /**
+   * Compteur de questions restantes.
+   *
+   * Affiche AVANT d'avoir tape, pas apres le refus : se voir refuser une
+   * question deja ecrite est la pire facon de decouvrir qu'il y a une limite.
+   */
+  function majRestantes() {
+    if (restantes === null) { $('restantes').hidden = true; return; }
+    $('restantes').hidden = false;
+    $('restantes').innerHTML = `
+      <span class="jauge">${[0, 1, 2].map((i) =>
+        `<i${i < restantes ? ' data-reste="1"' : ''}></i>`).join('')}</span>
+      <span>${restantes} question${restantes > 1 ? 's' : ''} restante${restantes > 1 ? 's' : ''}</span>`;
+  }
+
+  /** Verrouille la saisie et decompte jusqu'a la reouverture. */
+  function attendre(secondes) {
+    clearInterval(minuteur);
+    $('question').disabled = true;
+    $('envoyer').disabled = true;
+
+    const finAt = Date.now() + secondes * 1000;
+    const tic = () => {
+      const reste = Math.max(0, Math.ceil((finAt - Date.now()) / 1000));
+      if (reste === 0) {
+        clearInterval(minuteur);
+        $('question').disabled = false;
+        $('envoyer').disabled = false;
+        $('question').placeholder = 'Pourquoi je meurs si tôt dans les rounds ?';
+        restantes = null;
+        majRestantes();
+        return;
+      }
+      const min = Math.floor(reste / 60);
+      $('question').placeholder = min > 0
+        ? `Nouvelles questions dans ${min} min`
+        : `Nouvelles questions dans ${reste} s`;
+    };
+    tic();
+    minuteur = setInterval(tic, 1000);
   }
 
   $('saisie').addEventListener('submit', (e) => { e.preventDefault(); demander(); });
