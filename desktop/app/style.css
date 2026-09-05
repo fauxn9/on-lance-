@@ -377,3 +377,161 @@ h2 { font-family: var(--display); font-size: 15px; margin: 0; font-weight: 700; 
   * { animation-duration: .01ms !important; animation-iteration-count: 1 !important;
       transition-duration: .01ms !important; }
 }
+
+/* --- L'historique des parties ------------------------------------------------ */
+
+.parties { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.partie {
+  position: relative; overflow: hidden;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--lift);
+  animation: monte .45s var(--doux) both;
+  transition: transform .25s var(--doux), border-color .25s;
+}
+.partie:hover { transform: translateY(-2px); border-color: #2b2b3a; }
+.partie.ouverte { border-color: #34344a; }
+
+/* Le liseré gauche dit l'issue avant même qu'on lise les chiffres. */
+.partie::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: var(--loss); transition: box-shadow .3s;
+}
+.partie.gagnee::before { background: var(--gain); }
+
+.partie-tete {
+  position: relative; display: grid;
+  grid-template-columns: 46px 1fr auto; align-items: center; gap: 12px;
+  padding: 11px 14px 11px 17px; cursor: pointer;
+}
+
+/* L'art de la map, incrusté à droite et fondu dans le fond : il sert à
+   reconnaître la partie d'un coup d'œil, pas à être regardé. */
+.partie-map-art {
+  position: absolute; inset: 0 0 0 auto; width: 58%;
+  background-size: cover; background-position: center;
+  opacity: .18;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 75%);
+  mask-image: linear-gradient(90deg, transparent, #000 75%);
+  transition: opacity .35s;
+  pointer-events: none;
+}
+.partie:hover .partie-map-art { opacity: .3; }
+/* `:not(.partie-map-art)` n'est pas une precaution : sans lui, cette regle
+   rendrait l'art de la map `relative`, il reprendrait sa place dans la grille
+   et decalerait toutes les colonnes. C'est exactement le bug qui avait deja
+   casse l'historique du site. */
+.partie-tete > *:not(.partie-map-art) { position: relative; }
+
+.agent {
+  width: 46px; height: 46px; border-radius: 10px;
+  background: #15151d center/cover no-repeat;
+  border: 1px solid var(--line);
+}
+
+.partie-titre { font-weight: 600; font-size: 14px; }
+.partie-detail {
+  display: block; font-family: var(--mono); font-size: 11px; color: var(--faint);
+}
+.partie-droite { text-align: right; }
+.partie-kda { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.partie-rr { display: block; font-family: var(--mono); font-size: 11px; font-weight: 700; }
+
+/* Le panneau déroulant. `grid-template-rows` de 0fr à 1fr : c'est la seule
+   façon d'animer une hauteur qu'on ne connaît pas à l'avance sans figer un
+   max-height au jugé. */
+.feuille-boite {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .38s var(--doux);
+}
+.partie.ouverte .feuille-boite { grid-template-rows: 1fr; }
+.feuille { overflow: hidden; }
+.feuille-dedans { padding: 2px 14px 12px; border-top: 1px solid var(--line-soft); }
+
+.equipe { margin-top: 10px; }
+.equipe-titre {
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 5px;
+}
+.equipe.nous .equipe-titre { color: var(--gain); }
+.equipe.eux .equipe-titre { color: var(--loss); }
+
+.joueur {
+  display: grid; grid-template-columns: 22px 1fr auto auto; align-items: center; gap: 9px;
+  padding: 4px 0; font-size: 12px;
+}
+.joueur .mini {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: #15151d center/cover no-repeat;
+}
+.joueur .qui-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.joueur.c-est-moi .qui-nom { color: var(--warm); font-weight: 700; }
+.joueur .acs, .joueur .kda {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.joueur .acs { color: var(--faint); }
+
+/* --- Le coach ---------------------------------------------------------------- */
+
+.coach-tete {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 14px;
+}
+.coach-rang { font-family: var(--display); font-size: 15px; font-weight: 700; }
+.coach-groupe { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+
+.constats { display: grid; gap: 10px; }
+
+.constat {
+  border-radius: 12px; border: 1px solid var(--line); background: var(--lift);
+  padding: 14px; animation: monte .45s var(--doux) both;
+  transition: transform .25s var(--doux), border-color .25s;
+}
+.constat:hover { transform: translateY(-2px); border-color: #2b2b3a; }
+.constat.fort { border-left: 3px solid var(--accent); }
+.constat.net  { border-left: 3px solid var(--gold); }
+.constat.info { border-left: 3px solid var(--faint); }
+
+.constat-titre {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-weight: 600; font-size: 13.5px; margin-bottom: 4px;
+}
+.gravite {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--faint);
+}
+.constat.fort .gravite { color: var(--accent); border-color: rgb(255 70 85 / .4); }
+.constat.net  .gravite { color: var(--gold);   border-color: rgb(230 181 58 / .4); }
+
+.constat-fait { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+
+/* Deux barres l'une sous l'autre : la sienne et celle de son rang. L'écart se
+   voit avant d'être lu. */
+/* `repere` et pas `rang` : `.rang` designe deja une ligne du classement, et la
+   jauge heritait de son fond, de son cadre et de ses marges. Une collision de
+   noms de classe ne leve aucune erreur — elle se voit seulement a l'ecran. */
+.jauge { display: grid; grid-template-columns: 56px 1fr 50px; align-items: center; gap: 9px; margin-top: 6px; }
+.jauge-nom { font-size: 10px; color: var(--faint); letter-spacing: .04em; white-space: nowrap; }
+.jauge-piste { height: 7px; border-radius: 4px; background: #1a1a24; overflow: hidden; }
+/* `display: block` n'est pas decoratif : un span reste en ligne, et ni la
+   hauteur ni la largeur ne s'appliquent a un element en ligne — la barre
+   serait invisible, sans la moindre erreur. */
+.jauge-remplissage {
+  display: block; height: 100%; width: 0; border-radius: 4px;
+  transition: width 1s var(--doux);
+}
+.jauge.moi .jauge-remplissage { background: linear-gradient(90deg, var(--accent), var(--warm)); }
+.jauge.repere .jauge-remplissage { background: #3a3a4c; }
+.jauge-valeur {
+  font-family: var(--mono); font-size: 11px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.jauge.moi .jauge-valeur { color: var(--ink); font-weight: 700; }
+.jauge.repere .jauge-valeur { color: var(--faint); }
+
+.echantillon { margin-top: 10px; font-size: 10.5px; color: #5c5c68; font-family: var(--mono); }
+
+.note {
+  margin: 16px 0 0; padding: 11px 13px; border-radius: 10px;
+  border: 1px dashed var(--line); color: var(--faint); font-size: 12px;
+}

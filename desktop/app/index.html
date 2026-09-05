@@ -42,6 +42,8 @@
     <nav class="onglets" id="onglets">
       <button class="onglet actif" data-vue="direct" type="button">En direct</button>
       <button class="onglet" data-vue="classement" type="button">Classement</button>
+      <button class="onglet" data-vue="parties" type="button">Parties</button>
+      <button class="onglet" data-vue="coach" type="button">Coach</button>
       <span class="glisseur" id="glisseur" aria-hidden="true"></span>
     </nav>
 
@@ -90,6 +92,25 @@
         </div>
         <ol class="classement" id="classement"></ol>
         <p class="vide" id="classement-vide" hidden>Aucune partie classée cette semaine.</p>
+      </section>
+      <!-- 3. L'historique des parties ----------------------------------- -->
+      <section class="vue" data-vue="parties">
+        <ol class="parties" id="parties"></ol>
+        <p class="vide" id="parties-vide" hidden></p>
+      </section>
+
+      <!-- 4. Le coach ---------------------------------------------------- -->
+      <section class="vue" data-vue="coach">
+        <div class="coach-tete" id="coach-tete" hidden>
+          <span class="coach-rang" id="coach-rang"></span>
+          <span class="coach-groupe" id="coach-groupe"></span>
+        </div>
+        <div class="constats" id="constats"></div>
+        <p class="vide" id="coach-vide" hidden></p>
+        <p class="note" id="coach-note" hidden>
+          Les trois points les plus faibles, comparés aux joueurs croisés à ton rang.
+          Pour en discuter, passe par le site.
+        </p>
       </section>
     </main>
 

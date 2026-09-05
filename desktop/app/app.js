@@ -62,6 +62,8 @@ function activerVue(nom) {
   }
   placerGlisseur();
   if (nom === 'classement') chargerClassement();
+  if (nom === 'parties') chargerParties();
+  if (nom === 'coach') chargerCoach();
 }
 
 /** L'indicateur suit l'onglet actif, en position et en largeur. */
@@ -273,6 +275,282 @@ function dessinerClassement(data) {
   });
 }
 
+/* --- Écran 3 : l'historique des parties ---------------------------------------- */
+
+const imageAgent = (agent) => visuels.agents?.[agent] ?? null;
+const imageMap = (nom) => visuels.maps?.[nom] ?? null;
+
+let partiesChargees = false;
+
+async function chargerParties() {
+  if (partiesChargees) return;
+  try {
+    const { matches } = await invoke('api', { chemin: '/me/matches?limit=15' });
+    partiesChargees = true;
+    dessinerParties(matches ?? []);
+  } catch (err) {
+    $('parties-vide').hidden = false;
+    $('parties-vide').textContent = String(err);
+  }
+}
+
+function dessinerParties(matches) {
+  const liste = $('parties');
+  liste.replaceChildren();
+  $('parties-vide').hidden = matches.length > 0;
+  if (matches.length === 0) $('parties-vide').textContent = 'Aucune partie enregistrée.';
+
+  matches.forEach((m, i) => {
+    const li = document.createElement('li');
+    li.className = `partie${m.won ? ' gagnee' : ''}`;
+    li.style.animationDelay = `${i * 45}ms`;
+
+    const tete = document.createElement('div');
+    tete.className = 'partie-tete';
+    tete.setAttribute('role', 'button');
+    tete.tabIndex = 0;
+
+    const art = document.createElement('span');
+    art.className = 'partie-map-art';
+    const fondMap = imageMap(m.map);
+    if (fondMap) art.style.backgroundImage = `url("${fondMap}")`;
+
+    const agent = document.createElement('span');
+    agent.className = 'agent';
+    const iconeAgent = imageAgent(m.agent);
+    if (iconeAgent) agent.style.backgroundImage = `url("${iconeAgent}")`;
+    agent.title = m.agent ?? '';
+
+    const milieu = document.createElement('span');
+    const titre = document.createElement('span');
+    titre.className = 'partie-titre';
+    titre.textContent = m.map ?? '?';
+    const detail = document.createElement('span');
+    detail.className = 'partie-detail';
+    detail.textContent = `${m.acs ?? '—'} ACS · ${dateCourte(m.playedAt)}`;
+    milieu.append(titre, detail);
+
+    const droite = document.createElement('span');
+    droite.className = 'partie-droite';
+    const kda = document.createElement('span');
+    kda.className = 'partie-kda';
+    kda.textContent = `${m.kills}/${m.deaths}/${m.assists}`;
+    const rr = document.createElement('span');
+    rr.className = 'partie-rr';
+    if (Number.isFinite(m.rrChange)) {
+      rr.textContent = `${m.rrChange > 0 ? '+' : ''}${m.rrChange} RR`;
+      rr.style.color = m.rrChange > 0 ? 'var(--gain)' : m.rrChange < 0 ? 'var(--loss)' : 'var(--faint)';
+    }
+    droite.append(kda, rr);
+
+    tete.append(art, agent, milieu, droite);
+
+    // Le panneau est créé vide : la feuille de match n'est demandée qu'au
+    // premier dépli, et une seule fois.
+    const boite = document.createElement('div');
+    boite.className = 'feuille-boite';
+    const feuille = document.createElement('div');
+    feuille.className = 'feuille';
+    const dedans = document.createElement('div');
+    dedans.className = 'feuille-dedans';
+    feuille.append(dedans);
+    boite.append(feuille);
+
+    const basculer = () => basculerPartie(li, dedans, m.matchId);
+    tete.addEventListener('click', basculer);
+    tete.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); basculer(); }
+    });
+
+    li.append(tete, boite);
+    liste.append(li);
+  });
+}
+
+const dateCourte = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+};
+
+async function basculerPartie(li, dedans, matchId) {
+  const ouverte = li.classList.toggle('ouverte');
+  if (!ouverte || dedans.dataset.charge === '1') return;
+
+  dedans.textContent = 'Chargement…';
+  try {
+    const feuille = await invoke('api', { chemin: `/me/matches/${matchId}/scoreboard` });
+    dedans.dataset.charge = '1';
+    dessinerFeuille(dedans, feuille);
+  } catch (err) {
+    // Les parties analysées avant l'ajout de la feuille de match n'en ont pas :
+    // le serveur le dit en clair, on le répète tel quel.
+    dedans.textContent = String(err);
+  }
+}
+
+function dessinerFeuille(dedans, feuille) {
+  dedans.replaceChildren();
+  const joueurs = feuille.joueurs ?? [];
+  const monEquipe = joueurs.find((j) => j.moi)?.team ?? null;
+
+  for (const [cle, titre] of [['nous', 'Mon équipe'], ['eux', 'Adversaires']]) {
+    const membres = joueurs.filter((j) => (cle === 'nous') === (j.team === monEquipe));
+    if (membres.length === 0) continue;
+
+    const bloc = document.createElement('div');
+    bloc.className = `equipe ${cle}`;
+    const t = document.createElement('div');
+    t.className = 'equipe-titre';
+    t.textContent = titre;
+    bloc.append(t);
+
+    for (const j of membres) {
+      const ligne = document.createElement('div');
+      ligne.className = `joueur${j.moi ? ' c-est-moi' : ''}`;
+
+      const mini = document.createElement('span');
+      mini.className = 'mini';
+      const icone = imageAgent(j.agent);
+      if (icone) mini.style.backgroundImage = `url("${icone}")`;
+      mini.title = j.agent ?? '';
+
+      const nom = document.createElement('span');
+      nom.className = 'qui-nom';
+      nom.textContent = j.name ?? '?';
+
+      const acs = document.createElement('span');
+      acs.className = 'acs';
+      acs.textContent = j.acs != null ? `${j.acs} ACS` : '';
+
+      const kda = document.createElement('span');
+      kda.className = 'kda';
+      kda.textContent = `${j.kills}/${j.deaths}/${j.assists}`;
+
+      ligne.append(mini, nom, acs, kda);
+      bloc.append(ligne);
+    }
+    dedans.append(bloc);
+  }
+}
+
+/* --- Écran 4 : le coach --------------------------------------------------------- */
+
+let coachCharge = false;
+
+async function chargerCoach() {
+  if (coachCharge) return;
+  try {
+    // Sans `generate=1` : on ne demande que les faits calculés. La mise en mots
+    // par l'IA coûte de l'argent à chaque appel et reste réservée au site.
+    const rapport = await invoke('api', { chemin: '/me/coach?days=14' });
+    coachCharge = true;
+    dessinerCoach(rapport);
+  } catch (err) {
+    $('coach-vide').hidden = false;
+    $('coach-vide').textContent = String(err);
+  }
+}
+
+const GRAVITES = { fort: 'fort', net: 'net', info: 'info' };
+
+function dessinerCoach(rapport) {
+  const patterns = rapport.patterns ?? [];
+  $('coach-vide').hidden = patterns.length > 0;
+  if (patterns.length === 0) {
+    $('coach-vide').textContent = rapport.message
+      ?? 'Pas encore assez de parties analysées pour conclure quoi que ce soit.';
+    $('coach-note').hidden = true;
+    return;
+  }
+
+  $('coach-tete').hidden = !rapport.rang;
+  $('coach-rang').textContent = rapport.rang ?? '';
+  $('coach-groupe').textContent = rapport.groupe?.taille
+    ? `comparé à ${rapport.groupe.taille} joueurs de ton niveau`
+    : '';
+  $('coach-note').hidden = false;
+
+  const boite = $('constats');
+  boite.replaceChildren();
+
+  patterns.forEach((p, i) => {
+    const carte = document.createElement('article');
+    carte.className = `constat ${GRAVITES[p.severity] ?? 'info'}`;
+    carte.style.animationDelay = `${i * 70}ms`;
+
+    const titre = document.createElement('div');
+    titre.className = 'constat-titre';
+    const nom = document.createElement('span');
+    nom.textContent = TITRES_AXES[p.key] ?? p.key;
+    const grav = document.createElement('span');
+    grav.className = 'gravite';
+    grav.textContent = p.severity ?? '';
+    titre.append(nom, grav);
+
+    const fait = document.createElement('p');
+    fait.className = 'constat-fait';
+    fait.textContent = p.fact ?? '';
+
+    carte.append(titre, fait);
+
+    // Les deux jauges n'ont de sens que si on a une référence à comparer.
+    if (Number.isFinite(p.valeur) && Number.isFinite(p.reference)) {
+      const sommet = Math.max(p.valeur, p.reference, 1);
+      carte.append(
+        jauge('moi', 'toi', p.valeur, sommet, p.unite),
+        jauge('repere', 'ton rang', p.reference, sommet, p.unite),
+      );
+    }
+
+    if (p.sample) {
+      const ech = document.createElement('div');
+      ech.className = 'echantillon';
+      ech.textContent = `sur ${p.sample} observations`;
+      carte.append(ech);
+    }
+
+    boite.append(carte);
+  });
+}
+
+const TITRES_AXES = {
+  ouverture: 'Premier mort du round',
+  entree: 'Morts en début de round',
+  isolement: 'Morts isolées',
+  trade: 'Morts non tradables',
+  degats_recus: 'Dégâts encaissés',
+  degats_infliges: 'Dégâts infligés',
+  precision: 'Précision',
+  apres_plant: 'Morts après le plant',
+};
+
+function jauge(classe, etiquette, valeur, sommet, unite) {
+  const bloc = document.createElement('div');
+  bloc.className = `jauge ${classe}`;
+
+  const nom = document.createElement('span');
+  nom.className = 'jauge-nom';
+  nom.textContent = etiquette;
+
+  const piste = document.createElement('span');
+  piste.className = 'jauge-piste';
+  const remplissage = document.createElement('span');
+  remplissage.className = 'jauge-remplissage';
+  piste.append(remplissage);
+
+  const val = document.createElement('span');
+  val.className = 'jauge-valeur';
+  val.textContent = `${valeur}${unite ?? ''}`;
+
+  bloc.append(nom, piste, val);
+  requestAnimationFrame(() => {
+    remplissage.style.width = `${Math.round((valeur / sommet) * 100)}%`;
+  });
+  return bloc;
+}
+
 /* --- Vue globale -------------------------------------------------------------- */
 
 let moi = null;
@@ -331,6 +609,8 @@ $('form-appairage').addEventListener('submit', async (e) => {
 $('oublier').addEventListener('click', async () => {
   await invoke('oublier');
   groupeCourant = null;
+  partiesChargees = false;
+  coachCharge = false;
   retour("Ce PC a été oublié. Le site garde l'appareil dans sa liste — retire-le depuis ton tableau de bord.");
   dessiner(await invoke('etat_actuel'));
 });
@@ -362,7 +642,14 @@ listen('evenements', (e) => {
   // pas tout de suite — le serveur a besoin d'un moment pour aller chercher le
   // match, et un classement identique rechargé pour rien n'apprend rien.
   if ((e.payload ?? []).some((ev) => ev.type === 'fin')) {
-    setTimeout(chargerClassement, 45_000);
+    // Le serveur a besoin d'un moment pour aller chercher le match : recharger
+    // tout de suite ne montrerait que ce qu'on affiche deja.
+    setTimeout(() => {
+      partiesChargees = false;
+      coachCharge = false;
+      chargerClassement();
+      if (document.querySelector('.vue.active')?.dataset.vue === 'parties') chargerParties();
+    }, 45_000);
   }
 });
 
