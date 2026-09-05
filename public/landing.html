@@ -589,6 +589,90 @@
      Les couleurs sont ecrites en dur plutot qu'en variables, pour que ce bloc
      se colle tel quel dans la landing comme dans ui.css. */
 
+  /* Recopie de ui.css : cette page est autonome et ne charge pas la feuille
+     commune. Meme parti pris que pour le bouton Ko-fi juste en dessous. */
+  /* --- Bouton « verre » ------------------------------------------------------- */
+
+  /* L'installateur de l'application PC. Un bouton en verre plutôt qu'un aplat de
+     couleur : le fond du site transparaît à travers, donc il attire l'œil sans
+     entrer en concurrence avec le rouge de la marque, déjà utilisé partout
+     ailleurs pour les actions.
+
+     Tout est en CSS. Un reflet qui suivrait le curseur demanderait du JavaScript
+     sur chaque page, pour un gain que personne ne remarque en dehors d'une
+     démonstration. */
+
+  .verre {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 11px;
+    padding: 14px 26px; border-radius: 999px;
+    isolation: isolate; overflow: hidden;
+    color: var(--ink); font-family: var(--display);
+    font-size: 15px; font-weight: 700; letter-spacing: -.01em;
+    text-decoration: none;
+
+    background:
+      linear-gradient(140deg, rgb(255 255 255 / .14), rgb(255 255 255 / .03) 45%, rgb(255 255 255 / .1));
+    backdrop-filter: blur(20px) saturate(1.7);
+    -webkit-backdrop-filter: blur(20px) saturate(1.7);
+    border: 1px solid rgb(255 255 255 / .17);
+
+    /* La ligne de lumière en haut et l'ombre portée : c'est ce couple qui donne
+       l'épaisseur. Sans le liseré interne, le bouton est un rectangle flou. */
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / .4),
+      inset 0 -1px 0 rgb(255 255 255 / .07),
+      0 12px 34px -14px rgb(0 0 0 / .95);
+
+    transition: transform .45s var(--doux), box-shadow .45s var(--doux),
+                border-color .45s, background .45s;
+  }
+
+  /* Le halo coloré, sous le verre : il se réveille au survol. */
+  .verre::before {
+    content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit;
+    background: radial-gradient(75% 130% at 20% 0%, rgb(255 70 85 / .5), transparent 62%),
+                radial-gradient(70% 120% at 85% 100%, rgb(255 138 91 / .42), transparent 60%);
+    opacity: .42; transition: opacity .45s var(--doux);
+  }
+
+  /* Le reflet qui traverse. Il part de la gauche et ne revient pas : un
+     aller-retour donnerait l'impression d'un chargement en cours. */
+  .verre::after {
+    content: ''; position: absolute; inset: 0 auto 0 -55%; width: 42%;
+    background: linear-gradient(100deg, transparent, rgb(255 255 255 / .5), transparent);
+    transform: skewX(-16deg);
+    transition: left .75s var(--doux);
+    pointer-events: none;
+  }
+
+  .verre:hover, .verre:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgb(255 255 255 / .3);
+    background:
+      linear-gradient(140deg, rgb(255 255 255 / .2), rgb(255 255 255 / .06) 45%, rgb(255 255 255 / .14));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / .55),
+      inset 0 -1px 0 rgb(255 255 255 / .1),
+      0 20px 46px -16px rgb(255 70 85 / .55);
+  }
+  .verre:hover::before, .verre:focus-visible::before { opacity: 1; }
+  .verre:hover::after, .verre:focus-visible::after { left: 115%; }
+  .verre:active { transform: translateY(0) scale(.985); }
+
+  /* La flèche accompagne le mouvement, elle ne part pas toute seule. */
+  .verre .fleche { transition: transform .45s var(--doux); }
+  .verre:hover .fleche { transform: translateX(4px); }
+
+  .verre-note {
+    margin-top: 10px; font-size: 12px; color: var(--faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .verre, .verre::after, .verre .fleche { transition: none; }
+  }
+
+  .install-wrap { margin-bottom: 30px; }
   .kofi-wrap { position: relative; display: inline-block; line-height: 0; }
 
   .kofi {
@@ -1102,6 +1186,15 @@
 
 <footer>
   <div class="shell">
+    <div class="install-wrap">
+      <a class="verre" href="https://github.com/fauxn9/on-lance-/releases"
+         target="_blank" rel="noopener noreferrer">
+        Installer l'application PC
+        <span class="fleche" aria-hidden="true">↓</span>
+      </a>
+      <p class="verre-note">Détection des fins de partie à la seconde · Windows</p>
+    </div>
+
     <div class="kofi-wrap">
       <a class="kofi" href="https://ko-fi.com/onlance" target="_blank" rel="noopener noreferrer">
         Soutenir le projet <span class="kofi-heart" aria-hidden="true">❤️</span>
