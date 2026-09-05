@@ -24,6 +24,10 @@ pub struct EtatAffiche {
     pub map_code: Option<String>,
     pub queue: Option<String>,
     pub party_size: Option<i64>,
+    /// Rang competitif, tel que le client Riot le publie. Sert a remplir la
+    /// fenetre quand aucune partie n'est en cours — c'est l'etat le plus
+    /// frequent de la journee, il n'a pas a etre vide.
+    pub tier: Option<i64>,
     pub client_riot: bool,
     /// Dernier probleme rencontre, deja redige pour un humain.
     pub souci: Option<String>,
@@ -49,6 +53,7 @@ impl Agent {
                 map_code: None,
                 queue: None,
                 party_size: None,
+                tier: None,
                 client_riot: false,
                 souci: None,
             },
@@ -83,6 +88,7 @@ impl Agent {
                     map_code: None,
                     queue: None,
                     party_size: None,
+                    tier: None,
                     client_riot: false,
                     souci: match err {
                         ErreurRiot::ClientAbsent => None, // pas un souci, un fait
@@ -121,6 +127,7 @@ impl Agent {
             map_code: instantane.as_ref().and_then(|i| i.map_code.clone()),
             queue: instantane.as_ref().and_then(|i| i.queue.clone()),
             party_size: instantane.as_ref().and_then(|i| i.party_size),
+            tier: instantane.as_ref().and_then(|i| i.tier),
             client_riot: true,
             // Une presence lue mais dont l'etat reste introuvable, c'est le
             // signe que Riot a encore deplace le champ. On le dit, plutot que

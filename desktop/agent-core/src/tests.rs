@@ -277,3 +277,15 @@ async fn l_etat_affiche_suit_la_partie() {
     assert_eq!(agent.etat().party_size, Some(3));
     assert_eq!(agent.etat().queue.as_deref(), Some("competitive"));
 }
+
+#[tokio::test]
+async fn le_rang_remonte_jusqu_a_la_fenetre() {
+    // C'est ce qui remplit l'ecran quand aucune partie n'est en cours — l'etat
+    // le plus frequent de la journee.
+    let (port, _) = faux_client_riot(scenario()).await;
+    let (_rep, chemin) = ecrire_lockfile(port);
+    let mut agent = Agent::nouveau(chemin);
+
+    agent.battre(0).await;
+    assert_eq!(agent.etat().tier, Some(17)); // Platine 3
+}

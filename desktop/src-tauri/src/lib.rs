@@ -127,6 +127,44 @@ async fn appairer(code: String, etat: State<'_, Etat>) -> Result<String, String>
     Ok(message)
 }
 
+/// Prefixes de routes que l'interface a le droit de demander.
+///
+/// Le jeton d'appareil ne transite JAMAIS par la fenetre : c'est le Rust qui
+/// appelle, avec son jeton, et qui rend le resultat. Une page compromise —
+/// improbable ici, mais gratuit a empecher — ne peut donc ni le lire ni
+/// s'en servir ailleurs. La liste blanche fait le reste : elle borne ce que
+/// l'interface peut demander a ce que l'interface affiche.
+const ROUTES_LISIBLES: &[&str] = &["/me/", "/groups/", "/visuels"];
+
+/// Lecture d'une route du site, au nom de cet appareil.
+#[tauri::command]
+async fn api(chemin: String, etat: State<'_, Etat>) -> Result<serde_json::Value, String> {
+    // Un chemin doit rester un chemin : pas d'URL absolue qui enverrait le
+    // jeton ailleurs, pas de ".." pour remonter hors de la liste blanche.
+    if !chemin.starts_with('/') || chemin.contains("..") || chemin.contains("://") {
+        return Err(format!("Chemin refusé : {chemin}"));
+    }
+    if !ROUTES_LISIBLES.iter().any(|p| chemin.starts_with(p)) {
+        return Err(format!("Route non autorisée : {chemin}"));
+    }
+
+    let jeton = etat
+        .config
+        .lock()
+        .unwrap()
+        .jeton
+        .clone()
+        .ok_or("Ce PC n'est pas encore appairé.")?;
+
+    etat.serveur
+        .lire(&jeton, &chemin)
+        .await
+        .map_err(|e| match e {
+            ErreurServeur::Refus { message, .. } => message,
+            ErreurServeur::Reseau(_) => "onlance.xyz est injoignable.".to_string(),
+        })
+}
+
 /// Oublie ce PC, localement.
 ///
 /// Le jeton reste valable cote serveur : c'est depuis le tableau de bord qu'on
@@ -224,7 +262,7 @@ fn montrer(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![etat_actuel, appairer, oublier])
+        .invoke_handler(tauri::generate_handler![etat_actuel, appairer, oublier, api])
         .setup(|app| {
             let base = app.path().app_config_dir()?;
             let chemin_config = config::chemin_config(base);

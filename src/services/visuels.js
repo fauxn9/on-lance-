@@ -14,6 +14,8 @@
  * sans images — degrade, jamais casse.
  */
 
+import { nomDuRang } from './tiers.js';
+
 const AGENTS = 'https://valorant-api.com/v1/agents?isPlayableCharacter=true';
 const MAPS = 'https://valorant-api.com/v1/maps';
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -32,7 +34,20 @@ export async function getVisuels() {
   try {
     const [agents, maps] = await Promise.all([fetchJson(AGENTS), fetchJson(MAPS)]);
 
-    const data = { agents: {}, maps: {} };
+    // `codes` traduit le nom interne d'une map (Triad) en nom affichable
+    // (Haven). C'est la presence locale du client Riot qui donne le nom
+    // interne : sans cette table, l'application PC devrait en tenir une
+    // ecrite a la main, fausse a la prochaine map ajoutee.
+    // Les noms de rang viennent d'ici et pas de l'application PC : une echelle
+    // recopiee la-bas vivrait sa propre vie, et le site et l'application
+    // finiraient par afficher deux noms differents pour le meme joueur.
+    const rangs = {};
+    for (let id = 3; id <= 27; id += 1) {
+      const nom = nomDuRang(id);
+      if (nom) rangs[id] = nom;
+    }
+
+    const data = { agents: {}, maps: {}, codes: {}, rangs };
 
     for (const a of agents.data ?? []) {
       // displayIcon : le buste sur fond transparent, lisible en petit.
@@ -43,6 +58,9 @@ export async function getVisuels() {
       // listViewIcon : la vignette large que Riot utilise dans ses propres
       // listes de parties. Exactement le bon format ici.
       if (m.displayName && m.listViewIcon) data.maps[m.displayName] = m.listViewIcon;
+
+      const code = String(m.mapUrl ?? '').split('/').pop();
+      if (code && m.displayName) data.codes[code.toLowerCase()] = m.displayName;
     }
 
     cache = { at: Date.now(), data };
@@ -50,6 +68,6 @@ export async function getVisuels() {
   } catch (err) {
     console.error(`[visuels] indisponibles : ${err.message}`);
     // On ne met PAS l'echec en cache : le prochain appel reessaiera.
-    return cache.data ?? { agents: {}, maps: {} };
+    return cache.data ?? { agents: {}, maps: {}, codes: {}, rangs: {} };
   }
 }

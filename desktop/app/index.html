@@ -9,49 +9,96 @@
 <body>
   <header class="tete">
     <span class="marque">On lance <span class="pt">?</span></span>
-    <span class="version" id="version"></span>
+    <span class="qui" id="qui" hidden>
+      <span class="pseudo" id="compte"></span>
+      <span class="riot" id="riot-id"></span>
+    </span>
   </header>
 
-  <!-- Écran 1 : ce PC n'est pas encore appairé. -->
-  <section id="ecran-appairage" hidden>
-    <p class="intro">
-      Ouvre ton tableau de bord sur onlance.xyz, bloc <strong>Application PC</strong>,
-      et recopie le code à six caractères.
-    </p>
+  <!-- Écran d'appairage : tant que ce PC n'est rattaché à personne. -->
+  <section id="ecran-appairage" class="ecran" hidden>
+    <div class="accueil">
+      <div class="logo-anim" aria-hidden="true"><span></span><span></span><span></span></div>
+      <h1>Relie ce PC</h1>
+      <p class="intro">
+        Ouvre ton tableau de bord sur onlance.xyz, bloc <strong>Application PC</strong>,
+        et recopie le code à six caractères.
+      </p>
 
-    <form id="form-appairage" autocomplete="off">
-      <label class="etiquette" for="code">Code d'appairage</label>
-      <input id="code" name="code" class="code" maxlength="7" spellcheck="false"
-             placeholder="A B 2 C D 3" aria-describedby="retour" />
-      <button type="submit" id="bouton-appairer">Appairer ce PC</button>
-    </form>
+      <form id="form-appairage" autocomplete="off">
+        <input id="code" name="code" class="code" maxlength="6" spellcheck="false"
+               placeholder="••••••" aria-label="Code d'appairage" />
+        <button type="submit" id="bouton-appairer">
+          <span>Appairer ce PC</span>
+        </button>
+      </form>
 
-    <p class="lien-site">
-      <a href="#" id="ouvrir-site">Ouvrir mon tableau de bord</a>
-    </p>
+      <p class="lien-site"><a href="#" data-site>Ouvrir mon tableau de bord</a></p>
+    </div>
   </section>
 
-  <!-- Écran 2 : appairé, on affiche l'état en direct. -->
-  <section id="ecran-etat" hidden>
-    <div class="qui">
-      <span class="pastille-compte" id="compte">—</span>
-      <span class="riot" id="riot-id"></span>
-    </div>
+  <!-- Application appairée. -->
+  <div id="app" hidden>
+    <nav class="onglets" id="onglets">
+      <button class="onglet actif" data-vue="direct" type="button">En direct</button>
+      <button class="onglet" data-vue="classement" type="button">Classement</button>
+      <span class="glisseur" id="glisseur" aria-hidden="true"></span>
+    </nav>
 
-    <div class="carte">
-      <div class="pastille" id="pastille">
-        <span class="point" id="point"></span>
-        <span id="libelle">Lecture…</span>
-      </div>
-      <dl class="details" id="details"></dl>
-      <p class="souci" id="souci" hidden></p>
-    </div>
+    <main>
+      <!-- 1. L'état en direct ------------------------------------------ -->
+      <section class="vue active" data-vue="direct">
+        <article class="scene" id="scene">
+          <div class="fond" id="fond" aria-hidden="true"></div>
+          <div class="voile" aria-hidden="true"></div>
 
-    <p class="pied">
-      <a href="#" id="ouvrir-site-2">Ouvrir le site</a>
+          <div class="scene-haut">
+            <span class="pastille" id="pastille">
+              <span class="point"></span><span id="libelle">Lecture…</span>
+            </span>
+            <span class="mode" id="mode"></span>
+          </div>
+
+          <div class="scene-milieu">
+            <div class="score" id="score" hidden>
+              <span class="chiffre nous" id="score-nous">0</span>
+              <span class="tiret">—</span>
+              <span class="chiffre eux" id="score-eux">0</span>
+            </div>
+            <div class="repos" id="repos">
+              <span class="rang-nom" id="rang-nom" hidden></span>
+              <p class="repos-texte" id="repos-texte">En attente d'une partie</p>
+            </div>
+          </div>
+
+          <div class="scene-bas">
+            <span class="map" id="map"></span>
+            <span class="groupe" id="groupe"></span>
+          </div>
+        </article>
+
+        <p class="souci" id="souci" hidden></p>
+
+        <ul class="fil" id="fil" aria-label="Derniers événements"></ul>
+      </section>
+
+      <!-- 2. Le classement de la semaine -------------------------------- -->
+      <section class="vue" data-vue="classement">
+        <div class="entete-semaine">
+          <h2 id="semaine">Cette semaine</h2>
+          <span class="reste" id="reste"></span>
+        </div>
+        <ol class="classement" id="classement"></ol>
+        <p class="vide" id="classement-vide" hidden>Aucune partie classée cette semaine.</p>
+      </section>
+    </main>
+
+    <footer class="pied">
+      <a href="#" data-site>Ouvrir le site</a>
+      <span class="version" id="version"></span>
       <button type="button" id="oublier" class="lien-bouton">Oublier ce PC</button>
-    </p>
-  </section>
+    </footer>
+  </div>
 
   <p class="retour" id="retour" role="status" hidden></p>
 

@@ -9,6 +9,7 @@
 
 use presence_core::{Etat, Evenement};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
@@ -84,7 +85,7 @@ impl ClientServeur {
         }
     }
 
-    async fn lire<T: for<'de> Deserialize<'de>>(
+    async fn lire_reponse<T: for<'de> Deserialize<'de>>(
         rep: reqwest::Response,
     ) -> Result<T, ErreurServeur> {
         let statut = rep.status().as_u16();
@@ -128,7 +129,23 @@ impl ClientServeur {
             .send()
             .await
             .map_err(|e| ErreurServeur::Reseau(e.to_string()))?;
-        Self::lire(rep).await
+        Self::lire_reponse(rep).await
+    }
+
+    /// Lecture d'une route du site, au nom de l'appareil appairé.
+    ///
+    /// C'est ce qui permet a l'application d'afficher les memes donnees que le
+    /// site — classement, historique, coach — sans navigateur ni cookie. Le
+    /// serveur n'ouvre que des routes de LECTURE a un jeton d'appareil.
+    pub async fn lire(&self, jeton: &str, chemin: &str) -> Result<Value, ErreurServeur> {
+        let rep = self
+            .http
+            .get(format!("{}{}", self.base, chemin))
+            .bearer_auth(jeton)
+            .send()
+            .await
+            .map_err(|e| ErreurServeur::Reseau(e.to_string()))?;
+        Self::lire_reponse(rep).await
     }
 
     /// Battement de coeur : dit que le PC est la, et porte ce qui vient de se
@@ -155,7 +172,7 @@ impl ClientServeur {
             .send()
             .await
             .map_err(|e| ErreurServeur::Reseau(e.to_string()))?;
-        Self::lire(rep).await
+        Self::lire_reponse(rep).await
     }
 }
 
