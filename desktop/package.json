@@ -1,11 +1,11 @@
 {
   "name": "onlance-desktop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Application PC d'On lance ? — coquille Tauri.",
   "scripts": {
     "dev": "tauri dev",
-    "build": "tauri build",
+    "build": "tauri build && node renommer-installateur.mjs",
     "tauri": "tauri"
   },
   "devDependencies": {
