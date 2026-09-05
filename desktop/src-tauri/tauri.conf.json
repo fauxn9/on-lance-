@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "On lance",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "xyz.onlance.app",
   "build": {
     "frontendDist": "../app"
@@ -51,6 +51,15 @@
         "startMenuFolder": "On lance",
         "installerHooks": "hooks.nsh"
       }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFEOUIxMjYyNDEzMTk2MgpSV1JpR1JNa0pySFpBV0FvSjNXcndnV3ErdU1zQi92ZVQvclFpZG14b0xXYVE2RzZQVGJINXh4cwo=",
+      "endpoints": [
+        "https://github.com/fauxn9/on-lance-/releases/latest/download/latest.json"
+      ]
     }
   }
 }

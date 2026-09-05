@@ -27,6 +27,7 @@ use std::time::Duration;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_updater::UpdaterExt;
 
 /// Deux secondes : assez fin pour ne rater aucune transition, assez large pour
 /// que la charge reste invisible — c'est un appel sur la boucle locale, pas un
@@ -165,6 +166,43 @@ async fn api(chemin: String, etat: State<'_, Etat>) -> Result<serde_json::Value,
         })
 }
 
+/// Y a-t-il une version plus recente ?
+///
+/// Renvoie son numero, ou `None` si l'application est a jour. Une erreur ici
+/// n'est jamais grave : pas de reseau, GitHub indisponible, fichier de version
+/// absent — l'application continue de tourner avec ce qu'elle a.
+#[tauri::command]
+async fn chercher_maj(app: AppHandle) -> Result<Option<String>, String> {
+    let maj = app.updater().map_err(|e| e.to_string())?;
+    match maj.check().await {
+        Ok(Some(u)) => Ok(Some(u.version)),
+        Ok(None) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Telecharge et installe la mise a jour, puis relance.
+///
+/// La signature est verifiee par le plugin avant toute installation : une
+/// archive qui n'a pas ete signee avec la cle privee du projet est refusee.
+/// C'est ce qui empeche quelqu'un qui controlerait le reseau — un DNS
+/// detourne, un point d'acces public — de faire passer son propre executable
+/// pour une mise a jour.
+#[tauri::command]
+async fn installer_maj(app: AppHandle) -> Result<(), String> {
+    let maj = app.updater().map_err(|e| e.to_string())?;
+    let Some(update) = maj.check().await.map_err(|e| e.to_string())? else {
+        return Err("Aucune mise à jour disponible.".into());
+    };
+
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| e.to_string())?;
+
+    app.restart();
+}
+
 /// Oublie ce PC, localement.
 ///
 /// Le jeton reste valable cote serveur : c'est depuis le tableau de bord qu'on
@@ -262,7 +300,8 @@ fn montrer(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![etat_actuel, appairer, oublier, api])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![etat_actuel, appairer, oublier, api, chercher_maj, installer_maj])
         .setup(|app| {
             let base = app.path().app_config_dir()?;
             let chemin_config = config::chemin_config(base);

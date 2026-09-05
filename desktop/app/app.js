@@ -743,6 +743,43 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('debrief').hidden) fermerDebrief();
 });
 
+/* --- Mises à jour ---------------------------------------------------------------- */
+
+/**
+ * Une vérification au lancement, puis une toutes les six heures.
+ *
+ * L'application tourne en fond des journées entières : sans la vérification
+ * périodique, quelqu'un qui ne la ferme jamais resterait sur sa version
+ * jusqu'au prochain redémarrage de son PC.
+ *
+ * Un échec ne se voit pas. Pas de réseau, GitHub indisponible : ce n'est pas
+ * un problème pour quelqu'un qui veut juste regarder son classement, et une
+ * fenêtre d'erreur pour ça serait une nuisance.
+ */
+async function verifierMaj() {
+  try {
+    const version = await invoke('chercher_maj');
+    if (!version) return;
+    $('maj').hidden = false;
+    $('maj-texte').textContent = `Version ${version} disponible`;
+  } catch {
+    // Silencieux, volontairement.
+  }
+}
+
+$('maj-bouton').addEventListener('click', async () => {
+  const bouton = $('maj-bouton');
+  bouton.disabled = true;
+  $('maj-texte').textContent = 'Téléchargement…';
+  try {
+    // L'application se relance toute seule à la fin : rien à afficher après.
+    await invoke('installer_maj');
+  } catch (err) {
+    $('maj-texte').textContent = String(err);
+    bouton.disabled = false;
+  }
+});
+
 /* --- Thème Matilda -------------------------------------------------------------- */
 
 /**
@@ -962,6 +999,9 @@ listen('evenements', (e) => {
     dernierMatchConnu = await dernierMatchId();
   }
 })();
+
+verifierMaj();
+setInterval(verifierMaj, 6 * 3600_000);
 
 // Le classement bouge quand les potes jouent, pas seulement quand on joue.
 setInterval(() => {

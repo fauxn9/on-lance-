@@ -672,3 +672,21 @@ h3 {
 }
 .d-joueur-acs { color: var(--faint); }
 .d-joueur-kda { color: var(--muted); min-width: 62px; text-align: right; }
+
+/* --- La bandeau de mise à jour ------------------------------------------------ */
+
+/* En haut, pleine largeur, et il pousse le reste vers le bas plutôt que de se
+   poser dessus : une barre flottante finirait par masquer une information au
+   moment précis où on la regarde. */
+.maj {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 20px;
+  background: linear-gradient(120deg, rgb(255 70 85 / .16), rgb(255 138 91 / .1));
+  border-bottom: 1px solid rgb(255 138 91 / .3);
+  font-size: 12.5px; color: var(--ink);
+  animation: monte .4s var(--doux) both;
+}
+.maj button {
+  width: auto; padding: 6px 13px; border-radius: 8px; font-size: 12px;
+}
+.maj button::after { display: none; }
