@@ -535,3 +535,140 @@ h2 { font-family: var(--display); font-size: 15px; margin: 0; font-weight: 700; 
   margin: 16px 0 0; padding: 11px 13px; border-radius: 10px;
   border: 1px dashed var(--line); color: var(--faint); font-size: 12px;
 }
+
+/* --- Le débrief de fin de partie ---------------------------------------------- */
+
+.debrief {
+  position: fixed; inset: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: apparait .3s var(--doux) both;
+}
+@keyframes apparait { from { opacity: 0; } to { opacity: 1; } }
+
+/* L'art de la map, flouté derrière : on reconnaît la partie avant de lire. */
+.debrief-fond {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  filter: blur(22px) saturate(1.35); transform: scale(1.14);
+  opacity: .8;
+}
+.debrief-voile {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgb(7 7 11 / .52), rgb(7 7 11 / .88) 72%);
+}
+
+.debrief-panneau {
+  position: relative; z-index: 1;
+  width: 100%; max-height: 100%; overflow-y: auto;
+  border-radius: 18px; border: 1px solid #262636;
+  background: linear-gradient(180deg, rgb(16 16 24 / .96), rgb(11 11 17 / .98));
+  backdrop-filter: blur(8px);
+  box-shadow: 0 40px 90px -30px #000;
+  animation: surgit .42s var(--doux) both;
+}
+@keyframes surgit {
+  from { opacity: 0; transform: scale(.95) translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.debrief-panneau::-webkit-scrollbar { width: 8px; }
+.debrief-panneau::-webkit-scrollbar-thumb { background: #23232f; border-radius: 4px; }
+
+.fermer {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  background: rgb(255 255 255 / .06); color: var(--muted);
+  font-size: 19px; line-height: 1; font-weight: 400;
+}
+.fermer::after { display: none; }
+.fermer:hover { background: rgb(255 70 85 / .18); color: var(--ink); transform: none; box-shadow: none; }
+
+.debrief-tete {
+  text-align: center; padding: 26px 20px 20px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.issue {
+  font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--faint);
+}
+.issue.gagne { color: var(--gain); }
+.issue.perdu { color: var(--loss); }
+
+.debrief-score { display: flex; align-items: baseline; justify-content: center; gap: 14px; margin: 6px 0 4px; }
+.debrief-score .chiffre { font-size: 46px; }
+.debrief-map { font-family: var(--display); font-size: 15px; font-weight: 700; color: var(--muted); }
+
+.debrief-corps { padding: 18px 18px 22px; }
+
+/* Le message qui te félicite ou te vanne : c'est celui qui est parti en
+   notification, pas un deuxième écrit pour l'occasion. */
+.vanne {
+  margin: 0 0 20px; padding: 15px 16px; border-radius: 13px;
+  border: 1px solid rgb(255 138 91 / .32);
+  background: linear-gradient(120deg, rgb(255 70 85 / .1), rgb(255 138 91 / .05));
+  font-size: 14px; line-height: 1.5; color: var(--ink);
+  animation: monte .5s var(--doux) .1s both;
+}
+
+.debrief-bloc { margin-bottom: 20px; }
+.debrief-bloc:last-child { margin-bottom: 0; }
+h3 {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--faint); margin: 0 0 10px;
+}
+
+.debrief-constats { display: grid; gap: 8px; }
+.d-constat {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+  padding: 11px 13px; border-radius: 11px;
+  border: 1px solid var(--line); background: rgb(255 255 255 / .02);
+  animation: monte .45s var(--doux) both;
+}
+.d-constat-titre { font-weight: 600; font-size: 13px; }
+.d-constat-valeur {
+  grid-row: 1 / 3; align-self: center;
+  font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.d-constat-phrase { font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
+
+/* La feuille : dix portraits, deux camps. */
+.equipe-bloc { margin-bottom: 14px; }
+.equipe-bloc:last-child { margin-bottom: 0; }
+.equipe-bandeau {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 7px;
+}
+.equipe-bloc.nous .equipe-bandeau { color: var(--gain); }
+.equipe-bloc.eux .equipe-bandeau { color: var(--loss); }
+
+.d-joueur {
+  display: grid; grid-template-columns: 38px 1fr auto auto; align-items: center; gap: 11px;
+  padding: 7px 9px; border-radius: 10px;
+  animation: monte .4s var(--doux) both;
+  transition: background .22s;
+}
+.d-joueur:hover { background: rgb(255 255 255 / .035); }
+.d-joueur.c-est-moi {
+  background: rgb(255 138 91 / .09);
+  box-shadow: inset 0 0 0 1px rgb(255 138 91 / .3);
+}
+
+/* Le portrait, avec un liseré à la couleur du camp. */
+.portrait {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: #15151d center/cover no-repeat;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .09);
+}
+.equipe-bloc.nous .portrait { box-shadow: inset 0 0 0 1px rgb(79 227 176 / .35); }
+.equipe-bloc.eux .portrait { box-shadow: inset 0 0 0 1px rgb(224 74 104 / .3); }
+
+.d-joueur-nom { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-joueur.c-est-moi .d-joueur-nom { color: var(--warm); font-weight: 700; }
+.d-joueur-rang { display: block; font-size: 10px; color: var(--faint); font-family: var(--mono); }
+.d-joueur-acs, .d-joueur-kda {
+  font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.d-joueur-acs { color: var(--faint); }
+.d-joueur-kda { color: var(--muted); min-width: 62px; text-align: right; }

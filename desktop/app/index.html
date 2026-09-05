@@ -121,6 +121,40 @@
     </footer>
   </div>
 
+  <!-- Le débrief, ouvert tout seul à la fin d'une partie. -->
+  <div class="debrief" id="debrief" hidden>
+    <div class="debrief-fond" id="debrief-fond" aria-hidden="true"></div>
+    <div class="debrief-voile" aria-hidden="true"></div>
+
+    <article class="debrief-panneau" role="dialog" aria-label="Débrief de la partie">
+      <button type="button" class="fermer" id="debrief-fermer" aria-label="Fermer">×</button>
+
+      <header class="debrief-tete">
+        <span class="issue" id="debrief-issue">Partie terminée</span>
+        <div class="debrief-score">
+          <span class="chiffre nous" id="debrief-nous">0</span>
+          <span class="tiret">—</span>
+          <span class="chiffre eux" id="debrief-eux">0</span>
+        </div>
+        <span class="debrief-map" id="debrief-map"></span>
+      </header>
+
+      <div class="debrief-corps">
+        <p class="vanne" id="debrief-vanne" hidden></p>
+
+        <section class="debrief-bloc" id="debrief-bloc-constats" hidden>
+          <h3>Ce qui a le moins bien marché</h3>
+          <div class="debrief-constats" id="debrief-constats"></div>
+        </section>
+
+        <section class="debrief-bloc">
+          <h3>La feuille</h3>
+          <div class="debrief-feuille" id="debrief-feuille"></div>
+        </section>
+      </div>
+    </article>
+  </div>
+
   <p class="retour" id="retour" role="status" hidden></p>
 
   <script src="app.js"></script>

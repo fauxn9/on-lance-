@@ -19,6 +19,9 @@ import {
   listMyGroups,
   loadPeerMeasures,
   loadMatchScoreboard,
+  loadMatchMeasures,
+  loadMyMeasures,
+  loadNotificationForMatch,
   getRiotAccount,
   creerCodeAppairage,
   lireCodeAppairage,
@@ -43,6 +46,8 @@ import {
 import { getCalibration } from '../services/maps.js';
 import { getVisuels } from '../services/visuels.js';
 import { nettoyerEvenements, contientUneFin, creerRelanceur } from '../services/relance.js';
+import { construireDebrief, phraseDebrief, scoreDepuisRounds } from '../services/debrief.js';
+import { agreger } from '../services/analysis.js';
 import { detecterPourUtilisateur } from '../services/pipeline.js';
 import * as discord from '../services/discord.js';
 import { safeNext } from '../services/urls.js';
@@ -665,6 +670,57 @@ app.get('/me/coach', requireLecture, wrap(async (req, res) => {
       generate: req.query.generate === '1',
     }),
   );
+}));
+
+/**
+ * Debrief d'une partie : la feuille, ce qui a le moins bien marche, et le
+ * message qui est parti.
+ *
+ * C'est ce que l'application PC ouvre toute seule quand une partie se termine.
+ * Elle demande cette route en boucle jusqu'a ce que la partie existe — d'ou le
+ * 404 explicite plutot qu'une reponse vide, qui la ferait s'arreter en croyant
+ * avoir reussi.
+ */
+app.get('/me/matches/:matchId/debrief', requireLecture, wrap(async (req, res) => {
+  const compte = await getRiotAccount(req.userId);
+  if (!compte) return res.status(404).json({ error: 'Aucun compte Valorant rattaché' });
+
+  const mesures = await loadMatchMeasures(req.params.matchId);
+  if (mesures.length === 0) {
+    return res.status(404).json({ error: 'Partie pas encore analysée', code: 'pas_encore' });
+  }
+  if (!mesures.some((m) => m.puuid === compte.puuid)) {
+    return res.status(403).json({ error: "Tu n'as pas joué cette partie" });
+  }
+
+  // L'habitude du joueur, pour distinguer une mauvaise soiree de son niveau.
+  const siennes = await loadMyMeasures(compte.puuid, { sinceDays: 14 });
+  const habitude = siennes.length > 0 ? agreger(siennes) : null;
+
+  const { constats, joueurs } = construireDebrief({
+    mesures, puuid: compte.puuid, habitude,
+  });
+
+  const joueursFeuille = await loadMatchScoreboard(req.params.matchId);
+  const message = await loadNotificationForMatch(req.userId, req.params.matchId);
+
+  const maLigne = mesures.find((m) => m.puuid === compte.puuid);
+  const monEntree = joueursFeuille.find((j) => j.puuid === compte.puuid);
+
+  res.json({
+    matchId: req.params.matchId,
+    map: monEntree?.map ?? null,
+    // Repli seulement : l'application prefere le score qu'elle a observe
+    // elle-meme juste avant la remise a zero.
+    score: scoreDepuisRounds(maLigne?.rounds, monEntree?.won ?? null),
+    joueurs: joueursFeuille.map(({ puuid, ...reste }) => ({ ...reste, moi: puuid === compte.puuid })),
+    constats: constats.map((c) => ({ ...c, phrase: phraseDebrief(c) })),
+    comparesA: joueurs - 1,
+    habitudeConnue: Boolean(habitude),
+    // Absent quand la partie n'a pas ete jouee avec le groupe : la detection
+    // ne fabrique de message que dans ce cas, et on n'en invente pas un.
+    message: message ? { body: message.body, tone: message.tone, rang: message.rank_in_group } : null,
+  });
 }));
 
 /**

@@ -91,6 +91,14 @@ function apparence(etat) {
 /** Dernier score affiché, pour n'animer que les chiffres qui changent. */
 let dernierScore = { nous: null, eux: null };
 
+/**
+ * Le score de la dernière partie terminée.
+ *
+ * Il vient de l'événement `fin`, pas du serveur : c'est la machine locale qui
+ * l'a gelé avant la remise à zéro, et personne d'autre ne l'a vu.
+ */
+let dernierScoreFin = null;
+
 function poserChiffre(el, valeur, cle) {
   const texte = String(valeur ?? 0);
   if (el.textContent === texte) return;
@@ -551,6 +559,190 @@ function jauge(classe, etiquette, valeur, sommet, unite) {
   return bloc;
 }
 
+/* --- Le débrief de fin de partie ------------------------------------------------ */
+
+/**
+ * L'application sait qu'une partie vient de finir. Le serveur, lui, doit encore
+ * aller la chercher — et l'API met un moment à la publier. On surveille donc
+ * l'apparition d'un match plus récent que celui qu'on connaissait, puis on
+ * demande son débrief.
+ *
+ * Les délais montent : inutile de harceler le serveur pendant cinq minutes à
+ * un appel toutes les deux secondes pour un événement qui arrive une fois par
+ * demi-heure.
+ */
+const ATTENTES_MS = [20_000, 25_000, 30_000, 45_000, 60_000, 60_000, 90_000];
+
+let dernierMatchConnu = null;
+let guetteEnCours = false;
+
+const patienter = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function dernierMatchId() {
+  try {
+    const { matches } = await invoke('api', { chemin: '/me/matches?limit=1' });
+    return matches?.[0]?.matchId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function guetterLeDebrief() {
+  if (guetteEnCours) return;
+  guetteEnCours = true;
+  const avant = dernierMatchConnu;
+
+  try {
+    for (const attente of ATTENTES_MS) {
+      await patienter(attente);
+      const id = await dernierMatchId();
+      if (!id || id === avant) continue;
+
+      dernierMatchConnu = id;
+      try {
+        const debrief = await invoke('api', { chemin: `/me/matches/${id}/debrief` });
+        // Les listes déjà chargées ne connaissent pas cette partie.
+        partiesChargees = false;
+        coachCharge = false;
+        chargerClassement();
+        montrerDebrief(debrief);
+        return;
+      } catch {
+        // La partie existe mais n'est pas encore analysée : on continue.
+      }
+    }
+  } finally {
+    guetteEnCours = false;
+  }
+}
+
+function montrerDebrief(d) {
+  const joueurs = d.joueurs ?? [];
+  const moi = joueurs.find((j) => j.moi);
+  const monEquipe = moi?.team ?? null;
+
+  const nous = joueurs.filter((j) => j.team === monEquipe);
+  const eux = joueurs.filter((j) => j.team !== monEquipe);
+
+  // Le score de la partie : le nombre de rounds gagnés n'est pas stocké
+  // joueur par joueur, mais `won` l'est. On l'affiche donc à partir de ce
+  // qu'on sait, sans inventer un score qu'on n'a pas.
+  const gagne = moi?.won === true;
+  $('debrief-issue').textContent = gagne ? 'Victoire' : moi?.won === false ? 'Défaite' : 'Partie terminée';
+  $('debrief-issue').className = `issue ${gagne ? 'gagne' : moi?.won === false ? 'perdu' : ''}`;
+
+  const carte = d.map ?? null;
+  $('debrief-map').textContent = carte ?? '';
+  const image = carte ? visuels.maps?.[carte] : null;
+  $('debrief-fond').style.backgroundImage = image ? `url("${image}")` : '';
+
+  // Le score observé par l'application prime : la machine l'a gelé juste avant
+  // la remise à zéro, personne d'autre ne l'a vu. Celui du serveur n'est qu'un
+  // repli, déduit du nombre de rounds et de l'issue.
+  const score = dernierScoreFin ?? d.score ?? null;
+  $('debrief-nous').textContent = score?.nous ?? '—';
+  $('debrief-eux').textContent = score?.eux ?? '—';
+
+  $('debrief-vanne').hidden = !d.message?.body;
+  $('debrief-vanne').textContent = d.message?.body ?? '';
+
+  const constats = d.constats ?? [];
+  $('debrief-bloc-constats').hidden = constats.length === 0;
+  const boite = $('debrief-constats');
+  boite.replaceChildren();
+  constats.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'd-constat';
+    el.style.animationDelay = `${120 + i * 70}ms`;
+
+    const titre = document.createElement('span');
+    titre.className = 'd-constat-titre';
+    titre.textContent = c.titre;
+
+    const valeur = document.createElement('span');
+    valeur.className = 'd-constat-valeur';
+    valeur.textContent = `${c.valeur}${c.unite ?? ''}`;
+
+    const phrase = document.createElement('span');
+    phrase.className = 'd-constat-phrase';
+    phrase.textContent = c.phrase ?? '';
+
+    el.append(titre, valeur, phrase);
+    boite.append(el);
+  });
+
+  const feuille = $('debrief-feuille');
+  feuille.replaceChildren();
+  let retard = 200;
+  for (const [cle, titre, membres] of [['nous', 'Mon équipe', nous], ['eux', 'Adversaires', eux]]) {
+    if (membres.length === 0) continue;
+    const bloc = document.createElement('div');
+    bloc.className = `equipe-bloc ${cle}`;
+
+    const bandeau = document.createElement('div');
+    bandeau.className = 'equipe-bandeau';
+    const g = document.createElement('span');
+    g.textContent = titre;
+    const dr = document.createElement('span');
+    dr.textContent = 'ACS · K/D/A';
+    bandeau.append(g, dr);
+    bloc.append(bandeau);
+
+    for (const j of membres) {
+      const ligne = document.createElement('div');
+      ligne.className = `d-joueur${j.moi ? ' c-est-moi' : ''}`;
+      ligne.style.animationDelay = `${retard}ms`;
+      retard += 45;
+
+      const portrait = document.createElement('span');
+      portrait.className = 'portrait';
+      const icone = imageAgent(j.agent);
+      if (icone) portrait.style.backgroundImage = `url("${icone}")`;
+      portrait.title = j.agent ?? '';
+
+      const bloc2 = document.createElement('span');
+      const nom = document.createElement('span');
+      nom.className = 'd-joueur-nom';
+      nom.textContent = j.name ?? '?';
+      const rang = document.createElement('span');
+      rang.className = 'd-joueur-rang';
+      rang.textContent = j.tier ?? '';
+      bloc2.append(nom, rang);
+
+      const acs = document.createElement('span');
+      acs.className = 'd-joueur-acs';
+      acs.textContent = j.acs != null ? j.acs : '';
+
+      const kda = document.createElement('span');
+      kda.className = 'd-joueur-kda';
+      kda.textContent = `${j.kills}/${j.deaths}/${j.assists}`;
+
+      ligne.append(portrait, bloc2, acs, kda);
+      bloc.append(ligne);
+    }
+    feuille.append(bloc);
+  }
+
+  $('debrief').hidden = false;
+}
+
+function fermerDebrief() {
+  $('debrief').hidden = true;
+}
+
+// Exposé pour pouvoir ouvrir le débrief sans attendre une vraie fin de partie
+// (aperçus, mise au point). L'application, elle, passe par `guetterLeDebrief`.
+window.montrerDebrief = montrerDebrief;
+
+$('debrief-fermer').addEventListener('click', fermerDebrief);
+$('debrief').addEventListener('click', (e) => {
+  // Cliquer à côté du panneau ferme, comme partout ailleurs.
+  if (e.target.id === 'debrief' || e.target.id === 'debrief-fond') fermerDebrief();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('debrief').hidden) fermerDebrief();
+});
+
 /* --- Vue globale -------------------------------------------------------------- */
 
 let moi = null;
@@ -637,20 +829,17 @@ listen('etat', (e) => {
 });
 
 listen('evenements', (e) => {
-  ajouterAuFil(e.payload ?? []);
+  const evenements = e.payload ?? [];
+  ajouterAuFil(evenements);
+
+  const fin = evenements.find((ev) => ev.type === 'fin');
+  if (fin) {
+    dernierScoreFin = fin.score ?? null;
+    guetterLeDebrief();
+  }
   // Une partie qui se termine change le classement : on le rafraîchit, mais
   // pas tout de suite — le serveur a besoin d'un moment pour aller chercher le
   // match, et un classement identique rechargé pour rien n'apprend rien.
-  if ((e.payload ?? []).some((ev) => ev.type === 'fin')) {
-    // Le serveur a besoin d'un moment pour aller chercher le match : recharger
-    // tout de suite ne montrerait que ce qu'on affiche deja.
-    setTimeout(() => {
-      partiesChargees = false;
-      coachCharge = false;
-      chargerClassement();
-      if (document.querySelector('.vue.active')?.dataset.vue === 'parties') chargerParties();
-    }, 45_000);
-  }
 });
 
 // Premier dessin sans attendre le premier battement : deux secondes de fenêtre
@@ -663,6 +852,8 @@ listen('evenements', (e) => {
     await chargerVisuels();
     dessiner(await invoke('etat_actuel'));
     chargerClassement();
+    // La référence pour repérer une partie NOUVELLE à la fin de la prochaine.
+    dernierMatchConnu = await dernierMatchId();
   }
 })();
 

@@ -805,10 +805,51 @@ export async function loadPeerMeasures(puuid, { sinceDays = 14 } = {}) {
   return rows.map(versMesures);
 }
 
+/** Les dix joueurs d'UNE partie, sous forme de mesures. Pour le debrief. */
+export async function loadMatchMeasures(matchId) {
+  const { rows } = await query('SELECT * FROM match_players WHERE match_id = $1', [matchId]);
+  return rows.map(versMesures);
+}
+
+/**
+ * Les mesures du joueur seul, sur la periode. Sert d'habitude a laquelle
+ * comparer une partie : sans elle, un debrief ne peut pas distinguer une
+ * mauvaise soiree du niveau habituel.
+ */
+export async function loadMyMeasures(puuid, { sinceDays = 14 } = {}) {
+  const { rows } = await query(
+    `SELECT * FROM match_players
+     WHERE puuid = $1 AND played_at > now() - ($2 || ' days')::interval`,
+    [puuid, sinceDays],
+  );
+  return rows.map(versMesures);
+}
+
+/**
+ * Le message deja envoye a ce joueur pour cette partie, s'il existe.
+ *
+ * Il n'existe QUE si la partie a ete jouee avec au moins deux membres du
+ * groupe : c'est la detection qui le fabrique. Une partie en solo n'en a pas,
+ * et on n'en genere pas un a la volee — celui qu'on montre doit etre celui qui
+ * est parti, pas un deuxieme ecrit pour l'occasion.
+ */
+export async function loadNotificationForMatch(userId, matchId) {
+  const { rows } = await query(
+    `SELECT n.body, n.tone, n.rank_in_group, n.created_at
+     FROM notifications n
+     JOIN detected_matches d ON d.id = n.detected_match_id
+     WHERE n.user_id = $1 AND d.match_id = $2
+     ORDER BY n.created_at DESC
+     LIMIT 1`,
+    [userId, matchId],
+  );
+  return rows[0] ?? null;
+}
+
 /** Feuille de match complete, pour le panneau deroulant du dashboard. */
 export async function loadMatchScoreboard(matchId) {
   const { rows } = await query(
-    `SELECT puuid, name, tag, team, agent, tier_name, won, rounds,
+    `SELECT puuid, name, tag, team, agent, tier_name, won, rounds, map_name,
             score, kills, deaths, assists, headshots, bodyshots, legshots,
             damage_dealt
      FROM match_players WHERE match_id = $1
@@ -821,7 +862,7 @@ export async function loadMatchScoreboard(matchId) {
     return {
       puuid: r.puuid,
       name: r.name, tag: r.tag, team: r.team,
-      agent: r.agent, tier: r.tier_name, won: r.won,
+      agent: r.agent, tier: r.tier_name, won: r.won, map: r.map_name,
       acs: r.rounds > 0 ? Math.round(Number(r.score) / Number(r.rounds)) : null,
       kills: r.kills, deaths: r.deaths, assists: r.assists,
       headshotPct: tirs > 0 ? Math.round((100 * Number(r.headshots)) / tirs) : null,
