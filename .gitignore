@@ -2,3 +2,10 @@ node_modules/
 .env
 *.log
 SPEC.md
+
+# Le dossier ou l'application Claude depose les fichiers telecharges depuis la
+# conversation. Ce sont des copies : les originaux sont deja a leur place dans
+# le depot. Les suivre menait a des doublons trompeurs — une copie de
+# app-pc.yml y a atterri a cote du vrai workflow, et rien n'indiquait lequel
+# etait le bon.
+Claude outputs/
