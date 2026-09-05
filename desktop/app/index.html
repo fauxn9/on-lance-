@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>On lance ?</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="theme-matilda.css" />
 </head>
 <body>
+  <div class="coeurs" id="coeurs" aria-hidden="true" hidden></div>
+  <div class="mots" id="mots" aria-live="polite"></div>
+
   <header class="tete">
     <span class="marque">On lance <span class="pt">?</span></span>
     <span class="qui" id="qui" hidden>
@@ -117,6 +121,8 @@
     <footer class="pied">
       <a href="#" data-site>Ouvrir le site</a>
       <span class="version" id="version"></span>
+      <button type="button" id="chats" class="chats" hidden>Énervée ? Appuie ici !</button>
+      <button type="button" id="theme-off" class="lien-bouton" hidden>Thème normal</button>
       <button type="button" id="oublier" class="lien-bouton">Oublier ce PC</button>
     </footer>
   </div>

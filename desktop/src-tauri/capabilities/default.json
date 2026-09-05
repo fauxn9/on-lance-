@@ -1,10 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Le strict nécessaire : la fenêtre principale, et l'ouverture du site dans le navigateur.",
+  "description": "Le strict nécessaire : la fenêtre principale, et l'ouverture de deux sites précis dans le navigateur.",
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:allow-open-url"
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://onlance.xyz/*" },
+        { "url": "http://localhost:*/*" },
+        { "url": "https://cat-bounce.com/*" }
+      ]
+    }
   ]
 }

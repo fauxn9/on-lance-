@@ -743,6 +743,111 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('debrief').hidden) fermerDebrief();
 });
 
+/* --- Thème Matilda -------------------------------------------------------------- */
+
+/**
+ * Le compte concerné. On teste le Riot ID complet et pas le pseudo : « hayann »
+ * tout court pourrait désigner quelqu'un d'autre un jour, le tag non.
+ */
+const RIOT_ID_MATILDA = 'hayann#luvbf';
+
+/** Ses mots à elle. Ils viennent de William, on n'en invente pas d'autres. */
+const PETITS_MOTS = [
+  "Je t'aime Matilda !",
+  "Je suis tellement amoureux de toi Matilda !",
+  "Je suis tellement fier de toi Matilda !",
+];
+
+const CHATS = 'https://cat-bounce.com/';
+
+let themeActif = false;
+let minuteurCoeurs = null;
+let minuteurMots = null;
+
+/** Le thème est-il éteint pour ce PC ? Une surprise doit pouvoir se refuser. */
+function themeRefuse() {
+  try {
+    return localStorage.getItem('onlance.theme') === 'normal';
+  } catch {
+    // Stockage indisponible : on considère que non, sans faire d'histoires.
+    return false;
+  }
+}
+
+function appliquerTheme(vue) {
+  const concernee = (vue.riot_id ?? '').toLowerCase() === RIOT_ID_MATILDA;
+  const veut = concernee && !themeRefuse();
+  if (veut === themeActif) return;
+
+  themeActif = veut;
+  document.body.classList.toggle('matilda', veut);
+  $('coeurs').hidden = !veut;
+  $('chats').hidden = !veut;
+  // Le bouton d'extinction n'apparaît que pour elle : personne d'autre n'a de
+  // thème à éteindre.
+  $('theme-off').hidden = !concernee;
+
+  clearInterval(minuteurCoeurs);
+  clearInterval(minuteurMots);
+  if (!veut) {
+    $('coeurs').replaceChildren();
+    $('mots').replaceChildren();
+    return;
+  }
+
+  // Quelques cœurs tout de suite, sinon l'écran met vingt secondes à devenir
+  // vivant au lancement.
+  for (let i = 0; i < 5; i += 1) setTimeout(lacherUnCoeur, i * 500);
+  minuteurCoeurs = setInterval(lacherUnCoeur, 2200);
+  // Assez espacés pour rester des surprises : un mot doux toutes les dix
+  // secondes deviendrait un fond sonore, puis une gêne.
+  minuteurMots = setInterval(direUnMot, 75_000);
+  setTimeout(direUnMot, 6000);
+}
+
+const COEURS = ['💖', '💗', '💓', '💞', '🩷', '💕'];
+const entre = (a, b) => a + Math.random() * (b - a);
+
+function lacherUnCoeur() {
+  const c = document.createElement('span');
+  c.className = 'coeur';
+  c.textContent = COEURS[Math.floor(Math.random() * COEURS.length)];
+  c.style.left = `${entre(2, 92)}%`;
+  c.style.fontSize = `${entre(13, 30)}px`;
+  c.style.animationDuration = `${entre(9, 17)}s`;
+  c.style.setProperty('--tour', `${entre(-40, 40)}deg`);
+  // On nettoie à la fin de l'animation : sans ça, la page accumule un cœur
+  // toutes les deux secondes pendant toute une soirée.
+  c.addEventListener('animationend', () => c.remove());
+  $('coeurs').append(c);
+}
+
+function direUnMot() {
+  if (!themeActif) return;
+  const el = document.createElement('div');
+  el.className = 'mot';
+  el.textContent = PETITS_MOTS[Math.floor(Math.random() * PETITS_MOTS.length)];
+  el.addEventListener('animationend', () => el.remove());
+  $('mots').append(el);
+}
+
+$('chats').addEventListener('click', () => ouvrirUrl?.(CHATS));
+
+// Exposé pour les aperçus : voir un petit mot sans attendre soixante-quinze
+// secondes. L'application, elle, passe par son minuteur.
+window.direUnMot = direUnMot;
+
+$('theme-off').addEventListener('click', async () => {
+  try {
+    localStorage.setItem('onlance.theme', themeRefuse() ? 'matilda' : 'normal');
+  } catch { /* sans stockage, le choix ne survit pas au redémarrage */ }
+  // On force la bascule : `appliquerTheme` ne fait rien quand l'état demandé
+  // est celui qu'il croit déjà appliqué.
+  themeActif = !themeActif;
+  appliquerTheme(await invoke('etat_actuel'));
+  $('theme-off').textContent = themeActif ? 'Thème normal' : 'Remettre le rose';
+});
+
 /* --- Vue globale -------------------------------------------------------------- */
 
 let moi = null;
@@ -758,6 +863,7 @@ function dessiner(vue) {
   moi = vue.utilisateur ?? null;
   $('compte').textContent = vue.utilisateur ?? '—';
   $('riot-id').textContent = vue.riot_id ?? '';
+  appliquerTheme(vue);
   dessinerDirect(vue);
   placerGlisseur();
 }
