@@ -1,0 +1,10 @@
+# Espace de travail de l'application PC.
+#
+# Deux crates AVANT toute couche graphique, et c'est deliberé : `presence-core`
+# et `agent-core` ne dependent ni de Tauri, ni de Windows, ni de WebView2. Tout
+# ce qui decide se teste donc sur n'importe quelle machine, en une seconde, sans
+# lancer Valorant. La couche Tauri qui viendra ensuite n'aura plus qu'a ouvrir
+# une fenetre et appeler `Agent::battre()`.
+[workspace]
+members = ["presence-core", "agent-core"]
+resolver = "2"

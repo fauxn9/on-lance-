@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { statistiqueInventee } from '../src/services/messages.js';
+import { statistiqueInventee, chiffresFournisHebdo } from '../src/services/messages.js';
 
 /* Les chiffres reellement fournis au modele pour ce match. */
 const CONNUS = [1, 2, 231, 208, 19, 25, 15, 23, 6, 14, 24, 17];
@@ -61,4 +61,42 @@ test('ne se laisse pas berner par la distance au mot-cle', () => {
 test('supporte une liste de chiffres connus vide', () => {
   assert.equal(statistiqueInventee('un ACS de 300', []), '300');
   assert.equal(statistiqueInventee('aucun chiffre ici', []), null);
+});
+
+/* --- Le bilan hebdo -------------------------------------------------------
+   Le garde-fou n'existait que du cote fin de match. Le bilan du lundi est
+   pourtant le message le plus vu de la semaine : il part a tout le groupe
+   d'un coup, et il couronne quelqu'un. Le blanc de cloture du 5 septembre a
+   revele qu'il partait sans aucune verification. */
+
+const CLASSEMENT = [
+  { rank: 1, displayName: 'hayann', rrTotal: 225, matches: 37, bestGain: 23, worstLoss: -23, tone: 'crown' },
+  { rank: 2, displayName: 'fauxn9', rrTotal: 180, matches: 32, bestGain: 27, worstLoss: -22, tone: 'recap' },
+  { rank: 3, displayName: 'Triple T', rrTotal: 18, matches: 9, bestGain: 20, worstLoss: -20, tone: 'recap' },
+];
+
+const hebdo = (texte, joueur = CLASSEMENT[1]) =>
+  statistiqueInventee(texte, chiffresFournisHebdo({ player: joueur, standings: CLASSEMENT }));
+
+test('le bilan hebdo autorise les chiffres du classement', () => {
+  assert.equal(hebdo('225 RR pour hayann contre 180, en 37 matchs'), null);
+});
+
+test("le bilan hebdo autorise l'ecart avec le vainqueur, dans les deux sens", () => {
+  // Le prompt le fournit explicitement, et c'est une soustraction verifiable :
+  // 225 - 180. Le refuser condamnerait la phrase la plus naturelle du bilan.
+  assert.equal(hebdo('hayann te met 45 RR dans la vue'), null);
+  assert.equal(hebdo('207 RR de retard sur la premiere', CLASSEMENT[2]), null);
+});
+
+test('le bilan hebdo refuse un chiffre que personne ne lui a donne', () => {
+  // Le cas qui compte : un total credible, mais faux.
+  assert.equal(hebdo("t'as fini a 190 RR cette semaine"), '190');
+  assert.equal(hebdo('un winrate de 64% sur la semaine'), '64');
+});
+
+test('le bilan hebdo laisse passer une blague chiffree', () => {
+  // 82 ne figure nulle part dans le classement : c'est bien la garde qui juge
+  // le contexte, et "cafes" n'est pas une metrique de jeu.
+  assert.equal(hebdo('82 cafes plus tard, la semaine etait pliee'), null);
 });

@@ -1,0 +1,34 @@
+[package]
+name = "onlance-app"
+version = "0.1.0"
+edition = "2021"
+description = "On lance ? — application PC"
+license = "MIT"
+
+# Ce crate est SON PROPRE espace de travail, volontairement detache de celui de
+# `desktop/`. Ainsi `cargo test --workspace` a la racine de desktop/ne compile
+# que les deux crates de logique : une seconde, sur n'importe quelle machine,
+# sans Tauri ni WebView2.
+[workspace]
+
+[lib]
+name = "onlance_app_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+presence-core = { path = "../presence-core" }
+agent-core = { path = "../agent-core" }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time", "rt"] }
+
+[profile.release]
+# Une application de fond doit etre petite et discrete.
+opt-level = "s"
+lto = true
+strip = true

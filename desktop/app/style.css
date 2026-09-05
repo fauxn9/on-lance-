@@ -1,0 +1,125 @@
+/* Même identité que le site : fond quasi noir, rouge Valorant vers orange.
+   Les polices ne sont PAS chargées depuis le web — une application de bureau
+   qui attend Google Fonts affiche une fenêtre vide quand la connexion tombe,
+   et cette application doit rester lisible même hors ligne. */
+
+:root {
+  --ground: #07070b; --lift: #0c0c12; --surface: #101018;
+  --line: #1e1e29;
+  --accent: #ff4655; --warm: #ff8a5b; --gain: #4fe3b0;
+  --cool: #6f93ff; --gold: #e6b53a;
+  --ink: #f8f6f1; --muted: #bcb7ae; --faint: #85818a;
+  --body: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Mono', Consolas, ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0; padding: 18px 20px 20px;
+  background: var(--ground); color: var(--ink);
+  font-family: var(--body); font-size: 14px; line-height: 1.55;
+  /* Rien à sélectionner dans une fenêtre d'état : la sélection au glissé
+     donne juste l'impression d'avoir cassé quelque chose. */
+  user-select: none;
+  overflow: hidden;
+}
+
+/* --- En-tête --------------------------------------------------------------- */
+
+.tete {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 18px;
+}
+.marque { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+.pt { color: var(--accent); }
+.version { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+
+/* --- Appairage -------------------------------------------------------------- */
+
+.intro { color: var(--muted); margin: 0 0 18px; }
+.intro strong { color: var(--ink); font-weight: 600; }
+
+.etiquette {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--faint); margin-bottom: 8px;
+}
+
+.code {
+  width: 100%; padding: 14px 12px; margin-bottom: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--ink); font-family: var(--mono); font-size: 24px; font-weight: 600;
+  letter-spacing: .34em; text-align: center; text-transform: uppercase;
+  user-select: text;
+}
+.code::placeholder { color: #3a3a46; letter-spacing: .34em; }
+.code:focus { outline: none; border-color: var(--warm); }
+
+button {
+  width: 100%; padding: 12px; border: 0; border-radius: 10px;
+  background: linear-gradient(120deg, var(--accent), var(--warm));
+  color: #12060a; font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer;
+}
+button:disabled { opacity: .5; cursor: default; }
+button:not(:disabled):hover { filter: brightness(1.08); }
+
+.lien-site { margin: 16px 0 0; text-align: center; }
+a { color: var(--warm); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- État en direct --------------------------------------------------------- */
+
+.qui {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.pastille-compte { font-weight: 700; }
+.riot { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+.carte {
+  background: var(--lift); border: 1px solid var(--line); border-radius: 14px;
+  padding: 18px;
+}
+
+.pastille { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; }
+.point {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--faint); flex: 0 0 auto;
+}
+/* Une seule couleur par état, la même que sur le site. */
+.etat-ingame  .point { background: var(--accent); box-shadow: 0 0 0 4px rgb(255 70 85 / .16); }
+.etat-pregame .point { background: var(--gold);   box-shadow: 0 0 0 4px rgb(230 181 58 / .16); }
+.etat-menus   .point { background: var(--gain);   box-shadow: 0 0 0 4px rgb(79 227 176 / .16); }
+.etat-attente .point { background: var(--faint); }
+
+.details { margin: 16px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; }
+.details dt { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.details dd { margin: 0; font-family: var(--mono); font-size: 13px; }
+.details:empty { display: none; }
+
+.souci {
+  margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line);
+  color: var(--gold); font-size: 12px;
+}
+
+.pied {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 18px 0 0; font-size: 12px;
+}
+.lien-bouton {
+  width: auto; padding: 0; background: none; color: var(--faint);
+  font-size: 12px; font-weight: 400; text-decoration: underline; cursor: pointer;
+}
+.lien-bouton:hover { color: var(--muted); filter: none; }
+
+/* --- Retour --------------------------------------------------------------- */
+
+.retour {
+  margin: 16px 0 0; padding: 12px 14px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 13px; color: var(--muted);
+}
+.retour.ok { border-color: rgb(79 227 176 / .4); color: var(--gain); }
+.retour.ko { border-color: rgb(255 70 85 / .4); color: var(--accent); }

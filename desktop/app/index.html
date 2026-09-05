@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>On lance ?</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="tete">
+    <span class="marque">On lance <span class="pt">?</span></span>
+    <span class="version" id="version"></span>
+  </header>
+
+  <!-- Écran 1 : ce PC n'est pas encore appairé. -->
+  <section id="ecran-appairage" hidden>
+    <p class="intro">
+      Ouvre ton tableau de bord sur onlance.xyz, bloc <strong>Application PC</strong>,
+      et recopie le code à six caractères.
+    </p>
+
+    <form id="form-appairage" autocomplete="off">
+      <label class="etiquette" for="code">Code d'appairage</label>
+      <input id="code" name="code" class="code" maxlength="7" spellcheck="false"
+             placeholder="A B 2 C D 3" aria-describedby="retour" />
+      <button type="submit" id="bouton-appairer">Appairer ce PC</button>
+    </form>
+
+    <p class="lien-site">
+      <a href="#" id="ouvrir-site">Ouvrir mon tableau de bord</a>
+    </p>
+  </section>
+
+  <!-- Écran 2 : appairé, on affiche l'état en direct. -->
+  <section id="ecran-etat" hidden>
+    <div class="qui">
+      <span class="pastille-compte" id="compte">—</span>
+      <span class="riot" id="riot-id"></span>
+    </div>
+
+    <div class="carte">
+      <div class="pastille" id="pastille">
+        <span class="point" id="point"></span>
+        <span id="libelle">Lecture…</span>
+      </div>
+      <dl class="details" id="details"></dl>
+      <p class="souci" id="souci" hidden></p>
+    </div>
+
+    <p class="pied">
+      <a href="#" id="ouvrir-site-2">Ouvrir le site</a>
+      <button type="button" id="oublier" class="lien-bouton">Oublier ce PC</button>
+    </p>
+  </section>
+
+  <p class="retour" id="retour" role="status" hidden></p>
+
+  <script src="app.js"></script>
+</body>
+</html>

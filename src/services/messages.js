@@ -362,39 +362,89 @@ function fallbackWeeklyMessage(player, standings, weekLabel) {
   return `${player.rank}e de la ${weekLabel} avec ${sign}${player.rrTotal} RR. ${leader.displayName} finit a ${leader.rrTotal > 0 ? '+' : ''}${leader.rrTotal}.`;
 }
 
+/**
+ * Tous les nombres reellement donnes au modele pour le bilan hebdo.
+ *
+ * Le prompt fournit le classement complet, donc les totaux et le nombre de
+ * matchs de CHAQUE joueur — un message peut legitimement citer le score du
+ * voisin. Il fournit aussi l'ecart avec le vainqueur, calcule pour le joueur a
+ * qui on ecrit ; on l'autorise pour tout le monde, puisque c'est une
+ * soustraction que le modele peut refaire de tete a partir du classement.
+ */
+function chiffresFournisHebdo({ player, standings }) {
+  const leader = standings[0];
+  const n = [player.rank, player.matches, player.rrTotal, standings.length];
+  for (const s of standings) {
+    n.push(s.rank, s.rrTotal, s.matches, s.bestGain, s.worstLoss);
+    // L'ecart au vainqueur, dans les deux signes : "45 de retard" comme
+    // "45 d'avance" designent le meme fait.
+    n.push(leader.rrTotal - s.rrTotal, s.rrTotal - leader.rrTotal);
+  }
+  return n.filter((v) => v !== null && v !== undefined);
+}
+
+/**
+ * Message de fin de semaine.
+ *
+ * Meme garde que les messages de fin de match, et pour la meme raison : rien
+ * n'empeche le modele d'inventer un chiffre credible, et l'argument central de
+ * l'app est que rien n'est estime. Ce garde-fou manquait ici — il n'a longtemps
+ * existe que du cote fin de match, alors que le bilan hebdo est le message le
+ * plus vu de la semaine : il part a tout le groupe d'un coup, et il couronne
+ * quelqu'un.
+ */
 export async function generateWeeklyMessage({ player, standings, weekLabel, recentMessages = [] }) {
   if (!config.anthropic.apiKey) {
     return { body: fallbackWeeklyMessage(player, standings, weekLabel), generated: false };
   }
 
-  try {
-    const angle = pickAngle();
-    const res = await client.messages.create({
-      model: config.anthropic.model,
-      max_tokens: 200,
-      temperature: 1,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: buildWeeklyPrompt({ player, standings, weekLabel, recentMessages, angle }),
-        },
-      ],
-    });
+  const connus = chiffresFournisHebdo({ player, standings });
 
-    const text = res.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-      .trim()
-      .replace(/^["«]|["»]$/g, '');
+  // Deux tentatives : un chiffre invente est un accident de generation, pas un
+  // defaut systematique. Si la seconde derape aussi, le message ecrit en dur
+  // vaut mieux qu'un chiffre faux.
+  for (let essai = 1; essai <= 2; essai += 1) {
+    try {
+      const angle = pickAngle();
+      const res = await client.messages.create({
+        model: config.anthropic.model,
+        max_tokens: 200,
+        temperature: 1,
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: buildWeeklyPrompt({ player, standings, weekLabel, recentMessages, angle }),
+          },
+        ],
+      });
 
-    if (!text) return { body: fallbackWeeklyMessage(player, standings, weekLabel), generated: false };
-    return { body: text, generated: true };
-  } catch (err) {
-    console.error(`[messages] generation hebdo echouee pour ${player.displayName}:`, err.message);
-    return { body: fallbackWeeklyMessage(player, standings, weekLabel), generated: false };
+      const text = res.content
+        .filter((b) => b.type === 'text')
+        .map((b) => b.text)
+        .join('')
+        .trim()
+        .replace(/^["«]|["»]$/g, '');
+
+      if (!text) return { body: fallbackWeeklyMessage(player, standings, weekLabel), generated: false };
+
+      const fautif = statistiqueInventee(text, connus);
+      if (fautif) {
+        console.warn(
+          `[messages] statistique inventee (${fautif}) dans le bilan hebdo de `
+          + `${player.displayName}, tentative ${essai}/2 : "${text}"`,
+        );
+        continue;
+      }
+
+      return { body: text, generated: true };
+    } catch (err) {
+      console.error(`[messages] generation hebdo echouee pour ${player.displayName}:`, err.message);
+      return { body: fallbackWeeklyMessage(player, standings, weekLabel), generated: false };
+    }
   }
+
+  return { body: fallbackWeeklyMessage(player, standings, weekLabel), generated: false };
 }
 
 /** Messages de fin de semaine pour tout le groupe, en parallele. */
@@ -415,6 +465,7 @@ export async function generateAllWeeklyMessages({ standings, weekLabel, history 
 export {
   buildUserPrompt,
   buildWeeklyPrompt,
+  chiffresFournisHebdo,
   fallbackMessage,
   fallbackWeeklyMessage,
   pickAngle,
