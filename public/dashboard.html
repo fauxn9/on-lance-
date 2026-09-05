@@ -213,6 +213,33 @@
     border-radius: 5px; padding: 2px 6px; margin-left: 7px; vertical-align: 1px;
   }
 
+  /* --- Appairage du PC (Brique 9) ----------------------------------------- */
+
+  .pc { margin-top: 12px; padding: 16px 18px; border-radius: 13px;
+        border: 1px solid var(--line); background: var(--lift); }
+  .pc-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .pc-top strong { font-family: var(--display); font-size: 14.5px; }
+  .pc-top p { font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+  .pc button { flex: none; padding: 10px 16px; font-size: 13px; }
+
+  .code {
+    margin-top: 15px; padding: 16px; border-radius: 11px; text-align: center;
+    background: #14141d; border: 1px dashed rgba(255,138,91,.4);
+  }
+  .code b {
+    display: block; font-family: var(--mono); font-size: 30px; font-weight: 700;
+    letter-spacing: .22em; color: var(--warm); text-indent: .22em;
+  }
+  .code span { display: block; font-size: 12px; color: var(--faint); margin-top: 9px; }
+
+  .pcs { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .pcs li {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 13px; border: 1px solid var(--line-soft); border-radius: 10px; font-size: 13.5px;
+  }
+  .pcs .quand { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+  .pcs button { padding: 6px 12px; font-size: 12px; }
+
   .error {
     padding: 22px; border: 1px solid rgba(255,70,85,.3); border-radius: 13px;
     color: var(--accent); font-size: 14px; text-align: center;
@@ -237,6 +264,20 @@
       <span id="notifSub"></span>
     </div>
     <button id="notifBtn" class="primary">Activer</button>
+  </div>
+
+  <!-- Brique 9 : appairer l'application desktop. Le code est court et vit dix
+       minutes, il n'a pas vocation a rester affiche. -->
+  <div class="pc" id="pc" hidden>
+    <div class="pc-top">
+      <div>
+        <strong>Application PC</strong>
+        <p>Détection instantanée des fins de partie, et vérification de ton compte.</p>
+      </div>
+      <button id="pcBtn">Appairer un PC</button>
+    </div>
+    <div class="code" id="pcCode" hidden></div>
+    <ul class="pcs" id="pcListe"></ul>
   </div>
 
   <!-- Sans Riot ID il n'y a ni partie, ni RR, ni coach : le formulaire est donc
@@ -629,6 +670,51 @@
   $('linkBtn').addEventListener('click', lier);
   $('riot').addEventListener('keydown', (e) => { if (e.key === 'Enter') lier(); });
 
+  /* --- Appairage du PC (Brique 9) ------------------------------------------ */
+
+  const quand = (d) => (d
+    ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+      .format(new Date(d))
+    : 'jamais');
+
+  async function chargerPC() {
+    try {
+      const { appareils } = await api('/me/devices');
+      $('pcListe').innerHTML = '';
+      for (const a of appareils) {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span><b></b> <span class="quand">vu ${quand(a.last_seen_at)}</span></span>
+          <button data-id="${a.id}">Retirer</button>`;
+        li.querySelector('b').textContent = a.nom ?? 'PC';
+        li.querySelector('button').addEventListener('click', async () => {
+          if (!confirm(`Retirer « ${a.nom ?? 'PC'} » ? L'application devra être ré-appairée.`)) return;
+          await api(`/me/devices/${a.id}`, { method: 'DELETE' });
+          chargerPC();
+        });
+        $('pcListe').append(li);
+      }
+      $('pc').hidden = false;
+    } catch { /* pas bloquant */ }
+  }
+
+  $('pcBtn').addEventListener('click', async () => {
+    $('pcBtn').disabled = true;
+    try {
+      const { code, dureeMinutes } = await api('/me/devices/code', { method: 'POST' });
+      $('pcCode').hidden = false;
+      $('pcCode').innerHTML = '<b></b><span></span>';
+      $('pcCode').querySelector('b').textContent = code;
+      $('pcCode').querySelector('span').textContent =
+        `À saisir dans l'application PC. Valable ${dureeMinutes} minutes, une seule fois.`;
+    } catch (err) {
+      $('pcCode').hidden = false;
+      $('pcCode').textContent = err.message;
+    } finally {
+      $('pcBtn').disabled = false;
+    }
+  });
+
   // --- Demarrage -------------------------------------------------------------
 
   const user = await requireUser();
@@ -651,6 +737,7 @@
     }
 
     checkNotifications().catch(() => {}); // jamais bloquant pour la page
+    chargerPC();
 
     if (!user.riotId) {
       $('riotBox').hidden = false;

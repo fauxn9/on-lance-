@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 
 import { normalizeRrEntry } from '../src/services/henrikdev.js';
 import {
@@ -205,4 +206,61 @@ test('weeklyWinner designe le premier et signale une egalite parfaite', () => {
     ],
   });
   assert.equal(weeklyWinner(exAequo).tied, true, 'meme RR et meme nombre de matchs');
+});
+
+test('weekBounds donne le meme instant quel que soit le fuseau de la machine', () => {
+  // Le defaut trouve le 5 septembre sur le PC de William : l'ancienne version
+  // reparsait une date formatee, donc l'interpretait dans le fuseau de la
+  // MACHINE. Elle tombait juste sur un serveur en UTC et faux sur un PC
+  // francais — le pire genre de bug, celui qui ne se voit pas la ou on teste.
+  //
+  // Ce test ne depend d'aucune horloge : il verifie que l'instant rendu, relu
+  // DANS le fuseau demande, tombe bien a minuit.
+  const minuitDans = (instant, timeZone) => new Intl.DateTimeFormat('en-GB', {
+    timeZone, hour12: false, hour: '2-digit', minute: '2-digit',
+  }).format(instant);
+
+  for (const tz of ['Europe/Paris', 'America/New_York', 'Asia/Tokyo', 'Australia/Lord_Howe']) {
+    for (const semaine of ['2026-08-31', '2026-01-05', '2026-03-23', '2026-10-26']) {
+      const { startsAt, endsAt } = weekBounds(semaine, tz);
+      assert.match(minuitDans(startsAt, tz), /^(00|24):00$/, `${tz} ${semaine} debut`);
+      assert.match(minuitDans(endsAt, tz), /^(00|24):00$/, `${tz} ${semaine} fin`);
+    }
+  }
+});
+
+test('une semaine dure sept jours, sauf au changement d’heure', () => {
+  const jours = (s, tz) => {
+    const { startsAt, endsAt } = weekBounds(s, tz);
+    return (endsAt.getTime() - startsAt.getTime()) / 3_600_000;
+  };
+  assert.equal(jours('2026-08-31', 'Europe/Paris'), 168);
+  // Retour a l'heure d'hiver le dimanche 25 octobre : cette semaine-la dure
+  // une heure de plus, et le classement doit la compter en entier.
+  assert.equal(jours('2026-10-19', 'Europe/Paris'), 169);
+  // Passage a l'heure d'ete le dimanche 29 mars : une heure de moins.
+  assert.equal(jours('2026-03-23', 'Europe/Paris'), 167);
+});
+
+test('le calcul de semaine ne depend pas du fuseau de la machine', () => {
+  // Les tests ci-dessus ne suffisent pas : l'ancienne implementation etait
+  // JUSTE sur une machine en UTC, et c'est en UTC que tournent le serveur et
+  // GitHub Actions. Le defaut ne pouvait donc apparaitre que sur le PC de
+  // quelqu'un — c'est exactement comme ca qu'il a ete trouve.
+  //
+  // On relance donc le calcul dans un processus fils dont l'horloge est reglee
+  // sur Paris, et on exige le meme resultat. Le prochain a reintroduire une
+  // dependance a l'heure locale le saura sans avoir besoin d'un PC francais.
+  const attendu = weekBounds('2026-08-31', 'Europe/Paris').startsAt.toISOString();
+
+  const fils = spawnSync(process.execPath, [
+    '-e',
+    "import('./src/services/leaderboard.js')"
+    + ".then((l) => process.stdout.write("
+    + "l.weekBounds('2026-08-31', 'Europe/Paris').startsAt.toISOString()));",
+  ], { env: { ...process.env, TZ: 'Europe/Paris' }, encoding: 'utf8' });
+
+  assert.equal(fils.status, 0, fils.stderr);
+  assert.equal(fils.stdout, attendu);
+  assert.equal(fils.stdout, '2026-08-30T22:00:00.000Z');
 });

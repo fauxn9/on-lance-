@@ -59,17 +59,59 @@ export function shiftWeek(weekStart, weeks) {
 export const previousWeek = (weekStart) => shiftWeek(weekStart, -1);
 
 /**
+ * Decalage d'un fuseau par rapport a UTC, a un instant donne, en millisecondes.
+ *
+ * On lit l'heure civile du fuseau champ par champ (`formatToParts`) et on la
+ * relit comme si elle etait en UTC : la difference EST le decalage. Aucune
+ * chaine de date n'est reparsee au passage, et c'est tout l'enjeu — voir la
+ * fonction suivante.
+ */
+function decalageMs(instant, timeZone) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    })
+      .formatToParts(instant)
+      .map((p) => [p.type, p.value]),
+  );
+
+  // Minuit se lit "24" et non "00" selon les versions d'ICU : sans ce modulo,
+  // une nuit sur deux serait decalee de vingt-quatre heures.
+  const heure = Number(parts.hour) % 24;
+  const civil = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    heure, Number(parts.minute), Number(parts.second),
+  );
+  return civil - instant.getTime();
+}
+
+/**
  * Instant UTC correspondant a minuit local d'une date donnee, dans le fuseau
  * du groupe. Sert a savoir quand la semaine se termine reellement.
  *
- * On part de minuit UTC, on regarde quelle heure locale ca represente, et on
- * corrige de l'ecart. Fiable ici : le changement d'heure en France a lieu a
- * 2h/3h du matin, jamais a minuit, donc pas de cas ambigu.
+ * POURQUOI CE N'EST PAS ECRIT PLUS SIMPLEMENT
+ *
+ * La version precedente faisait `new Date(instant.toLocaleString('en-US', {
+ * timeZone }))` : elle formatait dans le bon fuseau, puis REPARSAIT le
+ * resultat — et une date sans fuseau explicite est interpretee dans le fuseau
+ * de LA MACHINE. Sur un serveur en UTC (Render, GitHub Actions) le calcul
+ * tombait juste ; sur un PC regle sur Paris, le decalage se soustrayait
+ * lui-meme et la fonction rendait minuit UTC. Le meme code, deux resultats,
+ * selon l'horloge de qui l'execute. Les tests le disaient d'ailleurs : ils
+ * passaient sur le serveur et echouaient sur un PC francais.
+ *
+ * Deux passes : le decalage se lit a un instant donne, et cet instant est
+ * justement ce qu'on cherche. La premiere l'approche, la seconde le corrige —
+ * le cas qui l'exige est le week-end du changement d'heure. Une troisieme
+ * n'apporterait rien : aucun fuseau ne bascule a minuit.
  */
 function zonedMidnight(dateStr, timeZone) {
-  const guess = new Date(`${dateStr}T00:00:00Z`);
-  const asLocal = new Date(guess.toLocaleString('en-US', { timeZone }));
-  return new Date(guess.getTime() - (asLocal.getTime() - guess.getTime()));
+  const minuitUtc = Date.parse(`${dateStr}T00:00:00Z`);
+  const premiere = minuitUtc - decalageMs(new Date(minuitUtc), timeZone);
+  return new Date(minuitUtc - decalageMs(new Date(premiere), timeZone));
 }
 
 /**

@@ -113,13 +113,34 @@ contrôle plus la question. Le modèle ne reçoit donc jamais de JSON de match, 
 un contexte figé construit par `buildContext()` — une fonction pure, testée, qui
 définit exactement la frontière entre ce que le coach sait et ce qu'il ignore.
 
+**Brique 9 — application PC (en cours)**
+
+| Élément | État |
+|---|---|
+| Sonde de l'API locale du client Riot (lecture seule) | ✅ `scripts/sonde-lockfile.mjs` |
+| Identité du compte lue en local (`puuid`) | ✅ **vérifié sur une vraie machine** |
+| État de partie en direct (`MENUS`/`PREGAME`/`INGAME`) | 🚧 à observer manette en main |
+| Table `devices` + codes d'appairage à usage unique | ✅ |
+| Appairage par code, jeton stocké en empreinte seule | ✅ testé |
+| Passage de `verified` à true si le puuid local correspond | ✅ testé |
+| Bloc « Application PC » sur le tableau de bord | ✅ |
+| Application Tauri elle-même | ❌ |
+
+Contrainte de conception, non négociable : **aucune injection, aucun hook dans
+le processus du jeu**. On lit le lockfile que le client écrit lui-même et on
+interroge son serveur HTTP local, en lecture. L'overlay, quand il viendra, sera
+une fenêtre transparente à côté du jeu — pas dedans.
+
+Ces routes locales ne sont pas documentées par Riot et peuvent disparaître à
+n'importe quelle mise à jour. C'est assumé.
+
 **Reste à faire**
 
 | Élément | État |
 |---|---|
 | Landing page | ✅ `public/landing.html` |
-| Brique 9 — app desktop Tauri + overlay (lockfile) | ❌ |
-| Propriété vérifiée d'un Riot ID (`verified`) | ❌ dépend de la brique 9 |
+| Brique 9 — app desktop | 🚧 en cours |
+| Propriété vérifiée d'un Riot ID (`verified`) | ✅ côté serveur, en attente de l'app |
 
 ## Démarrage
 
@@ -331,7 +352,7 @@ par semaine et par joueur, là où tout stocker aurait explosé.
 npm test
 ```
 
-126 tests sur la logique métier, sans réseau ni base : classement par ACS,
+139 tests sur la logique métier, sans réseau ni base : classement par ACS,
 attribution des tons (dont le cas à 2 joueurs), anti-doublon, fenêtre de
 lookback, délai de stabilisation, variété des messages, et pour la Brique 2 —
 normalisation du RR, découpage des semaines sur le bon fuseau, agrégation,
@@ -485,6 +506,7 @@ src/services/analysis.js   barème du coach relatif au rang — pur, testable
 src/services/visuels.js    icônes d'agents et visuels de maps (cache 24 h)
 src/services/chat.js       discussion avec le coach (Brique 8) — contexte pur, testable
 src/services/quota.js      quota de questions, fenêtre glissante — pur, testable
+src/services/devices.js    appairage des PC et vérification de compte — pur, testable
 scripts/backfill-match-players.js  rattrapage des feuilles de match
 public/ui.css              socle visuel commun à toutes les pages
 public/app.js              socle JS commun (session, en-tête, notifs, échappement)
@@ -507,6 +529,8 @@ test/stats-inventees.test.js  garde-fou contre les statistiques inventees
 test/analysis.test.js      tests du barème relatif au rang
 test/chat.test.js          tests du contexte de discussion
 test/quota.test.js         tests du quota de questions
+test/devices.test.js       tests de l'appairage et de la vérification
+scripts/sonde-lockfile.mjs sonde de l'API locale Riot (Brique 9, lecture seule)
 docs/bareme-coach.md       comment le coach choisit ses trois constats
 test/manuel/parcours-brique4.mjs  parcours navigateur (Playwright, hors npm test)
 ```

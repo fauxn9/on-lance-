@@ -20,6 +20,14 @@ import {
   loadPeerMeasures,
   loadMatchScoreboard,
   getRiotAccount,
+  creerCodeAppairage,
+  lireCodeAppairage,
+  appairerAppareil,
+  appareilParJeton,
+  toucherAppareil,
+  listerAppareils,
+  revoquerAppareil,
+  marquerVerifie,
 } from '../db/index.js';
 import { config } from '../config.js';
 import { resolveAccount, getRrHistory } from '../services/henrikdev.js';
@@ -28,6 +36,10 @@ import { weekStartOf, weekLabel, weekBounds, buildLeaderboard } from '../service
 import { buildCoachReport } from '../services/coach.js';
 import { askCoach, MAX_HISTORIQUE } from '../services/chat.js';
 import { verifierQuota, consommerQuota } from '../services/quota.js';
+import {
+  genererCode, normaliserCode, genererJeton, empreinte, codeUtilisable,
+  decisionVerification, MESSAGES_VERIFICATION, DUREE_CODE_MINUTES,
+} from '../services/devices.js';
 import { getCalibration } from '../services/maps.js';
 import { getVisuels } from '../services/visuels.js';
 import * as discord from '../services/discord.js';
@@ -72,6 +84,7 @@ app.get('/', (_req, res) => res.sendFile(join(publicDir, 'landing.html')));
 
 const shortCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 /**
@@ -114,6 +127,113 @@ const requireMember = wrap(async (req, res, next) => {
   }
   next();
 });
+
+// ---------------------------------------------------------------------------
+// Brique 9 — appareils appairés
+// ---------------------------------------------------------------------------
+
+/**
+ * Barriere pour l'application desktop.
+ *
+ * Elle ne presente pas un cookie de session mais un jeton d'appareil, dont seule
+ * l'empreinte est en base. Un jeton inconnu est refuse sans distinguer "expire"
+ * de "inexistant" : rien a apprendre pour qui essaierait au hasard.
+ */
+const requireDevice = wrap(async (req, res, next) => {
+  const entete = req.headers.authorization ?? '';
+  const jeton = entete.startsWith('Bearer ') ? entete.slice(7) : null;
+  if (!jeton) return res.status(401).json({ error: 'Jeton d\'appareil requis' });
+
+  const appareil = await appareilParJeton(empreinte(jeton));
+  if (!appareil) return res.status(401).json({ error: 'Appareil inconnu ou révoqué' });
+
+  req.appareil = appareil;
+  next();
+});
+
+/** Un code a recopier dans l'application. Affiche sur le site, valable 10 min. */
+app.post('/me/devices/code', requireAuth, wrap(async (req, res) => {
+  const ligne = await creerCodeAppairage({
+    userId: req.userId,
+    code: genererCode(),
+    dureeMinutes: DUREE_CODE_MINUTES,
+  });
+  res.json({ code: ligne.code, expiresAt: ligne.expires_at, dureeMinutes: DUREE_CODE_MINUTES });
+}));
+
+app.get('/me/devices', requireAuth, wrap(async (req, res) => {
+  res.json({ appareils: await listerAppareils(req.userId) });
+}));
+
+app.delete('/me/devices/:id', requireAuth, wrap(async (req, res) => {
+  const ok = await revoquerAppareil({ userId: req.userId, deviceId: req.params.id });
+  if (!ok) return res.status(404).json({ error: 'Appareil introuvable' });
+  res.json({ ok: true });
+}));
+
+/**
+ * Appairage : l'application echange un code contre un jeton long.
+ *
+ * C'est aussi le moment ou le compte Valorant peut enfin etre VERIFIE. Le puuid
+ * est lu dans le client Riot installe sur la machine : personne ne peut le
+ * fabriquer sans y etre reellement connecte.
+ *
+ * Si ce puuid ne correspond pas au Riot ID declare sur le site, on ne rebranche
+ * rien tout seul — on le signale. Rebasculer un compte en silence est
+ * exactement le bug que la brique 4 a passe son temps a reparer.
+ */
+app.post('/devices/pair', wrap(async (req, res) => {
+  const code = normaliserCode(req.body?.code);
+  if (!code) return res.status(400).json({ error: 'Code d\'appairage requis' });
+
+  const ligne = await lireCodeAppairage(code);
+  if (!codeUtilisable(ligne)) {
+    return res.status(404).json({ error: 'Code inconnu, déjà utilisé ou expiré' });
+  }
+
+  const puuidLocal = typeof req.body?.puuid === 'string' ? req.body.puuid : null;
+  const jeton = genererJeton();
+
+  const appareil = await appairerAppareil({
+    code,
+    userId: ligne.user_id,
+    nom: String(req.body?.nom ?? 'PC').slice(0, 60),
+    tokenHash: empreinte(jeton),
+    puuidLocal,
+    version: String(req.body?.version ?? '').slice(0, 20) || null,
+  });
+  // Consomme entre-temps par un autre appairage.
+  if (!appareil) return res.status(409).json({ error: 'Code déjà utilisé' });
+
+  const compte = await getRiotAccount(ligne.user_id);
+  const decision = decisionVerification({ puuidLocal, puuidLie: compte?.puuid ?? null });
+  if (decision === 'verifie') await marquerVerifie({ userId: ligne.user_id, puuid: puuidLocal });
+
+  const moi = await getSessionUser(ligne.user_id);
+
+  res.status(201).json({
+    jeton,
+    appareil: { id: appareil.id, nom: appareil.nom },
+    utilisateur: { displayName: moi?.displayName ?? null, riotId: moi?.riotId ?? null },
+    verification: decision,
+    message: MESSAGES_VERIFICATION[decision],
+  });
+}));
+
+/**
+ * Battement de coeur de l'application.
+ *
+ * Sert a deux choses : savoir qu'un PC est encore appaire, et — quand la brique
+ * sera complete — recevoir l'etat de partie en direct sans passer par HenrikDev.
+ */
+app.post('/devices/heartbeat', requireDevice, wrap(async (req, res) => {
+  await toucherAppareil(req.appareil.id, { version: req.body?.version ?? null });
+  res.json({
+    ok: true,
+    utilisateur: req.appareil.display_name,
+    verifie: req.appareil.verified === true,
+  });
+}));
 
 // ---------------------------------------------------------------------------
 // Authentification Discord

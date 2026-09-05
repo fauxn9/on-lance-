@@ -323,6 +323,48 @@ CREATE TABLE IF NOT EXISTS match_players (
 CREATE INDEX IF NOT EXISTS idx_match_players_temps ON match_players (played_at DESC);
 CREATE INDEX IF NOT EXISTS idx_match_players_puuid ON match_players (puuid, played_at DESC);
 
+
+-- ---------------------------------------------------------------------------
+-- Brique 9 — PC appairés
+-- ---------------------------------------------------------------------------
+
+-- L'app desktop ne peut pas se connecter par Discord : pas de navigateur dans
+-- une application de bureau, et personne ne veut refaire un flux OAuth a chaque
+-- demarrage. Elle s'appaire une fois avec un code affiche sur le site, et
+-- repart avec un jeton long.
+--
+-- Le jeton n'est PAS stocke en clair : seule son empreinte l'est. Une fuite de
+-- la base ne donne donc aucun acces, exactement comme pour un mot de passe.
+CREATE TABLE IF NOT EXISTS devices (
+  id            BIGSERIAL   PRIMARY KEY,
+  user_id       BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  nom           TEXT,
+  token_hash    TEXT        NOT NULL UNIQUE,
+
+  -- Le puuid lu dans le client Riot sur CETTE machine : la preuve de propriete
+  -- d'un compte, celle qui manquait depuis la brique 4.
+  puuid_local   TEXT,
+
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at  TIMESTAMPTZ,
+  version       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_devices_user ON devices (user_id);
+
+-- Codes d'appairage : courts parce qu'on les recopie a la main, donc devinables,
+-- donc a usage unique et perimes en dix minutes. Les trois regles vont ensemble,
+-- aucune ne suffit seule.
+CREATE TABLE IF NOT EXISTS pairing_codes (
+  code        TEXT        PRIMARY KEY,
+  user_id     BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_pairing_expire ON pairing_codes (expires_at);
+
 -- ---------------------------------------------------------------------------
 -- Brique 7 — Row Level Security
 -- ---------------------------------------------------------------------------
@@ -360,3 +402,5 @@ ALTER TABLE player_matches       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE player_deaths        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analyzed_matches     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_players        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE devices              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pairing_codes        ENABLE ROW LEVEL SECURITY;

@@ -838,3 +838,115 @@ export async function getRiotAccount(userId) {
   );
   return rows[0] ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Brique 9 — appareils appairés
+// ---------------------------------------------------------------------------
+
+/**
+ * Cree un code d'appairage, en revoquant les precedents de cette personne.
+ *
+ * Un seul code valide a la fois : sinon un code affiche puis oublie sur un
+ * ecran resterait utilisable dix minutes de plus que celui qu'on regarde.
+ */
+export async function creerCodeAppairage({ userId, code, dureeMinutes }) {
+  return withTransaction(async (client) => {
+    await client.query(
+      'UPDATE pairing_codes SET used_at = now() WHERE user_id = $1 AND used_at IS NULL',
+      [userId],
+    );
+    const { rows } = await client.query(
+      `INSERT INTO pairing_codes (code, user_id, expires_at)
+       VALUES ($1, $2, now() + ($3 || ' minutes')::interval)
+       RETURNING code, expires_at`,
+      [code, userId, dureeMinutes],
+    );
+    return rows[0];
+  });
+}
+
+export async function lireCodeAppairage(code) {
+  const { rows } = await query('SELECT * FROM pairing_codes WHERE code = $1', [code]);
+  return rows[0] ?? null;
+}
+
+/**
+ * Consomme le code et cree l'appareil, en une seule transaction.
+ *
+ * Le UPDATE ... WHERE used_at IS NULL est la garantie d'usage unique : deux
+ * appairages simultanes avec le meme code, un seul passe.
+ */
+export async function appairerAppareil({ code, userId, nom, tokenHash, puuidLocal, version }) {
+  return withTransaction(async (client) => {
+    const { rowCount } = await client.query(
+      'UPDATE pairing_codes SET used_at = now() WHERE code = $1 AND used_at IS NULL',
+      [code],
+    );
+    if (rowCount === 0) return null; // deja consomme entre-temps
+
+    const { rows } = await client.query(
+      `INSERT INTO devices (user_id, nom, token_hash, puuid_local, version, last_seen_at)
+       VALUES ($1, $2, $3, $4, $5, now())
+       RETURNING id, nom, created_at`,
+      [userId, nom, tokenHash, puuidLocal, version],
+    );
+    return rows[0];
+  });
+}
+
+/** Appareil derriere un jeton, avec le compte Riot de son proprietaire. */
+export async function appareilParJeton(tokenHash) {
+  const { rows } = await query(
+    `SELECT d.id, d.user_id, d.nom, d.puuid_local, u.display_name,
+            a.puuid AS puuid_lie, a.verified
+     FROM devices d
+     JOIN users u ON u.id = d.user_id
+     LEFT JOIN linked_riot_accounts a ON a.user_id = d.user_id
+     WHERE d.token_hash = $1`,
+    [tokenHash],
+  );
+  return rows[0] ?? null;
+}
+
+export async function toucherAppareil(deviceId, { version = null } = {}) {
+  await query(
+    `UPDATE devices SET last_seen_at = now(), version = COALESCE($2, version)
+     WHERE id = $1`,
+    [deviceId, version],
+  );
+}
+
+export async function listerAppareils(userId) {
+  const { rows } = await query(
+    `SELECT id, nom, puuid_local, created_at, last_seen_at, version
+     FROM devices WHERE user_id = $1 ORDER BY created_at DESC`,
+    [userId],
+  );
+  return rows;
+}
+
+/** Revocation : le jeton devient inutilisable immediatement. */
+export async function revoquerAppareil({ userId, deviceId }) {
+  const { rowCount } = await query(
+    'DELETE FROM devices WHERE id = $1 AND user_id = $2',
+    [deviceId, userId],
+  );
+  return rowCount > 0;
+}
+
+/**
+ * Marque le compte Riot comme verifie.
+ *
+ * La condition sur le puuid est dans la requete, pas seulement dans l'appelant :
+ * meme un bug cote serveur ne pourra pas verifier un compte qui ne correspond
+ * pas au client Riot observe.
+ */
+export async function marquerVerifie({ userId, puuid }) {
+  const { rowCount } = await query(
+    `UPDATE linked_riot_accounts
+     SET verified = true, verified_at = now()
+     WHERE user_id = $1 AND puuid = $2`,
+    [userId, puuid],
+  );
+  return rowCount > 0;
+}
