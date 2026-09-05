@@ -42,6 +42,8 @@ import {
 } from '../services/devices.js';
 import { getCalibration } from '../services/maps.js';
 import { getVisuels } from '../services/visuels.js';
+import { nettoyerEvenements, contientUneFin, creerRelanceur } from '../services/relance.js';
+import { detecterPourUtilisateur } from '../services/pipeline.js';
 import * as discord from '../services/discord.js';
 import { safeNext } from '../services/urls.js';
 import { wrap } from '../services/http.js';
@@ -121,6 +123,12 @@ const requireAuth = (req, res, next) => {
  * on n'a pas recu le lien d'invitation.
  */
 const requireMember = wrap(async (req, res, next) => {
+  // L'application PC lit le classement de son groupe comme le site : on resout
+  // son jeton d'appareil ici aussi, avant de verifier l'appartenance.
+  if (!req.userId) {
+    const appareil = await appareilDeLaRequete(req);
+    if (appareil) { req.userId = appareil.user_id; req.viaAppareil = true; }
+  }
   if (!req.userId) return res.status(401).json({ error: 'Connexion requise' });
   if (!(await isGroupMember(req.params.id, req.userId))) {
     return res.status(403).json({ error: "Tu n'es pas membre de ce groupe" });
@@ -133,21 +141,64 @@ const requireMember = wrap(async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 /**
- * Barriere pour l'application desktop.
+ * Le relanceur vit dans le processus web, pas dans un cron.
  *
- * Elle ne presente pas un cookie de session mais un jeton d'appareil, dont seule
- * l'empreinte est en base. Un jeton inconnu est refuse sans distinguer "expire"
- * de "inexistant" : rien a apprendre pour qui essaierait au hasard.
+ * Consequence assumee : un redeploiement de Render pendant une serie de
+ * tentatives la perd. Ce n'est pas grave — le cron des dix minutes reste le
+ * filet, et une notification en retard vaut mieux qu'une file d'attente a
+ * maintenir pour un groupe de cinq personnes.
  */
-const requireDevice = wrap(async (req, res, next) => {
+const relanceur = creerRelanceur({ executer: detecterPourUtilisateur });
+
+/** L'appareil derriere l'en-tete Authorization, ou null. */
+async function appareilDeLaRequete(req) {
   const entete = req.headers.authorization ?? '';
   const jeton = entete.startsWith('Bearer ') ? entete.slice(7) : null;
-  if (!jeton) return res.status(401).json({ error: 'Jeton d\'appareil requis' });
+  if (!jeton) return null;
+  return appareilParJeton(empreinte(jeton));
+}
 
-  const appareil = await appareilParJeton(empreinte(jeton));
+/**
+ * Barriere pour l'application PC.
+ *
+ * Elle ne presente pas un cookie de session mais un jeton d'appareil, dont
+ * seule l'empreinte est en base. Un jeton inconnu est refuse sans distinguer
+ * "expire" de "inexistant" : rien a apprendre pour qui essaierait au hasard.
+ */
+const requireDevice = wrap(async (req, res, next) => {
+  if (!(req.headers.authorization ?? '').startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Jeton d\'appareil requis' });
+  }
+  const appareil = await appareilDeLaRequete(req);
   if (!appareil) return res.status(401).json({ error: 'Appareil inconnu ou révoqué' });
 
   req.appareil = appareil;
+  next();
+});
+
+/**
+ * Barriere de LECTURE : un cookie de session, ou un jeton d'appareil.
+ *
+ * L'application PC affiche les memes donnees que le site — classement,
+ * historique, coach — et n'a pas de navigateur pour porter un cookie. Elle
+ * presente donc son jeton d'appareil.
+ *
+ * En lecture SEULEMENT, et c'est deliberé. Un jeton d'appareil vit en clair
+ * dans un fichier sur un PC ; un cookie de session, lui, est signe et expire.
+ * Les deux ne meritent donc pas les memes droits : revoquer un appareil,
+ * rattacher un compte Riot ou poser une question au coach — qui coute de
+ * l'argent a chaque appel — restent reserves au site, derriere `requireAuth`.
+ * Ajouter une route ici, c'est elargir ce qu'un jeton vole permet de lire :
+ * a faire en le sachant.
+ */
+const requireLecture = wrap(async (req, res, next) => {
+  if (req.userId) return next();
+
+  const appareil = await appareilDeLaRequete(req);
+  if (!appareil) return res.status(401).json({ error: 'Connexion requise' });
+
+  req.userId = appareil.user_id;
+  req.viaAppareil = true;
   next();
 });
 
@@ -221,17 +272,37 @@ app.post('/devices/pair', wrap(async (req, res) => {
 }));
 
 /**
- * Battement de coeur de l'application.
+ * Battement de coeur de l'application PC.
  *
- * Sert a deux choses : savoir qu'un PC est encore appaire, et — quand la brique
- * sera complete — recevoir l'etat de partie en direct sans passer par HenrikDev.
+ * Sert a deux choses : savoir qu'un PC est encore appaire, et recevoir les
+ * evenements de partie — dont la fin, qui declenche la detection tout de suite
+ * au lieu d'attendre le passage suivant du cron.
+ *
+ * La reponse part SANS attendre la detection. Une relance prend jusqu'a
+ * plusieurs minutes (le temps que l'API publie le match) et l'application bat
+ * toutes les deux secondes : la faire patienter bloquerait sa boucle. Elle n'a
+ * d'ailleurs rien a en faire — c'est le serveur qui notifie, pas elle.
  */
 app.post('/devices/heartbeat', requireDevice, wrap(async (req, res) => {
   await toucherAppareil(req.appareil.id, { version: req.body?.version ?? null });
+
+  const evenements = nettoyerEvenements(req.body?.evenements);
+  let relance = false;
+
+  if (contientUneFin(evenements)) {
+    console.log(
+      `[devices] fin de partie annoncee par ${req.appareil.display_name} `
+      + `(appareil ${req.appareil.id})`,
+    );
+    relance = relanceur.declencher(req.appareil.user_id);
+  }
+
   res.json({
     ok: true,
     utilisateur: req.appareil.display_name,
     verifie: req.appareil.verified === true,
+    recus: evenements.length,
+    relance,
   });
 }));
 
@@ -371,7 +442,7 @@ app.post('/accounts/link', requireAuth, wrap(async (req, res) => {
 // Groupes (Brique 6)
 // ---------------------------------------------------------------------------
 
-app.get('/me/groups', requireAuth, wrap(async (req, res) => {
+app.get('/me/groups', requireLecture, wrap(async (req, res) => {
   res.json({ groups: await listMyGroups(req.userId) });
 }));
 
@@ -543,7 +614,7 @@ app.get('/groups/:id/leaderboard/history', requireMember, wrap(async (req, res) 
 // Donnees personnelles — toujours celles de l'utilisateur connecte
 // ---------------------------------------------------------------------------
 
-app.get('/me/notifications', requireAuth, wrap(async (req, res) => {
+app.get('/me/notifications', requireLecture, wrap(async (req, res) => {
   const { rows } = await query(
     `SELECT n.id, n.tone, n.kind, n.week_start, n.rank_in_group, n.body,
             n.status, n.created_at, d.map_name, d.match_id
@@ -556,13 +627,13 @@ app.get('/me/notifications', requireAuth, wrap(async (req, res) => {
   res.json(rows);
 }));
 
-app.get('/me/matches', requireAuth, wrap(async (req, res) => {
+app.get('/me/matches', requireLecture, wrap(async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit ?? 10), 1), 50);
   const offset = Math.max(Number(req.query.offset ?? 0), 0);
   res.json(await loadPlayerMatches(req.userId, { limit, offset }));
 }));
 
-app.get('/me/coach', requireAuth, wrap(async (req, res) => {
+app.get('/me/coach', requireLecture, wrap(async (req, res) => {
   const days = Number(req.query.days ?? 14);
   const me = await getSessionUser(req.userId);
 
@@ -603,7 +674,7 @@ app.get('/me/coach', requireAuth, wrap(async (req, res) => {
  * n'importe qui pourrait lire le tableau de n'importe quel match en devinant
  * un identifiant.
  */
-app.get('/me/matches/:matchId/scoreboard', requireAuth, wrap(async (req, res) => {
+app.get('/me/matches/:matchId/scoreboard', requireLecture, wrap(async (req, res) => {
   const compte = await getRiotAccount(req.userId);
   if (!compte) return res.status(404).json({ error: 'Aucun compte Valorant rattaché' });
 
@@ -712,7 +783,7 @@ app.post('/me/coach/chat', requireAuth, wrap(async (req, res) => {
   });
 }));
 
-app.get('/me/heatmap', requireAuth, wrap(async (req, res) => {
+app.get('/me/heatmap', requireLecture, wrap(async (req, res) => {
   const mapName = req.query.map;
   if (!mapName) return res.status(400).json({ error: 'parametre map requis' });
 
