@@ -1,0 +1,107 @@
+# Fabrication de l'installateur Windows de l'application PC.
+#
+# POURQUOI PASSER PAR GITHUB PLUTOT QUE PAR TA MACHINE
+#
+# Compiler l'application demande Rust et les Build Tools de Visual Studio. Ce
+# workflow les a deja : personne n'a besoin de les installer pour DISTRIBUER
+# l'app, et l'installateur produit est le meme a chaque fois, quelle que soit
+# la machine de celui qui declenche la construction.
+#
+# COMMENT S'EN SERVIR
+#
+#   - a la main : onglet Actions -> "Application PC" -> "Run workflow"
+#   - ou en poussant une etiquette :  git tag app-v0.1.0 && git push --tags
+#
+# Dans les deux cas, le .exe se retrouve dans la page Releases du depot, et
+# c'est ce lien-la qu'on envoie aux potes.
+#
+# A SAVOIR : l'installateur n'est PAS signe. Windows affichera donc un ecran
+# bleu "Windows a protege votre ordinateur" au premier lancement — il faut
+# cliquer sur "Informations complementaires" puis "Executer quand meme". Faire
+# disparaitre cet ecran demande un certificat de signature de code, qui coute
+# plusieurs centaines d'euros par an. C'est assume : on previent les potes.
+
+name: Application PC
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['app-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # La compilation de Tauri prend une dizaine de minutes a froid. Le cache
+      # ramene les suivantes a deux ou trois.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Dépendances
+        working-directory: desktop
+        run: npm install
+
+      - name: Construction
+        working-directory: desktop
+        run: npm run build
+
+      # Le nom du fichier contient la version : on le retrouve plutot que de
+      # l'ecrire en dur, sinon chaque montee de version casserait ce workflow.
+      - name: Retrouver l'installateur
+        id: exe
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse -Filter *.exe `
+            -Path desktop/src-tauri/target/release/bundle/nsis | Select-Object -First 1
+          if (-not $exe) { throw "Aucun installateur produit." }
+          echo "chemin=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+          echo "nom=$($exe.Name)" >> $env:GITHUB_OUTPUT
+
+      # Toujours disponible, meme sans etiquette : utile pour tester une
+      # construction sans publier de version.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installateur-windows
+          path: ${{ steps.exe.outputs.chemin }}
+
+      - name: Publier la version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $notes = @"
+          Application PC d'On lance ?
+
+          **Installation** — telecharge le .exe, lance-le. Windows affichera
+          "Windows a protege votre ordinateur" : clique sur *Informations
+          complementaires* puis *Executer quand meme*. C'est normal,
+          l'installateur n'est pas signe (un certificat coute plusieurs
+          centaines d'euros par an).
+
+          Aucun droit administrateur necessaire, et un raccourci est cree sur
+          le bureau.
+
+          **Premier lancement** — l'app demande un code a six caracteres.
+          Il s'affiche sur onlance.xyz, tableau de bord, bloc *Application PC*.
+
+          **Ce qu'elle fait** — elle lit l'etat de partie que le client Riot
+          expose en local, en lecture seule, et le remonte au site : fin de
+          partie detectee a la seconde, debrief qui s'ouvre tout seul,
+          classement et coach dans la fenetre.
+          "@
+          gh release create ${{ github.ref_name }} "${{ steps.exe.outputs.chemin }}" `
+            --title "Application PC ${{ github.ref_name }}" --notes $notes

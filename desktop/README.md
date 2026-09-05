@@ -12,9 +12,13 @@ passage à quel compte Valorant appartient ce PC.
 | Élément | État |
 |---|---|
 | `presence-core` — lecture de la présence, machine à états | ✅ 19 tests |
-| `agent-core` — lockfile, client Riot local, client serveur, boucle | ✅ 15 tests |
+| `agent-core` — lockfile, client Riot local, client serveur, boucle | ✅ 16 tests |
 | `src-tauri` — fenêtre, barre des tâches, appairage, boucle 2 s | ✅ 4 tests |
-| Réception des événements côté serveur | ❌ |
+| Réception des événements côté serveur, relance de la détection | ✅ |
+| Écrans : direct, classement, parties, coach | ✅ |
+| Débrief de fin de partie, ouvert tout seul | ✅ |
+| Installateur Windows + publication automatique | ✅ |
+| Overlay par-dessus le jeu | ❌ |
 
 ## Lancer l'application
 
@@ -34,6 +38,9 @@ npm run dev      # fenêtre de développement, journaux dans la console
 npm run build    # installateur .exe dans src-tauri/target/release/bundle/nsis/
 ```
 
+(Pour seulement *distribuer* l'app, rien de tout ça n'est nécessaire : voir
+« Distribuer l'app aux potes » plus bas.)
+
 La première compilation prend plusieurs minutes (Tauri compile son moteur) ;
 les suivantes sont quasi instantanées.
 
@@ -44,10 +51,41 @@ set ONLANCE_URL=http://localhost:3000
 npm run dev
 ```
 
+## Distribuer l'app aux potes
+
+Personne n'a besoin d'installer Rust pour *recevoir* l'application — seulement
+pour la compiler. Et c'est GitHub qui compile :
+
+```
+git tag app-v0.1.0
+git push --tags
+```
+
+Le workflow `.github/workflows/app-pc.yml` construit l'installateur sur une
+machine Windows et le publie dans la page **Releases** du dépôt. C'est ce lien
+qu'on envoie aux potes. Sans étiquette, l'onglet *Actions → Application PC →
+Run workflow* fabrique le même `.exe` et le dépose en pièce jointe du run,
+utile pour tester sans publier de version.
+
+L'installateur :
+
+- ne demande **aucun droit administrateur** (`installMode: currentUser`) — un
+  pote qui doit autoriser une app à modifier son appareil pour un tracker de
+  Valorant, c'est un pote qui n'installe pas ;
+- est en **français**, sans sélecteur de langue ;
+- crée un **raccourci sur le bureau** et une entrée dans le menu Démarrer.
+
+**Windows affichera un écran bleu au premier lancement** : « Windows a protégé
+votre ordinateur ». Il faut cliquer sur *Informations complémentaires* puis
+*Exécuter quand même*. L'installateur n'est pas signé, et le faire disparaître
+demande un certificat de signature de code à plusieurs centaines d'euros par
+an. C'est assumé — mais il faut prévenir les potes, sinon la moitié abandonne
+à cet écran.
+
 ## Ce que fait la coquille, et ce qu'elle ne fait pas
 
-Une fenêtre de 400 × 560, une icône dans la barre des tâches, une boucle qui bat
-toutes les deux secondes. C'est tout, et c'est délibéré : **fermer la fenêtre la
+Une fenêtre de 520 × 760, une icône dans la barre des tâches, une boucle qui bat
+toutes les deux secondes. **Fermer la fenêtre la
 cache** au lieu de quitter — sinon la première croix cliquée arrête la détection
 de fin de partie sans que personne ne comprenne pourquoi les notifications se
 sont taries. On quitte par la barre des tâches.
@@ -140,8 +178,11 @@ parle à onlance.xyz est un autre objet, avec la vérification intacte.
 
 ## Reste à faire
 
-- Côté serveur : `/devices/heartbeat` accepte déjà l'appel mais **ignore encore
-  les événements**. Un `fin` devra déclencher la détection tout de suite, au
-  lieu d'attendre le cron de dix minutes.
+- **L'overlay** — une fenêtre transparente à côté du jeu. Ne marchera qu'en
+  fenêtré sans bordure : en plein écran exclusif, Windows ne dessine rien
+  par-dessus le jeu.
+- **Mesurer le délai de publication.** La relance (`src/services/relance.js`)
+  note dans le journal à quelle tentative le match apparaît — 15 s, 30 s, 1, 2
+  ou 4 minutes. Après quelques soirées, on saura, et on pourra resserrer.
 - Vérifier que HenrikDev publie bien le match assez vite après le `fin` — sinon
   il faudra attendre un court délai avant d'aller le chercher.

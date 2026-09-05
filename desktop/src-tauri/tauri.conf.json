@@ -37,6 +37,20 @@
       "icons/icon.ico"
     ],
     "shortDescription": "Détection de fin de partie Valorant, en direct.",
-    "longDescription": "Compagnon PC d'On lance ? : lit l'état de partie exposé par le client Riot, en lecture seule, et le fait remonter au site à la seconde."
+    "longDescription": "Compagnon PC d'On lance ? : lit l'état de partie exposé par le client Riot, en lecture seule, et le fait remonter au site à la seconde.",
+    "publisher": "On lance ?",
+    "copyright": "On lance ?",
+    "category": "Game",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "French"
+        ],
+        "displayLanguageSelector": false,
+        "startMenuFolder": "On lance",
+        "installerHooks": "hooks.nsh"
+      }
+    }
   }
 }
