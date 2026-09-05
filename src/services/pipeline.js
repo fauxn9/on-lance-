@@ -21,6 +21,7 @@ import { analyzeMatch } from './positional.js';
 import { matchInsight } from './coach.js';
 import { getCalibration } from './maps.js';
 import { drainPending } from './notifications.js';
+import { moissonner } from './moisson.js';
 import {
   loadGroupsWithMembers,
   getProcessedMatchIds,
@@ -40,9 +41,31 @@ async function fetchMatchesForMembers(members) {
       byPuuid.set(m.puuid, await getRecentMatches(m.puuid, opts));
       // Meme URL que l'appel precedent, donc servi par le cache : les matchs
       // bruts (avec les positions) ne coutent aucune requete supplementaire.
-      for (const raw of await getRawMatches(m.puuid, opts)) {
+      const raws = await getRawMatches(m.puuid, opts);
+      for (const raw of raws) {
         const id = raw?.metadata?.match_id;
         if (id) rawByMatchId.set(id, raw);
+      }
+
+      // On tient le match complet : on en profite pour ecrire l'historique et
+      // la feuille des dix. Voir l'en-tete de moisson.js — sans ca, ces deux
+      // tables dependaient d'un cron horaire que GitHub n'execute en pratique
+      // que toutes les trois heures.
+      //
+      // Volontairement place ICI et pas plus bas : la moisson concerne TOUTES
+      // les parties du joueur, y compris celles jouees seul, alors que la suite
+      // ne retient que les parties jouees ensemble.
+      if (!config.dryRun) {
+        try {
+          const { resumes, feuilles } = await moissonner({ membre: m, raws, prefixe: '[detect]' });
+          if (resumes || feuilles) {
+            console.log(`[detect]   ${m.displayName} : ${resumes} partie(s) a l'historique, ${feuilles} ligne(s) de feuille`);
+          }
+        } catch (err) {
+          // Une moisson ratee ne doit jamais empecher une notif de partir : le
+          // cron `pos:analyze` repassera derriere.
+          console.error(`[detect] moisson KO pour ${m.displayName}: ${err.message}`);
+        }
       }
     } catch (err) {
       // Un joueur qui echoue ne doit pas casser la detection du groupe entier.

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>On lance ?</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="themes.css" />
   <link rel="stylesheet" href="theme-matilda.css" />
 </head>
 <body>
@@ -123,11 +124,18 @@
       </section>
     </main>
 
+    <!-- Le sélecteur de thème, ouvert depuis le pied de page. -->
+    <div class="themes" id="themes" hidden>
+      <p class="themes-titre">Thème</p>
+      <div class="themes-liste" id="themes-liste"></div>
+    </div>
+
     <footer class="pied">
       <a href="#" data-site>Ouvrir le site</a>
       <span class="version" id="version"></span>
       <button type="button" id="chats" class="chats" hidden>Énervée ? Appuie ici !</button>
-      <button type="button" id="theme-off" class="lien-bouton" hidden>Thème normal</button>
+      <button type="button" id="theme-bouton" class="lien-bouton"
+              aria-haspopup="true" aria-expanded="false" aria-controls="themes">Thème</button>
       <button type="button" id="oublier" class="lien-bouton">Oublier ce PC</button>
     </footer>
   </div>

@@ -290,6 +290,24 @@ const imageMap = (nom) => visuels.maps?.[nom] ?? null;
 
 let partiesChargees = false;
 
+/** L'onglet actuellement affiché. */
+const vueActive = () => document.querySelector('.vue.active')?.dataset.vue ?? null;
+
+/**
+ * Les listes déjà chargées ne connaissent pas la partie qui vient de finir.
+ *
+ * On les marque à recharger — et on recharge TOUT DE SUITE celle qui est sous
+ * les yeux. Sans ça, quelqu'un resté sur l'onglet Parties voyait une liste
+ * périmée jusqu'à ce qu'il pense à changer d'onglet et à revenir.
+ */
+function rafraichirLesListes() {
+  partiesChargees = false;
+  coachCharge = false;
+  chargerClassement();
+  if (vueActive() === 'parties') chargerParties();
+  if (vueActive() === 'coach') chargerCoach();
+}
+
 async function chargerParties() {
   if (partiesChargees) return;
   try {
@@ -591,6 +609,7 @@ async function guetterLeDebrief() {
   if (guetteEnCours) return;
   guetteEnCours = true;
   const avant = dernierMatchConnu;
+  let vue = false;
 
   try {
     for (const attente of ATTENTES_MS) {
@@ -599,20 +618,29 @@ async function guetterLeDebrief() {
       if (!id || id === avant) continue;
 
       dernierMatchConnu = id;
+      // La partie est publiée : on rafraîchit l'historique et le classement
+      // tout de suite, qu'on arrive ou non à en tirer un débrief. Une seule
+      // fois : les tours suivants ne servent qu'à réessayer le débrief.
+      if (!vue) {
+        vue = true;
+        rafraichirLesListes();
+      }
       try {
         const debrief = await invoke('api', { chemin: `/me/matches/${id}/debrief` });
-        // Les listes déjà chargées ne connaissent pas cette partie.
-        partiesChargees = false;
-        coachCharge = false;
-        chargerClassement();
         montrerDebrief(debrief);
         return;
       } catch {
-        // La partie existe mais n'est pas encore analysée : on continue.
+        // La partie est là mais son débrief n'est pas encore calculable — il
+        // lui faut la feuille des dix joueurs. On continue de guetter, la
+        // liste des parties, elle, est déjà rafraîchie.
       }
     }
   } finally {
     guetteEnCours = false;
+    // Surveillance épuisée sans avoir rien vu passer : on invalide quand même.
+    // Sinon la liste chargée AVANT la partie restait affichée jusqu'au
+    // redémarrage de l'application, même en changeant d'onglet.
+    if (!vue) rafraichirLesListes();
   }
 }
 
@@ -780,10 +808,10 @@ $('maj-bouton').addEventListener('click', async () => {
   }
 });
 
-/* --- Thème Matilda -------------------------------------------------------------- */
+/* --- Thèmes ---------------------------------------------------------------------- */
 
 /**
- * Le compte concerné. On teste le Riot ID complet et pas le pseudo : « hayann »
+ * Le compte de Matilda. On teste le Riot ID complet et pas le pseudo : « hayann »
  * tout court pourrait désigner quelqu'un d'autre un jour, le tag non.
  */
 const RIOT_ID_MATILDA = 'hayann#luvbf';
@@ -797,36 +825,98 @@ const PETITS_MOTS = [
 
 const CHATS = 'https://cat-bounce.com/';
 
-let themeActif = false;
+/**
+ * Les thèmes proposés. Les trois pastilles montrent la palette : c'est plus
+ * honnête qu'un nom, et ça évite d'avoir à tous les essayer pour choisir.
+ * Elles sont écrites ici en dur exprès — les lire depuis le CSS demanderait
+ * d'appliquer chaque thème pour l'échantillonner, donc de faire clignoter la
+ * fenêtre à l'ouverture du sélecteur.
+ */
+const THEMES = [
+  { id: 'braise',    nom: 'Braise',    puces: ['#ff4655', '#ff8a5b', '#0c0c12'] },
+  { id: 'noir',      nom: 'Noir',      puces: ['#ffffff', '#a8a8b2', '#000000'] },
+  { id: 'bleu',      nom: 'Bleu',      puces: ['#3d8bff', '#57d6ff', '#081120'] },
+  { id: 'radiant',   nom: 'Radiant',   puces: ['#ffcb45', '#ffe9a8', '#14110a'] },
+  { id: 'toxique',   nom: 'Toxique',   puces: ['#4bef86', '#c6ff5e', '#07130c'] },
+  { id: 'amethyste', nom: 'Améthyste', puces: ['#a970ff', '#f07ad9', '#0f0a1c'] },
+];
+
+/** Réservé à son compte. Il n'apparaît chez personne d'autre. */
+const THEME_MATILDA = { id: 'matilda', nom: 'Matilda', puces: ['#ff5fa2', '#ffa8cf', '#200f18'] };
+
+/**
+ * Clé volontairement neuve.
+ *
+ * L'ancienne (`onlance.theme`) ne stockait que 'normal' ou 'matilda', et un bug
+ * du bouton d'extinction pouvait y écrire 'normal' sans que rien ne change à
+ * l'écran — après quoi le thème rose ne revenait plus jamais. Repartir d'une
+ * clé vierge remet chacun sur le thème par défaut de son compte, une fois, et
+ * efface ce blocage sans avoir à deviner ce que l'ancienne valeur voulait dire.
+ */
+const CLE_THEME = 'onlance.theme.v2';
+
 let minuteurCoeurs = null;
 let minuteurMots = null;
 
-/** Le thème est-il éteint pour ce PC ? Une surprise doit pouvoir se refuser. */
-function themeRefuse() {
+/** Les thèmes qu'a le droit de voir ce compte. */
+function themesOfferts(concernee) {
+  return concernee ? [...THEMES, THEME_MATILDA] : THEMES;
+}
+
+function themeMemorise() {
   try {
-    return localStorage.getItem('onlance.theme') === 'normal';
+    return localStorage.getItem(CLE_THEME);
   } catch {
-    // Stockage indisponible : on considère que non, sans faire d'histoires.
-    return false;
+    // Stockage indisponible : le choix ne survit pas au redémarrage, et c'est
+    // tout. Ça ne doit pas empêcher la fenêtre de s'afficher.
+    return null;
   }
 }
 
-function appliquerTheme(vue) {
-  const concernee = (vue.riot_id ?? '').toLowerCase() === RIOT_ID_MATILDA;
-  const veut = concernee && !themeRefuse();
-  if (veut === themeActif) return;
+function retenirLeTheme(id) {
+  try {
+    localStorage.setItem(CLE_THEME, id);
+  } catch { /* voir ci-dessus */ }
+}
 
-  themeActif = veut;
-  document.body.classList.toggle('matilda', veut);
-  $('coeurs').hidden = !veut;
-  $('chats').hidden = !veut;
-  // Le bouton d'extinction n'apparaît que pour elle : personne d'autre n'a de
-  // thème à éteindre.
-  $('theme-off').hidden = !concernee;
+/**
+ * Le thème à appliquer pour cette vue.
+ *
+ * Un identifiant inconnu — thème retiré depuis, stockage bricolé, ou celui de
+ * Matilda mémorisé sur un PC qui n'est pas le sien — retombe sur le défaut du
+ * compte plutôt que de laisser la fenêtre sans palette.
+ */
+function themeVoulu(concernee) {
+  const offerts = themesOfferts(concernee);
+  const memorise = themeMemorise();
+  if (offerts.some((t) => t.id === memorise)) return memorise;
+  return concernee ? 'matilda' : 'braise';
+}
+
+/**
+ * Applique un thème. Idempotent.
+ *
+ * LE POINT IMPORTANT : l'état appliqué se lit sur le DOM (`dataset.theme`), pas
+ * dans une variable qui le refléterait. La version précédente gardait un booléen
+ * à côté, que le bouton retournait à la main avant d'appeler cette fonction —
+ * laquelle repartait alors immédiatement, convaincue qu'il n'y avait rien à
+ * faire. Résultat : le bouton changeait d'étiquette, l'écran ne changeait pas,
+ * et une fois le refus enregistré le thème ne revenait plus. Un seul endroit
+ * décide, un seul endroit stocke : il n'y a plus rien à désynchroniser.
+ */
+function poserLeTheme(id, concernee) {
+  $('chats').hidden = !concernee;
+  $('theme-bouton').hidden = false;
+
+  if (document.body.dataset.theme === id) return;
+  document.body.dataset.theme = id;
+
+  const rose = id === 'matilda';
+  $('coeurs').hidden = !rose;
 
   clearInterval(minuteurCoeurs);
   clearInterval(minuteurMots);
-  if (!veut) {
+  if (!rose) {
     $('coeurs').replaceChildren();
     $('mots').replaceChildren();
     return;
@@ -840,6 +930,37 @@ function appliquerTheme(vue) {
   // secondes deviendrait un fond sonore, puis une gêne.
   minuteurMots = setInterval(direUnMot, 75_000);
   setTimeout(direUnMot, 6000);
+}
+
+function appliquerTheme(vue) {
+  const concernee = (vue.riot_id ?? '').toLowerCase() === RIOT_ID_MATILDA;
+  poserLeTheme(themeVoulu(concernee), concernee);
+  dessinerLesChoix(concernee);
+}
+
+/** Le contenu du sélecteur, redessiné quand la liste offerte peut changer. */
+function dessinerLesChoix(concernee) {
+  const offerts = themesOfferts(concernee);
+  const actuel = document.body.dataset.theme;
+
+  $('themes-liste').replaceChildren(...offerts.map((t) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'choix';
+    b.dataset.theme = t.id;
+    b.setAttribute('aria-pressed', String(t.id === actuel));
+
+    const puces = document.createElement('span');
+    puces.className = 'puces';
+    for (const couleur of t.puces) {
+      const p = document.createElement('span');
+      p.className = 'puce';
+      p.style.background = couleur;
+      puces.append(p);
+    }
+    b.append(puces, document.createTextNode(t.nom));
+    return b;
+  }));
 }
 
 const COEURS = ['💖', '💗', '💓', '💞', '🩷', '💕'];
@@ -860,7 +981,7 @@ function lacherUnCoeur() {
 }
 
 function direUnMot() {
-  if (!themeActif) return;
+  if (document.body.dataset.theme !== 'matilda') return;
   const el = document.createElement('div');
   el.className = 'mot';
   el.textContent = PETITS_MOTS[Math.floor(Math.random() * PETITS_MOTS.length)];
@@ -874,15 +995,36 @@ $('chats').addEventListener('click', () => ouvrirUrl?.(CHATS));
 // secondes. L'application, elle, passe par son minuteur.
 window.direUnMot = direUnMot;
 
-$('theme-off').addEventListener('click', async () => {
-  try {
-    localStorage.setItem('onlance.theme', themeRefuse() ? 'matilda' : 'normal');
-  } catch { /* sans stockage, le choix ne survit pas au redémarrage */ }
-  // On force la bascule : `appliquerTheme` ne fait rien quand l'état demandé
-  // est celui qu'il croit déjà appliqué.
-  themeActif = !themeActif;
+/* --- Le sélecteur ----------------------------------------------------------- */
+
+function ouvrirLesThemes(ouvert) {
+  $('themes').hidden = !ouvert;
+  $('theme-bouton').setAttribute('aria-expanded', String(ouvert));
+}
+
+$('theme-bouton').addEventListener('click', (e) => {
+  e.stopPropagation();
+  ouvrirLesThemes($('themes').hidden);
+});
+
+// Le sélecteur n'écrit QUE le choix, puis redemande l'état : c'est
+// `appliquerTheme` qui décide, comme à chaque battement. Le bouton ne touche
+// jamais lui-même à ce qui est affiché — c'était toute l'origine du bug.
+$('themes-liste').addEventListener('click', async (e) => {
+  const choix = e.target.closest('.choix');
+  if (!choix) return;
+  retenirLeTheme(choix.dataset.theme);
   appliquerTheme(await invoke('etat_actuel'));
-  $('theme-off').textContent = themeActif ? 'Thème normal' : 'Remettre le rose';
+  ouvrirLesThemes(false);
+});
+
+// Refermer au clic ailleurs : un panneau qui reste ouvert par-dessus le
+// classement se remarque surtout quand on ne le voulait plus.
+document.addEventListener('click', (e) => {
+  if (!$('themes').hidden && !e.target.closest('#themes')) ouvrirLesThemes(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') ouvrirLesThemes(false);
 });
 
 /* --- Vue globale -------------------------------------------------------------- */

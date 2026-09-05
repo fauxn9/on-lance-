@@ -1,0 +1,167 @@
+/* Les thèmes de l'application PC.
+ *
+ * Chacun se contente de redéfinir le contrat de couleurs posé en tête de
+ * `style.css` : aucun écran n'est dupliqué, aucune règle n'est réécrite. Une
+ * vue ajoutée demain suivra le thème sans qu'on y touche.
+ *
+ * « Braise » n'apparaît pas ici : c'est le `:root` de `style.css`, donc le
+ * repli naturel quand aucun thème n'est choisi ou qu'un thème inconnu traîne
+ * dans le stockage local.
+ *
+ * Règle pour en ajouter un : redéfinir TOUTES les variables du bloc, y compris
+ * les `-rgb`. En oublier une n'affiche aucune erreur — elle garde simplement la
+ * valeur de Braise, et le rouge Valorant réapparaît au milieu d'un thème vert.
+ */
+
+/* --- Noir : le plus sobre. Aucune couleur, sauf là où elle porte du sens ----
+   Les statuts (gain, perte, victoire) gardent leur teinte : les éteindre
+   rendrait le classement illisible. Le reste est en niveaux de gris. */
+body[data-theme="noir"] {
+  --ground: #000000; --lift: #08080a; --surface: #0e0e11;
+  --line: #1c1c20; --line-soft: #141417; --line-fort: #26262b; --line-vif: #33333a;
+  --accent: #ffffff; --warm: #c9c9d2; --gain: #7ee0b4; --loss: #ef6d84;
+  --cool: #8fa4c8; --gold: #d8d3c4;
+  --ink: #ffffff; --muted: #a8a8b2; --faint: #6e6e78; --fantome: #3d3d45;
+  --sur-accent: #000000;
+
+  --accent-rgb: 255 255 255; --warm-rgb: 201 201 210; --gold-rgb: 216 211 196;
+  --gain-rgb: 126 224 180; --loss-rgb: 239 109 132; --cool-rgb: 143 164 200;
+  --ground-rgb: 0 0 0; --surface-rgb: 14 14 17;
+}
+/* La lueur du haut devient un halo blanc très faible : sur du noir pur, la même
+   opacité que sur Braise ferait une tache grise franchement visible. */
+body[data-theme="noir"]::before {
+  background: radial-gradient(ellipse at 50% 0%, rgb(255 255 255 / .06), transparent 70%);
+}
+
+/* --- Bleu : nuit profonde, accent électrique ------------------------------- */
+body[data-theme="bleu"] {
+  --ground: #04070f; --lift: #081120; --surface: #0c182b;
+  --line: #17293f; --line-soft: #101f31; --line-fort: #1e3651; --line-vif: #2a4a6d;
+  --accent: #3d8bff; --warm: #57d6ff; --gain: #45e0c0; --loss: #ff6e8f;
+  --cool: #9db8ff; --gold: #ffd66e;
+  --ink: #f2f7ff; --muted: #a9bdd8; --faint: #6d829d; --fantome: #3d4f66;
+  --sur-accent: #041022;
+
+  --accent-rgb: 61 139 255; --warm-rgb: 87 214 255; --gold-rgb: 255 214 110;
+  --gain-rgb: 69 224 192; --loss-rgb: 255 110 143; --cool-rgb: 157 184 255;
+  --ground-rgb: 4 7 15; --surface-rgb: 12 24 43;
+}
+
+/* --- Radiant : or et crème sur brun sombre --------------------------------- */
+body[data-theme="radiant"] {
+  --ground: #0c0a06; --lift: #14110a; --surface: #1b170e;
+  --line: #302818; --line-soft: #241e12; --line-fort: #3d3320; --line-vif: #52452b;
+  --accent: #ffcb45; --warm: #ffe9a8; --gain: #8fe0a0; --loss: #ef7a6a;
+  --cool: #b9a7ff; --gold: #fff3cd;
+  --ink: #fff8e8; --muted: #dccbaa; --faint: #9a8b6e; --fantome: #5e5340;
+  --sur-accent: #241a04;
+
+  --accent-rgb: 255 203 69; --warm-rgb: 255 233 168; --gold-rgb: 255 243 205;
+  --gain-rgb: 143 224 160; --loss-rgb: 239 122 106; --cool-rgb: 185 167 255;
+  --ground-rgb: 12 10 6; --surface-rgb: 27 23 14;
+}
+
+/* --- Toxique : vert acide, très peu de lumière ----------------------------- */
+body[data-theme="toxique"] {
+  --ground: #030a06; --lift: #07130c; --surface: #0b1c12;
+  --line: #16331f; --line-soft: #102618; --line-fort: #1d4128; --line-vif: #2a5735;
+  --accent: #4bef86; --warm: #c6ff5e; --gain: #4bef86; --loss: #ff6b7a;
+  --cool: #63e0d0; --gold: #e8ff8a;
+  --ink: #edfff2; --muted: #a9cbb4; --faint: #6b8f76; --fantome: #3d5a46;
+  --sur-accent: #03130a;
+
+  --accent-rgb: 75 239 134; --warm-rgb: 198 255 94; --gold-rgb: 232 255 138;
+  --gain-rgb: 75 239 134; --loss-rgb: 255 107 122; --cool-rgb: 99 224 208;
+  --ground-rgb: 3 10 6; --surface-rgb: 11 28 18;
+}
+
+/* --- Améthyste : violet profond, accent magenta ---------------------------- */
+body[data-theme="amethyste"] {
+  --ground: #08050f; --lift: #0f0a1c; --surface: #160f2a;
+  --line: #2a1c47; --line-soft: #1f1636; --line-fort: #372459; --line-vif: #4a3273;
+  --accent: #a970ff; --warm: #f07ad9; --gain: #5ee3bc; --loss: #ff6f92;
+  --cool: #7fb2ff; --gold: #ffc978;
+  --ink: #f7f2ff; --muted: #c3b3de; --faint: #8778a6; --fantome: #4f4270;
+  --sur-accent: #12061f;
+
+  --accent-rgb: 169 112 255; --warm-rgb: 240 122 217; --gold-rgb: 255 201 120;
+  --gain-rgb: 94 227 188; --loss-rgb: 255 111 146; --cool-rgb: 127 178 255;
+  --ground-rgb: 8 5 15; --surface-rgb: 22 15 42;
+}
+
+/* --- Matilda : le thème rose, réservé à son compte ------------------------- */
+/* Sa palette vit ici avec les autres ; ses extras (les cœurs, les petits mots,
+   le bouton chats) restent dans `theme-matilda.css`, parce que ce sont des
+   éléments en plus, pas une couleur en moins. */
+body[data-theme="matilda"] {
+  --ground: #16090f; --lift: #200f18; --surface: #29141f;
+  --line: #43202f; --line-soft: #331824; --line-fort: #522738; --line-vif: #6b3549;
+  --accent: #ff5fa2; --warm: #ffa8cf; --gain: #6ff0c8; --loss: #ff7d9e;
+  --cool: #ff9ec7; --gold: #ffd1e6;
+  --ink: #fff4f9; --muted: #f0cfdf; --faint: #b98fa6; --fantome: #7a5364;
+  --sur-accent: #2a0a17;
+
+  --accent-rgb: 255 95 162; --warm-rgb: 255 168 207; --gold-rgb: 255 209 230;
+  --gain-rgb: 111 240 200; --loss-rgb: 255 125 158; --cool-rgb: 255 158 199;
+  --ground-rgb: 22 9 15; --surface-rgb: 41 20 31;
+}
+/* Sa lueur est plus franche que les autres : c'est un thème qui s'assume. */
+body[data-theme="matilda"]::before {
+  background: radial-gradient(ellipse at 50% 0%, rgb(var(--accent-rgb) / .22), transparent 70%);
+}
+
+/* --- Le sélecteur ---------------------------------------------------------- */
+
+.themes {
+  position: fixed; left: 50%; bottom: 52px; transform: translateX(-50%);
+  z-index: 40;
+  width: max-content; max-width: calc(100% - 24px);
+  padding: 12px; border-radius: 16px;
+  background: var(--lift); border: 1px solid var(--line-fort);
+  box-shadow: 0 26px 60px -24px #000;
+  animation: themes-ouvre .22s var(--doux) both;
+}
+@keyframes themes-ouvre {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.themes-titre {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--faint); margin: 0 2px 9px;
+}
+
+.themes-liste { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+
+.choix {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 7px;
+  padding: 9px 10px; border-radius: 11px;
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--muted); font-family: inherit; font-size: 11.5px; font-weight: 600;
+  cursor: pointer; text-align: left;
+  transition: transform .18s var(--doux), border-color .18s, background .18s, color .18s;
+}
+.choix:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-vif); background: var(--lift); color: var(--ink);
+}
+.choix[aria-pressed="true"] {
+  border-color: rgb(var(--accent-rgb) / .55);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / .25);
+}
+
+/* Trois pastilles qui montrent la palette : c'est plus honnête qu'un nom, et
+   ça évite d'avoir à essayer chaque thème pour savoir de quoi il a l'air. */
+.puces { display: flex; gap: 3px; }
+.puce {
+  width: 13px; height: 13px; border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+}
+.choix:hover .puce:first-child { transform: scale(1.15); }
+.puce { transition: transform .18s var(--doux); }
+
+@media (prefers-reduced-motion: reduce) {
+  .themes, .choix, .puce { animation: none; transition: none; }
+}

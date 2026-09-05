@@ -768,6 +768,24 @@ export async function saveMatchPlayers(lignes) {
   });
 }
 
+/**
+ * Parmi ces matchs, lesquels ont deja leur feuille des dix joueurs ?
+ *
+ * Sert a la detection, qui repasse sur les memes matchs toutes les dix minutes.
+ * Ecrire la feuille demande de rejouer toute la geometrie du match ; savoir en
+ * une seule requete qu'il n'y a rien a faire evite ce calcul pour rien.
+ */
+export async function matchsDejaDetailles(matchIds) {
+  const ids = [...new Set((matchIds ?? []).filter(Boolean))];
+  if (ids.length === 0) return new Set();
+
+  const { rows } = await query(
+    'SELECT DISTINCT match_id FROM match_players WHERE match_id = ANY($1::text[])',
+    [ids],
+  );
+  return new Set(rows.map((r) => r.match_id));
+}
+
 const versMesures = (r) => ({
   puuid: r.puuid,
   tierId: r.tier_id,

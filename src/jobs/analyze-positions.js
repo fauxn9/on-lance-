@@ -1,49 +1,16 @@
 #!/usr/bin/env node
 import { config } from '../config.js';
-import { getRawMatches, normalizeMatch } from '../services/henrikdev.js';
+import { getRawMatches } from '../services/henrikdev.js';
 import { analyzeMatch, aggregateDeaths } from '../services/positional.js';
-import { mesurerMatch } from '../services/analysis.js';
-import { acs, headshotPercent } from '../services/ranking.js';
 import { getCalibration } from '../services/maps.js';
+import { resumeDuJoueur, ecrireLaFeuille } from '../services/moisson.js';
 import {
   loadLinkedAccounts,
   getAnalyzedMatchIds,
   saveDeaths,
   saveMatchSummary,
-  saveMatchPlayers,
   closePool,
 } from '../db/index.js';
-
-/**
- * Resume d'un match du point de vue d'un joueur : ce qui s'affiche dans son
- * historique. On reutilise normalizeMatch() plutot que de relire les champs
- * bruts, pour que l'historique casse au meme endroit que le reste si l'API
- * change de forme.
- */
-function summarize(raw, puuid) {
-  const match = normalizeMatch(raw);
-  if (!match) return null;
-
-  const player = match.players.find((p) => p.puuid === puuid);
-  if (!player) return null;
-
-  return {
-    matchId: match.matchId,
-    playedAt: match.startedAt,
-    mapName: match.map,
-    mode: match.mode,
-    agent: player.agent,
-    roundsPlayed: match.roundsPlayed,
-    score: player.score,
-    acs: Math.round(acs(player, match.roundsPlayed)),
-    kills: player.kills,
-    deaths: player.deaths,
-    assists: player.assists,
-    headshotPct: Math.round(headshotPercent(player)),
-    damageDealt: player.damageDealt,
-    won: player.won,
-  };
-}
 
 /**
  * Analyse positionnelle des matchs recents (Brique 3, etage 1).
@@ -58,48 +25,6 @@ function summarize(raw, puuid) {
  * (puuid, match_id, round) protege de toute facon contre les doublons.
  */
 
-
-/**
- * Ecrit les mesures des dix joueurs du match.
- *
- * Alimente deux choses d'un coup : le groupe de comparaison du barème du coach,
- * et le tableau des scores affiche au clic sur une partie. Un echec ici ne doit
- * jamais empecher l'analyse du joueur suivi de s'enregistrer — c'est un bonus,
- * pas le coeur du job.
- */
-async function enregistrerLesDix({ raw, matchId, mapName, toutesLesMorts }) {
-  try {
-    const mesures = mesurerMatch(raw, toutesLesMorts);
-    const playedAt = raw.metadata?.started_at ?? new Date().toISOString();
-    const equipes = new Map((raw.teams ?? []).map((t) => [String(t.team_id), t.won]));
-
-    const lignes = (raw.players ?? []).map((p) => {
-      const m = mesures.get(p.puuid) ?? {};
-      const s = p.stats ?? {};
-      return {
-        matchId, puuid: p.puuid,
-        name: p.name ?? null, tag: p.tag ?? null,
-        team: String(p.team_id ?? ''),
-        agent: p.agent?.name ?? null,
-        tierId: p.tier?.id ?? 0, tierName: p.tier?.name ?? null,
-        mapName, playedAt,
-        rounds: m.rounds ?? 0,
-        won: equipes.get(String(p.team_id ?? '')) ?? null,
-        score: s.score ?? null, kills: s.kills ?? null, deaths: s.deaths ?? null,
-        assists: s.assists ?? null, headshots: s.headshots ?? 0,
-        bodyshots: s.bodyshots ?? 0, legshots: s.legshots ?? 0,
-        degatsInfliges: s.damage?.dealt ?? 0, degatsRecus: s.damage?.received ?? 0,
-        mortsPrecoces: m.mortsPrecoces ?? 0, mortsApresPlant: m.mortsApresPlant ?? 0,
-        ouvertures: m.ouvertures ?? 0, mortsPositionnelles: m.mortsPositionnelles ?? 0,
-        mortsIsolees: m.mortsIsolees ?? 0, mortsNonTradables: m.mortsNonTradables ?? 0,
-      };
-    });
-
-    await saveMatchPlayers(lignes);
-  } catch (err) {
-    console.error(`[pos]   feuille de match non enregistree (${matchId}) : ${err.message}`);
-  }
-}
 
 async function analyzeAccount(account) {
   let matches;
@@ -120,7 +45,7 @@ async function analyzeAccount(account) {
     // Le resume alimente l'historique du dashboard : on l'ecrit pour TOUTES les
     // parties recuperees, y compris celles dont les morts ont deja ete
     // analysees. Les deux donnees ont des cycles de vie differents.
-    const summary = summarize(raw, account.puuid);
+    const summary = resumeDuJoueur(raw, account.puuid);
     if (summary && !config.dryRun) {
       await saveMatchSummary({ userId: account.userId, puuid: account.puuid, summary });
     }
@@ -155,7 +80,7 @@ async function analyzeAccount(account) {
       continue;
     }
 
-    await enregistrerLesDix({ raw, matchId, mapName, toutesLesMorts });
+    await ecrireLaFeuille({ raw, matchId, mapName, morts: toutesLesMorts, prefixe: '[pos]' });
 
     await saveDeaths({
       userId: account.userId,
