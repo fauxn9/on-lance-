@@ -1,6 +1,6 @@
 {
   "name": "onlance-desktop",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "description": "Application PC d'On lance ? — coquille Tauri.",
   "scripts": {

@@ -304,3 +304,45 @@ fn les_espaces_ne_passent_pas_dans_une_cle_d_asset() {
     assert_eq!(cle_image(Some("The Range")), "map_the_range");
     assert!(!cle_image(Some("The Range")).contains(' '));
 }
+
+/* --- L'embleme de rang ------------------------------------------------------ */
+
+#[test]
+fn l_embleme_suit_l_identifiant_publie_par_riot() {
+    // Meme identifiant que celui qui nomme le rang : les deux ne peuvent pas
+    // diverger, puisqu'ils lisent la meme valeur.
+    assert_eq!(cle_rang(Some(3)).as_deref(), Some("rang_3"));   // Fer 1
+    assert_eq!(cle_rang(Some(16)).as_deref(), Some("rang_16")); // Platine 2
+    assert_eq!(cle_rang(Some(27)).as_deref(), Some("rang_27")); // Radiant
+}
+
+#[test]
+fn pas_d_embleme_pour_un_non_classe_ni_pour_un_id_absurde() {
+    for t in [None, Some(0), Some(2), Some(28), Some(-5)] {
+        assert_eq!(cle_rang(t), None, "tier {t:?}");
+    }
+}
+
+#[test]
+fn l_embleme_et_le_nom_apparaissent_ensemble_ou_pas_du_tout() {
+    // Le piege : couper le rang mais laisser la pastille. L'embleme trahirait
+    // le rang en image alors que la personne vient justement de le masquer.
+    let coupe = Reglages { actif: true, montrer_rang: false };
+    let p = composer(&etat(Some(Etat::Ingame)), None, &codes(), coupe, Some(T0), T0).unwrap();
+    assert_eq!(p.petite_image, None);
+    assert_eq!(p.petit_texte, None);
+
+    let montre = composer(&etat(Some(Etat::Ingame)), None, &codes(), Reglages::default(), Some(T0), T0).unwrap();
+    assert_eq!(montre.petite_image.as_deref(), Some("rang_16"));
+    assert_eq!(montre.petit_texte.as_deref(), Some("Platine 2"));
+}
+
+#[test]
+fn un_non_classe_garde_un_statut_sans_pastille() {
+    let mut e = etat(Some(Etat::Ingame));
+    e.tier = Some(0);
+    let p = composer(&e, None, &codes(), Reglages::default(), Some(T0), T0).unwrap();
+    assert_eq!(p.petite_image, None);
+    assert_eq!(p.petit_texte, None);
+    assert!(!p.details.is_empty(), "le statut reste affiche");
+}

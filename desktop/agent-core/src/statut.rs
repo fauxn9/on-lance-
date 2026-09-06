@@ -118,6 +118,10 @@ pub struct Presence {
     pub debut_s: Option<i64>,
     pub grande_image: String,
     pub grand_texte: Option<String>,
+    /// Embleme de rang. Toujours accompagne de `petit_texte`, jamais seul :
+    /// une pastille sans info-bulle n'apprend rien a qui ne connait pas les
+    /// emblemes de Valorant.
+    pub petite_image: Option<String>,
     pub petit_texte: Option<String>,
 }
 
@@ -157,6 +161,22 @@ pub fn cle_image(nom_map: Option<&str>) -> String {
         }
         _ => "logo".to_string(),
     }
+}
+
+/// Cle d'asset de l'embleme de rang, a partir de l'identifiant publie par Riot.
+///
+/// Volontairement l'IDENTIFIANT et pas le nom : c'est la meme valeur que celle
+/// qui sert deja a nommer le rang, donc les deux ne peuvent pas diverger. Riot
+/// numerote ses paliers lui-meme et cette numerotation est stable (verifiee sur
+/// de vraies parties) — `rang_16` designera toujours Platine 2.
+///
+/// `None` pour un non classe : pas de pastille plutot qu'une pastille fausse.
+pub fn cle_rang(tier: Option<i64>) -> Option<String> {
+    let id = tier?;
+    if !(3..=27).contains(&id) {
+        return None;
+    }
+    Some(format!("rang_{id}"))
 }
 
 fn place_en_mots(place: i64, sur: i64) -> String {
@@ -206,6 +226,9 @@ pub fn composer(
     }
 
     let rang = if reglages.montrer_rang { nom_du_rang(etat.tier) } else { None };
+    // Liees a dessein : couper le rang doit retirer la pastille AUSSI, sinon
+    // l'embleme continuerait de le trahir en image.
+    let embleme = rang.as_ref().and_then(|_| cle_rang(etat.tier));
 
     let groupe = match etat.party_size {
         Some(n) if n > 1 => Some(format!("à {n}")),
@@ -225,6 +248,7 @@ pub fn composer(
             debut_s: None,
             grande_image: "logo".to_string(),
             grand_texte: Some("On lance ?".to_string()),
+            petite_image: embleme,
             petit_texte: rang,
         });
     };
@@ -246,6 +270,7 @@ pub fn composer(
                 debut_s: debut_partie_ms.map(|ms| ms / 1000),
                 grande_image: image,
                 grand_texte: map,
+                petite_image: embleme,
                 petit_texte: rang,
             })
         }
@@ -259,6 +284,7 @@ pub fn composer(
             debut_s: None,
             grande_image: image,
             grand_texte: map,
+            petite_image: embleme,
             petit_texte: rang,
         }),
 
@@ -289,6 +315,7 @@ pub fn composer(
                     debut_s: None,
                     grande_image: cle_image(p.map.as_deref()),
                     grand_texte: p.map.clone(),
+                    petite_image: embleme,
                     petit_texte: rang,
                 });
             }
@@ -299,6 +326,7 @@ pub fn composer(
                 debut_s: None,
                 grande_image: "logo".to_string(),
                 grand_texte: Some("On lance ?".to_string()),
+                petite_image: embleme,
                 petit_texte: rang,
             })
         }

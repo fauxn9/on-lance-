@@ -101,9 +101,11 @@ impl Vitrine {
         if let Some(t) = voulu.grand_texte.clone() {
             visuels = visuels.large_text(t);
         }
-        if let Some(t) = voulu.petit_texte.clone() {
-            // Le rang en petite pastille, avec son nom en info-bulle.
-            visuels = visuels.small_image("rang").small_text(t);
+        // La pastille de rang et son info-bulle vont ensemble : une image sans
+        // texte n'apprend rien a qui ne connait pas les emblemes de Valorant,
+        // et un texte sans image n'a nulle part ou s'afficher.
+        if let (Some(img), Some(txt)) = (voulu.petite_image.clone(), voulu.petit_texte.clone()) {
+            visuels = visuels.small_image(img).small_text(txt);
         }
         activite = activite.assets(visuels);
 
