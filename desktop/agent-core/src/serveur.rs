@@ -10,6 +10,7 @@
 use presence_core::{Etat, Evenement};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
@@ -137,6 +138,44 @@ impl ClientServeur {
     /// C'est ce qui permet a l'application d'afficher les memes donnees que le
     /// site — classement, historique, coach — sans navigateur ni cookie. Le
     /// serveur n'ouvre que des routes de LECTURE a un jeton d'appareil.
+    /// Identifiant d'application Discord, pour le Rich Presence.
+    ///
+    /// Il vient du serveur et non de l'executable : c'est le meme que celui de
+    /// la connexion Discord du site, et le figer a la compilation obligerait a
+    /// tout reconstruire pour en changer. Route publique — un identifiant
+    /// d'application n'est pas un secret, il voyage deja dans chaque URL OAuth.
+    ///
+    /// `None` en cas d'echec : le statut Discord est un bonus, jamais une
+    /// raison d'empecher l'application de fonctionner.
+    pub async fn identifiant_discord(&self) -> Option<String> {
+        let rep = self.http.get(format!("{}/app/config", self.base)).send().await.ok()?;
+        let json: Value = rep.json().await.ok()?;
+        json.get("discordAppId")?.as_str().map(str::to_string)
+    }
+
+    /// Table code interne -> nom affichable des maps.
+    ///
+    /// Route publique et fortement cachee cote serveur, qui la tient elle-meme
+    /// de valorant-api.com. On ne recopie donc aucune table ici : elle serait
+    /// fausse a la prochaine map ajoutee par Riot.
+    ///
+    /// Table vide en cas d'echec : le statut affichera le code brut plutot que
+    /// rien, ce qui reste lisible.
+    pub async fn codes_de_map(&self) -> BTreeMap<String, String> {
+        let vide = BTreeMap::new();
+        let Ok(rep) = self.http.get(format!("{}/visuels", self.base)).send().await else {
+            return vide;
+        };
+        let Ok(json) = rep.json::<Value>().await else { return vide };
+        let Some(codes) = json.get("codes").and_then(Value::as_object) else {
+            return vide;
+        };
+        codes
+            .iter()
+            .filter_map(|(k, v)| Some((k.to_ascii_lowercase(), v.as_str()?.to_string())))
+            .collect()
+    }
+
     pub async fn lire(&self, jeton: &str, chemin: &str) -> Result<Value, ErreurServeur> {
         let rep = self
             .http

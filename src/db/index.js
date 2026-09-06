@@ -864,6 +864,28 @@ export async function loadNotificationForMatch(userId, matchId) {
   return rows[0] ?? null;
 }
 
+/**
+ * La derniere partie detectee ou cette personne figurait.
+ *
+ * On passe par `notifications` plutot que de fouiller le JSON de `standings` :
+ * une notification existe par joueur et par detection, donc la jointure dit
+ * exactement « les parties dont cette personne a ete prevenue ». C'est aussi ce
+ * qui garantit que le statut Discord affiche le MEME classement que celui qui
+ * lui a ete notifie.
+ */
+export async function derniereDetectionDe(userId) {
+  const { rows } = await query(
+    `SELECT d.match_id, d.map_name, d.started_at, d.standings
+     FROM notifications n
+     JOIN detected_matches d ON d.id = n.detected_match_id
+     WHERE n.user_id = $1
+     ORDER BY d.started_at DESC
+     LIMIT 1`,
+    [userId],
+  );
+  return rows[0] ?? null;
+}
+
 /** Feuille de match complete, pour le panneau deroulant du dashboard. */
 export async function loadMatchScoreboard(matchId) {
   const { rows } = await query(

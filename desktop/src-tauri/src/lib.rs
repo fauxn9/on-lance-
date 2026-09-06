@@ -16,8 +16,10 @@
 //! pendant cinq secondes le jour ou le client Riot cesse de repondre.
 
 mod config;
+mod discord;
 
 use agent_core::serveur::{ClientServeur, ErreurServeur};
+use agent_core::statut::{composer, DonneesStatut, Presence};
 use agent_core::{Agent, EtatAffiche};
 use config::Config;
 use serde::Serialize;
@@ -61,6 +63,15 @@ pub struct Vue {
     pub version: String,
     /// `None` tant que le premier battement n'a pas eu lieu.
     pub etat: Option<EtatAffiche>,
+    /// Etat des interrupteurs du statut Discord, pour que la fenetre affiche
+    /// le bon libelle des le premier dessin.
+    pub discord: ReglagesVue,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReglagesVue {
+    pub actif: bool,
+    pub montrer_rang: bool,
 }
 
 fn vue(etat: &Etat) -> Vue {
@@ -72,6 +83,10 @@ fn vue(etat: &Etat) -> Vue {
         site: config::site(),
         version: agent_core::VERSION.to_string(),
         etat: etat.partagee.lock().unwrap().etat.clone(),
+        discord: {
+            let r = c.reglages_discord();
+            ReglagesVue { actif: r.actif, montrer_rang: r.montrer_rang }
+        },
     }
 }
 
@@ -203,6 +218,31 @@ async fn installer_maj(app: AppHandle) -> Result<(), String> {
     app.restart();
 }
 
+/// Lit et modifie les reglages du statut Discord.
+///
+/// `None` en entree veut dire « ne touche pas a celui-la » : la fenetre peut
+/// ainsi basculer le rang sans risquer d'ecraser l'interrupteur principal, et
+/// inversement.
+#[tauri::command]
+fn reglages_discord(
+    etat: State<'_, Etat>,
+    actif: Option<bool>,
+    montrer_rang: Option<bool>,
+) -> Result<ReglagesVue, String> {
+    let mut c = etat.config.lock().unwrap();
+    if let Some(v) = actif {
+        c.discord_actif = Some(v);
+    }
+    if let Some(v) = montrer_rang {
+        c.discord_rang = Some(v);
+    }
+    if actif.is_some() || montrer_rang.is_some() {
+        c.enregistrer(&etat.chemin_config).map_err(|e| e.to_string())?;
+    }
+    let r = c.reglages_discord();
+    Ok(ReglagesVue { actif: r.actif, montrer_rang: r.montrer_rang })
+}
+
 /// Oublie ce PC, localement.
 ///
 /// Le jeton reste valable cote serveur : c'est depuis le tableau de bord qu'on
@@ -221,8 +261,26 @@ fn oublier(etat: State<'_, Etat>) -> Result<(), String> {
 /// Elle n'echoue jamais et ne s'arrete jamais : un serveur injoignable, un
 /// client Riot ferme, une route qui change — tout ca est normal pour une
 /// application qui tourne en fond toute la journee.
+/// Toutes les deux minutes : le classement bouge quand les potes jouent, pas
+/// toutes les deux secondes. Le statut, lui, se recompose a chaque battement a
+/// partir de ces donnees deja en main.
+const RAFRAICHIR_STATUT: Duration = Duration::from_secs(120);
+
 async fn boucle(app: AppHandle) {
     let mut agent = Agent::nouveau(agent_core::riot::chemin_lockfile());
+
+    // L'identifiant d'application Discord vient du serveur : c'est le meme que
+    // celui de la connexion Discord du site, et le figer dans l'executable
+    // obligerait a reconstruire pour en changer.
+    let mut vitrine: Option<discord::Vitrine> = None;
+    let mut donnees: Option<DonneesStatut> = None;
+    let mut codes_map: std::collections::BTreeMap<String, String> = Default::default();
+    let mut prochaine_maj_statut: i64 = 0;
+
+    // Depuis quand l'etat courant dure. Sert au chronometre de Discord, et a
+    // savoir si l'on « sort d'une game ».
+    let mut etat_precedent: Option<Option<presence_core::Etat>> = None;
+    let mut debut_etat_ms: Option<i64> = None;
 
     loop {
         let maintenant = std::time::SystemTime::now()
@@ -250,12 +308,57 @@ async fn boucle(app: AppHandle) {
             let _ = app.emit("evenements", &evenements);
         }
 
+        // Un changement d'etat redemarre le chronometre. C'est ce qui fait que
+        // Discord affiche « 12:47 » depuis le debut de LA PARTIE, et non depuis
+        // le lancement de l'application.
+        if etat_precedent.as_ref() != Some(&etat_partie) {
+            etat_precedent = Some(etat_partie);
+            debut_etat_ms = Some(maintenant);
+        }
+
         // Rien a transmettre tant que le PC n'est pas appairé.
         let jeton = etat.config.lock().unwrap().jeton.clone();
         if let Some(jeton) = jeton {
             if let Err(err) = etat.serveur.battement(&jeton, etat_partie, &evenements).await {
                 // Pas de fenetre d'erreur : on retente dans deux secondes.
                 eprintln!("[onlance] battement non transmis : {err}");
+            }
+
+            if maintenant >= prochaine_maj_statut {
+                prochaine_maj_statut = maintenant + RAFRAICHIR_STATUT.as_millis() as i64;
+
+                if vitrine.is_none() {
+                    if let Some(id) = etat.serveur.identifiant_discord().await {
+                        if !id.is_empty() {
+                            vitrine = Some(discord::Vitrine::nouvelle(id, &config::site()));
+                        }
+                    }
+                }
+                // Les noms de maps ne changent qu'a la sortie d'une map : une
+                // fois suffit, et on retente seulement si on n'a rien eu.
+                if codes_map.is_empty() {
+                    codes_map = etat.serveur.codes_de_map().await;
+                }
+                match etat.serveur.lire(&jeton, "/me/statut").await {
+                    Ok(v) => donnees = serde_json::from_value(v).ok(),
+                    // On garde les donnees precedentes : un statut d'il y a
+                    // deux minutes vaut mieux qu'un statut qui s'efface des
+                    // qu'une requete echoue.
+                    Err(err) => eprintln!("[onlance] statut non rafraichi : {err}"),
+                }
+            }
+
+            if let Some(v) = vitrine.as_mut() {
+                let reglages = etat.config.lock().unwrap().reglages_discord();
+                let voulu: Option<Presence> = composer(
+                    agent.etat(),
+                    donnees.as_ref(),
+                    &codes_map,
+                    reglages,
+                    debut_etat_ms,
+                    maintenant,
+                );
+                v.poser(voulu.as_ref(), maintenant);
             }
         }
 
@@ -301,7 +404,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![etat_actuel, appairer, oublier, api, chercher_maj, installer_maj])
+        .invoke_handler(tauri::generate_handler![etat_actuel, appairer, oublier, api, chercher_maj, installer_maj, reglages_discord])
         .setup(|app| {
             let base = app.path().app_config_dir()?;
             let chemin_config = config::chemin_config(base);

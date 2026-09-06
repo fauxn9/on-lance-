@@ -26,11 +26,34 @@ pub struct Config {
     pub riot_id: Option<String>,
     #[serde(default)]
     pub nom_appareil: Option<String>,
+
+    // --- Statut Discord -----------------------------------------------------
+    //
+    // Ce que le statut revele est PUBLIC : la liste d'amis le lit. Les deux
+    // reglages ci-dessous doivent donc etre coupables depuis la fenetre, sans
+    // avoir a desinstaller quoi que ce soit.
+    //
+    // `Option<bool>` et non `bool` : un fichier de config ecrit par une version
+    // anterieure n'a pas ces cles, et `None` veut dire « jamais choisi », donc
+    // la valeur par defaut. Un `bool` aurait valu `false` dans ce cas, ce qui
+    // aurait coupe le statut chez tous ceux qui mettent a jour.
+    #[serde(default)]
+    pub discord_actif: Option<bool>,
+    #[serde(default)]
+    pub discord_rang: Option<bool>,
 }
 
 impl Config {
     pub fn appairee(&self) -> bool {
         self.jeton.is_some()
+    }
+
+    /// Reglages du statut Discord, avec leurs valeurs par defaut.
+    pub fn reglages_discord(&self) -> agent_core::statut::Reglages {
+        agent_core::statut::Reglages {
+            actif: self.discord_actif.unwrap_or(true),
+            montrer_rang: self.discord_rang.unwrap_or(true),
+        }
     }
 
     /// Lit la configuration. Un fichier absent ou abime rend une config vide :

@@ -1027,6 +1027,30 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') ouvrirLesThemes(false);
 });
 
+/* --- Statut Discord ---------------------------------------------------------- */
+
+/**
+ * Les deux interrupteurs. Ils ne gardent aucun état de leur côté : ils
+ * envoient le changement au Rust, qui l'enregistre et renvoie l'état réel —
+ * c'est lui qui coche les cases. Un interrupteur qui se met à jour tout seul
+ * finit toujours par afficher le contraire de ce qui est appliqué.
+ */
+function dessinerReglagesDiscord(r) {
+  if (!r) return;
+  $('discord-actif').checked = Boolean(r.actif);
+  $('discord-rang').checked = Boolean(r.montrer_rang);
+  // Montrer son rang n'a aucun sens si le statut est coupé.
+  $('discord-rang').disabled = !r.actif;
+}
+
+$('discord-actif').addEventListener('change', async (e) => {
+  dessinerReglagesDiscord(await invoke('reglages_discord', { actif: e.target.checked }));
+});
+
+$('discord-rang').addEventListener('change', async (e) => {
+  dessinerReglagesDiscord(await invoke('reglages_discord', { montrerRang: e.target.checked }));
+});
+
 /* --- Vue globale -------------------------------------------------------------- */
 
 let moi = null;
@@ -1042,6 +1066,7 @@ function dessiner(vue) {
   moi = vue.utilisateur ?? null;
   $('compte').textContent = vue.utilisateur ?? '—';
   $('riot-id').textContent = vue.riot_id ?? '';
+  dessinerReglagesDiscord(vue.discord);
   appliquerTheme(vue);
   dessinerDirect(vue);
   placerGlisseur();

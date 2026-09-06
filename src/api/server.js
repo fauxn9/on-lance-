@@ -22,6 +22,7 @@ import {
   loadMatchMeasures,
   loadMyMeasures,
   loadNotificationForMatch,
+  derniereDetectionDe,
   getRiotAccount,
   creerCodeAppairage,
   lireCodeAppairage,
@@ -37,6 +38,7 @@ import { resolveAccount, getRrHistory } from '../services/henrikdev.js';
 import { getPublicKey, pushToUser } from '../services/notifications.js';
 import { weekStartOf, weekLabel, weekBounds, buildLeaderboard } from '../services/leaderboard.js';
 import { buildCoachReport } from '../services/coach.js';
+import { construireStatut } from '../services/statut.js';
 import { askCoach, MAX_HISTORIQUE } from '../services/chat.js';
 import { verifierQuota, consommerQuota } from '../services/quota.js';
 import {
@@ -93,6 +95,21 @@ const shortCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+/**
+ * Ce que l'application PC a besoin de savoir avant meme d'etre appairee.
+ *
+ * L'identifiant d'application Discord sert au Rich Presence. Il est PUBLIC par
+ * nature — il voyage deja dans chaque URL de connexion Discord — et c'est le
+ * SECRET, jamais expose ici, qui protege quoi que ce soit.
+ *
+ * Le servir plutot que de le figer dans l'executable evite d'avoir a
+ * reconstruire et redistribuer l'application le jour ou il change.
+ */
+app.get('/app/config', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.json({ discordAppId: config.discord.clientId || null });
+});
 
 /**
  * Icônes d'agents et visuels de maps, pour l'habillage de l'historique.
@@ -636,6 +653,43 @@ app.get('/me/matches', requireLecture, wrap(async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit ?? 10), 1), 50);
   const offset = Math.max(Number(req.query.offset ?? 0), 0);
   res.json(await loadPlayerMatches(req.userId, { limit, offset }));
+}));
+
+/**
+ * Ce que l'application PC met sur le statut Discord.
+ *
+ * Une seule route pour trois faits — classement de la semaine, serie en cours,
+ * verdict de la derniere partie — parce que l'application les demande ensemble
+ * et rarement : trois appels separes toutes les deux minutes pour un statut,
+ * c'est trois fois trop.
+ *
+ * Chaque bloc peut valoir null. Un compte tout neuf n'a ni classement ni
+ * serie, et le statut doit rester juste dans ce cas plutot que d'afficher des
+ * zeros qui ressembleraient a un resultat.
+ */
+app.get('/me/statut', requireLecture, wrap(async (req, res) => {
+  const groupes = await listMyGroups(req.userId);
+  const groupe = groupes[0] ?? null;
+
+  let classementSemaine = null;
+  if (groupe) {
+    const debut = weekStartOf(new Date());
+    const [membres, lignes] = await Promise.all([
+      loadGroupMembers(groupe.id),
+      loadWeekRr(groupe.id, debut),
+    ]);
+    classementSemaine = buildLeaderboard({ members: membres, rrRows: lignes });
+  }
+
+  // Dix parties suffisent : au-dela, une serie ne se raconte plus.
+  const { matches } = await loadPlayerMatches(req.userId, { limit: 10 });
+
+  res.json(construireStatut({
+    userId: req.userId,
+    classementSemaine,
+    matchsRecents: matches,
+    derniereDetection: await derniereDetectionDe(req.userId),
+  }));
 }));
 
 app.get('/me/coach', requireLecture, wrap(async (req, res) => {

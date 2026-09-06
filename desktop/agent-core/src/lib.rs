@@ -8,8 +8,9 @@
 
 pub mod riot;
 pub mod serveur;
+pub mod statut;
 
-use presence_core::{Etat, Evenement, Machine};
+use presence_core::{Etat, Evenement, Machine, Score};
 use riot::{ClientRiot, ErreurRiot};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -29,6 +30,13 @@ pub struct EtatAffiche {
     /// frequent de la journee, il n'a pas a etre vide.
     pub tier: Option<i64>,
     pub client_riot: bool,
+    /// Score de la partie en cours, tel que la machine le FIGE.
+    ///
+    /// Volontairement celui de la machine et pas celui de l'instantane : le
+    /// client Riot remet la presence a 0-0 au retour au menu, et lire la valeur
+    /// brute afficherait donc 0-0 a la fin de chaque partie. La machine, elle,
+    /// refuse toute baisse — voir l'en-tete de presence-core.
+    pub score: Option<Score>,
     /// Dernier probleme rencontre, deja redige pour un humain.
     pub souci: Option<String>,
 }
@@ -55,6 +63,7 @@ impl Agent {
                 party_size: None,
                 tier: None,
                 client_riot: false,
+                score: None,
                 souci: None,
             },
         }
@@ -90,6 +99,7 @@ impl Agent {
                     party_size: None,
                     tier: None,
                     client_riot: false,
+                    score: None,
                     souci: match err {
                         ErreurRiot::ClientAbsent => None, // pas un souci, un fait
                         autre => Some(autre.to_string()),
@@ -129,6 +139,8 @@ impl Agent {
             party_size: instantane.as_ref().and_then(|i| i.party_size),
             tier: instantane.as_ref().and_then(|i| i.tier),
             client_riot: true,
+            // Rempli juste apres `avancer`, quand la machine a vu ce tour-ci.
+            score: None,
             // Une presence lue mais dont l'etat reste introuvable, c'est le
             // signe que Riot a encore deplace le champ. On le dit, plutot que
             // d'afficher un tiret et de laisser chercher.
@@ -140,9 +152,20 @@ impl Agent {
             },
         };
 
-        self.machine.avancer(instantane, maintenant)
+        let evenements = self.machine.avancer(instantane, maintenant);
+
+        // APRES `avancer`, pas avant : la machine doit avoir vu l'instantane de
+        // ce tour-ci, sinon le score affiche aurait toujours deux secondes de
+        // retard — visible a l'oeil nu sur le dernier round d'une partie.
+        self.dernier_etat.score = self.machine.score();
+
+        evenements
     }
 }
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests_statut.rs"]
+mod tests_statut;
