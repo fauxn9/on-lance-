@@ -32,6 +32,8 @@ import {
 async function fetchMatchesForMembers(members) {
   const byPuuid = new Map();
   const rawByMatchId = new Map();
+  /** Ceux dont la requete est tombee : on les rattrape en fin de passage. */
+  const rates = [];
 
   // Sequentiel volontaire : le rate limiter de henrikdev.js espace deja les
   // appels, mais lancer tout en parallele ferait exploser la file d'attente.
@@ -71,8 +73,40 @@ async function fetchMatchesForMembers(members) {
       // Un joueur qui echoue ne doit pas casser la detection du groupe entier.
       console.error(`[detect] recuperation KO pour ${m.displayName}: ${err.message}`);
       byPuuid.set(m.puuid, []);
+      rates.push(m);
     }
   }
+
+  // RATTRAPAGE DES REQUETES ECHOUEES.
+  //
+  // Quelqu'un dont la requete est tombee n'avait, jusqu'ici, aucune ligne
+  // d'historique ecrite — alors que les parties qu'il a jouees AVEC les autres
+  // sont deja la, dans les matchs telecharges pour eux. On les lui repasse :
+  // `resumeDuJoueur` ne retient que celles ou il figure vraiment, donc rien a
+  // filtrer nous-memes.
+  //
+  // Sans feuille des dix : elle a deja ete ecrite par le membre dont la
+  // requete a reussi, et la recalculer serait de la geometrie pour rien.
+  //
+  // Ca ne remplace pas sa requete — ses parties en solo restent perdues pour
+  // ce passage, et le suivant les rattrapera. Mais ca evite le cas qui compte :
+  // le nouveau qui vient de jouer avec la bande et ne voit rien.
+  const rattrapables = [...rawByMatchId.values()];
+  if (rates.length > 0 && rattrapables.length > 0 && !config.dryRun) {
+    for (const m of rates) {
+      try {
+        const { resumes } = await moissonner({
+          membre: m, raws: rattrapables, avecLaFeuille: false, prefixe: '[detect]',
+        });
+        if (resumes) {
+          console.log(`[detect]   ${m.displayName} : ${resumes} partie(s) rattrapee(s) depuis les matchs des autres`);
+        }
+      } catch (err) {
+        console.error(`[detect] rattrapage KO pour ${m.displayName}: ${err.message}`);
+      }
+    }
+  }
+
   return { byPuuid, rawByMatchId };
 }
 

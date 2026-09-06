@@ -51,6 +51,34 @@ export function findSharedMatches({ members, matchesByPuuid, processedIds, now =
   const result = [];
 
   for (const { match, puuids } of byMatch.values()) {
+    // LA FEUILLE DU MATCH FAIT FOI, PAS LA MATCHLIST DE CHACUN.
+    //
+    // Plus haut, un membre n'entre dans `puuids` que si SA PROPRE matchlist
+    // contenait ce match. C'est fragile pour deux raisons, toutes deux
+    // constatees en production le 06/09/2026 :
+    //
+    //   - sa requete a l'API peut avoir echoue — un 429 suffit, et il arrive
+    //     des que deux crons tombent dans la meme minute. Le catch de
+    //     `fetchMatchesForMembers` lui attribue alors une liste vide, et il
+    //     est traite comme absent d'une partie qu'il a pourtant jouee ;
+    //   - on ne recupere que les `matchesPerPlayer` derniers matchs de chacun :
+    //     celui qui a enchaine depuis voit la partie commune sortir de sa
+    //     fenetre avant celle des autres.
+    //
+    // Dans les deux cas la personne etait bel et bien dans la game et
+    // disparaissait du classement sans un mot : pas de place, pas de
+    // notification. Constate sur deux parties du 05/09 ou quatre membres
+    // etaient classes alors que cinq avaient joue — et c'etait a chaque fois
+    // le dernier inscrit, donc le plus susceptible d'en conclure que ca ne
+    // marche pas.
+    //
+    // Or le match telecharge porte LES DIX JOUEURS. L'information etait deja
+    // la, on ne la regardait pas. Une seule requete reussie, celle de
+    // n'importe lequel des membres, suffit desormais a tous les retrouver.
+    for (const membre of members) {
+      if (match.players?.some((p) => p.puuid === membre.puuid)) puuids.add(membre.puuid);
+    }
+
     if (puuids.size < minPlayersInMatch) continue;
     result.push({
       match,

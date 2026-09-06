@@ -10,7 +10,19 @@ import { buildUserPrompt, pickAngle, STYLE_ANGLES } from '../src/services/messag
 // Fixtures : une reponse HenrikDev simplifiee, dans la forme documentee de l'API.
 // ---------------------------------------------------------------------------
 
-function rawMatch({ matchId = 'M1', startedAt = '2026-09-01T20:00:00Z', map = 'Bind' } = {}) {
+/**
+ * @param groupe  les membres du groupe REELLEMENT presents dans la partie.
+ *
+ * Ce parametre existe depuis le 06/09/2026 : la detection lit desormais la
+ * feuille du match pour savoir qui a joue, et non plus la matchlist de chacun.
+ * Une fixture qui listait les trois membres dans `players` decrivait donc une
+ * partie jouee a trois, quel que soit le scenario que le test croyait mettre en
+ * scene. Il faut maintenant le dire explicitement.
+ */
+function rawMatch({
+  matchId = 'M1', startedAt = '2026-09-01T20:00:00Z', map = 'Bind',
+  groupe = ['p-alex', 'p-sam', 'p-theo'],
+} = {}) {
   const mk = (puuid, name, score, kills, deaths, assists, team, agent) => ({
     puuid,
     name,
@@ -42,9 +54,11 @@ function rawMatch({ matchId = 'M1', startedAt = '2026-09-01T20:00:00Z', map = 'B
       { team_id: 'Blue', won: false },
     ],
     players: [
-      mk('p-alex', 'Alex', 6000, 24, 12, 4, 'Red', 'Jett'),      // ACS 300
-      mk('p-sam', 'Sam', 4400, 15, 15, 9, 'Red', 'Omen'),        // ACS 220
-      mk('p-theo', 'Theo', 2600, 8, 20, 6, 'Red', 'Killjoy'),    // ACS 130
+      ...[
+        mk('p-alex', 'Alex', 6000, 24, 12, 4, 'Red', 'Jett'),      // ACS 300
+        mk('p-sam', 'Sam', 4400, 15, 15, 9, 'Red', 'Omen'),        // ACS 220
+        mk('p-theo', 'Theo', 2600, 8, 20, 6, 'Red', 'Killjoy'),    // ACS 130
+      ].filter((p) => groupe.includes(p.puuid)),
       mk('p-inconnu1', 'Random', 4000, 14, 14, 3, 'Red', 'Sova'),
       mk('p-inconnu2', 'Ennemi', 5000, 20, 16, 2, 'Blue', 'Reyna'),
     ],
@@ -135,13 +149,39 @@ test('detecte un match ou 2+ membres du groupe etaient presents', () => {
 });
 
 test('ignore un match ou un seul membre du groupe a joue', () => {
+  // `groupe: ['p-alex']` : Alex est le seul des trois sur la feuille de match.
+  // C'est ce qui distingue « il a joue seul » de « les autres ont joue avec lui
+  // mais leur requete a echoue » — deux situations que la detection doit
+  // traiter differemment, et que l'ancienne fixture confondait.
+  const found = findSharedMatches({
+    members: GROUP_MEMBERS,
+    matchesByPuuid: matchesFor(['p-alex'], { groupe: ['p-alex'] }),
+    processedIds: new Set(),
+    now: NOW,
+  });
+  assert.equal(found.length, 0, 'jouer seul ne declenche pas de notif de groupe');
+});
+
+test('un membre absent de sa propre matchlist est retrouve sur la feuille du match', () => {
+  // LE BUG DU 06/09/2026, mis sous test.
+  //
+  // Seul Alex a une matchlist exploitable : celles de Sam et Theo sont vides,
+  // comme apres un 429 de l'API. Tous trois ont pourtant bien joue la partie,
+  // et la feuille du match le dit. Avant la correction, ce match n'etait pas
+  // detecte du tout — deux membres sur trois disparaissaient en silence, sans
+  // classement ni notification.
   const found = findSharedMatches({
     members: GROUP_MEMBERS,
     matchesByPuuid: matchesFor(['p-alex']),
     processedIds: new Set(),
     now: NOW,
   });
-  assert.equal(found.length, 0, 'jouer seul ne declenche pas de notif de groupe');
+  assert.equal(found.length, 1, 'une seule requete reussie suffit');
+  assert.equal(found[0].membersInMatch.length, 3);
+  assert.deepEqual(
+    found[0].membersInMatch.map((m) => m.displayName).sort(),
+    ['Alex', 'Sam', 'Theo'],
+  );
 });
 
 test('anti-doublon : un match deja traite n est jamais renotifie', () => {
@@ -180,7 +220,10 @@ test('reporte un match trop recent (stats pas encore stabilisees cote API)', () 
 
 test('plusieurs matchs distincts sont rendus du plus ancien au plus recent', () => {
   const m1 = normalizeMatch(rawMatch({ matchId: 'M1', startedAt: '2026-09-01T19:00:00Z' }));
-  const m2 = normalizeMatch(rawMatch({ matchId: 'M2', startedAt: '2026-09-01T20:30:00Z' }));
+  // M2 s'est joue a deux : Theo n'est pas sur la feuille de cette partie-la.
+  const m2 = normalizeMatch(rawMatch({
+    matchId: 'M2', startedAt: '2026-09-01T20:30:00Z', groupe: ['p-alex', 'p-sam'],
+  }));
   const byPuuid = new Map([
     ['p-alex', [m2, m1]],
     ['p-sam', [m2, m1]],
