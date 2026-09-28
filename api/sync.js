@@ -8,7 +8,7 @@
 //   basse, jusqu'au bout de ce que Riot conserve. C'est ce qui rend
 //   l'historique « complet » sans faire attendre personne.
 
-import { query } from './db.js';
+import { db, query } from './db.js';
 
 const RANKED = new Set(['RANKED_SOLO_5x5', 'RANKED_FLEX_SR']);
 
@@ -109,9 +109,52 @@ const inflight = new Map();
 // facture auprès de Riot.
 export function syncRecent(riot, puuid) {
   if (!inflight.has(puuid)) {
-    inflight.set(puuid, doSyncRecent(riot, puuid).finally(() => inflight.delete(puuid)));
+    const tache = doSyncRecent(riot, puuid).catch(async (err) => {
+      // 400 : le puuid a été chiffré par une autre clé Riot (changement de
+      // clé). On retrouve le bon par le Riot ID, on bascule, on recommence.
+      if (err.status !== 400) throw err;
+      const nouveau = await recleCompte(riot, puuid);
+      return nouveau ? doSyncRecent(riot, nouveau) : { added: 0 };
+    });
+    inflight.set(puuid, tache.finally(() => inflight.delete(puuid)));
   }
   return inflight.get(puuid);
+}
+
+// Les puuid de l'API Riot sont chiffrés PAR CLÉ : passer d'une clé à une autre
+// (dev → personnelle → production) les rend tous invalides. On retrouve le
+// nouveau par le Riot ID et on déplace toutes les données du compte dessus.
+export async function recleCompte(riot, ancien) {
+  const { rows } = await query('select * from accounts where puuid = $1', [ancien]);
+  const a = rows[0];
+  if (!a) return null;
+  const acc = await riot.accountByRiotId(a.platform, a.game_name, a.tag_line);
+  if (!acc?.puuid || acc.puuid === ancien) return null;
+  const nouveau = acc.puuid;
+  const client = await db().connect();
+  try {
+    await client.query('begin');
+    await client.query(
+      `insert into accounts (puuid, platform, game_name, tag_line, profile_icon_id, summoner_level, created_at,
+         newest_game_start, backfill_before, backfill_done, last_sync_at)
+       select $2, platform, game_name, tag_line, profile_icon_id, summoner_level, created_at,
+         newest_game_start, backfill_before, backfill_done, last_sync_at
+       from accounts where puuid = $1
+       on conflict (puuid) do nothing`,
+      [ancien, nouveau],
+    );
+    for (const table of ['devices', 'player_matches', 'lp_changes', 'rank_snapshots']) {
+      await client.query(`update ${table} set puuid = $2 where puuid = $1`, [ancien, nouveau]);
+    }
+    await client.query('delete from accounts where puuid = $1', [ancien]);
+    await client.query('commit');
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  } finally {
+    client.release();
+  }
+  return nouveau;
 }
 
 async function doSyncRecent(riot, puuid) {

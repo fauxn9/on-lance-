@@ -92,7 +92,18 @@ export async function etape(riot, platform, patch) {
 
   // Surtout de la classée ; une fois sur cinq, de l'ARAM pour les builds ARAM.
   const queue = Math.random() < 0.2 ? 450 : 420;
-  const ids = (await riot.matchIds(platform, puuid, { count: 10, queue }, LOW)) ?? [];
+  let ids;
+  try {
+    ids = (await riot.matchIds(platform, puuid, { count: 10, queue }, LOW)) ?? [];
+  } catch (err) {
+    // 400 : identifiant chiffré avec une autre clé Riot (ils changent à chaque
+    // clé). Le joueur est oublié ; la liste se reconstruit au prochain semis.
+    if (err.status === 400) {
+      await query('delete from crawl_players where puuid = $1', [puuid]);
+      return 0;
+    }
+    throw err;
+  }
   if (!ids.length) return 0;
   const { rows: deja } = await query('select match_id from crawl_matches where match_id = any($1)', [ids]);
   const vus = new Set(deja.map((r) => r.match_id));
