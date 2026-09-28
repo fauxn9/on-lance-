@@ -17,6 +17,9 @@ struct Etat {
     jetons: Mutex<Jetons>,
     chemin_jetons: PathBuf,
     serveur: Serveur,
+    /// Un seul enregistrement à la fois : au démarrage, profil, historique et
+    /// synchro demandent un jeton en même temps.
+    inscription: tokio::sync::Mutex<()>,
 }
 
 impl Etat {
@@ -34,6 +37,12 @@ impl Etat {
 
     /// Jeton d'appareil pour ce compte ; enregistre le compte au premier passage.
     async fn jeton(&self, puuid: &str, plateforme: Option<&str>) -> Result<String, String> {
+        if let Some(t) = self.jetons.lock().unwrap().jetons.get(puuid) {
+            return Ok(t.clone());
+        }
+        // Les demandes suivantes attendent ici, puis trouvent le jeton créé
+        // par la première au lieu d'enregistrer un appareil de plus.
+        let _verrou = self.inscription.lock().await;
         if let Some(t) = self.jetons.lock().unwrap().jetons.get(puuid) {
             return Ok(t.clone());
         }
@@ -247,6 +256,7 @@ pub fn run() {
                 jetons: Mutex::new(Jetons::charger(&chemin_jetons)),
                 chemin_jetons,
                 serveur: Serveur::new(),
+                inscription: tokio::sync::Mutex::new(()),
             });
 
             let (tx, mut rx) = mpsc::channel::<Evenement>(32);
