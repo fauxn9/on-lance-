@@ -36,8 +36,14 @@ impl Serveur {
         }
     }
 
-    pub async fn enregistrer(&self, puuid: &str, plateforme: &str) -> Result<String, String> {
-        let corps = json!({ "puuid": puuid, "platform": plateforme, "appVersion": env!("CARGO_PKG_VERSION") });
+    /// Le puuid lu sur le client est en clair ; le serveur retrouve sa forme
+    /// chiffrée (celle de l'API Riot) grâce au Riot ID.
+    pub async fn enregistrer(&self, puuid: &str, plateforme: &str, riot_id: Option<(&str, &str)>) -> Result<String, String> {
+        let (nom, tag) = riot_id.unwrap_or_default();
+        let corps = json!({
+            "puuid": puuid, "platform": plateforme, "gameName": nom, "tagLine": tag,
+            "appVersion": env!("CARGO_PKG_VERSION"),
+        });
         let v = self.envoyer(self.http.post(format!("{}/api/app/register", self.base)).json(&corps)).await?;
         v["token"].as_str().map(str::to_string).ok_or_else(|| "Réponse d'enregistrement invalide.".into())
     }

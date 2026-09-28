@@ -38,7 +38,16 @@ impl Etat {
             return Ok(t.clone());
         }
         let plateforme = plateforme.ok_or("Lance League of Legends une première fois pour relier ton compte.")?;
-        let jeton = self.serveur.enregistrer(puuid, plateforme).await?;
+        // Riot ID du compte ouvert dans le client (le serveur en a besoin pour
+        // retrouver le puuid chiffré de l'API Riot).
+        let riot_id = {
+            let c = self.client.lock().unwrap();
+            c.compte.as_ref().filter(|c| c.puuid == puuid).map(|c| (c.game_name.clone(), c.tag_line.clone()))
+        };
+        let jeton = self
+            .serveur
+            .enregistrer(puuid, plateforme, riot_id.as_ref().map(|(n, t)| (n.as_str(), t.as_str())))
+            .await?;
         let mut j = self.jetons.lock().unwrap();
         j.jetons.insert(puuid.to_string(), jeton.clone());
         j.plateformes.insert(puuid.to_string(), plateforme.to_string());

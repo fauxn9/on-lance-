@@ -136,8 +136,8 @@ async function doSyncRecent(riot, puuid) {
   const { added, newest, oldest } = await fetchMissing(riot, account, ids, 'high');
   await query(
     `update accounts set
-       newest_game_start = greatest(coalesce(newest_game_start, 0), coalesce($2, 0)),
-       backfill_before   = coalesce(backfill_before, $3),
+       newest_game_start = greatest(coalesce(newest_game_start, 0), coalesce($2::bigint, 0)),
+       backfill_before   = coalesce(backfill_before, $3::bigint),
        backfill_done     = backfill_done or ($4 and $5),
        last_sync_at      = now(),
        updated_at        = now()

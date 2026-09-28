@@ -65,6 +65,10 @@ export class RiotApi {
     return this.get(accountRegionOf(platform), `/riot/account/v1/accounts/by-puuid/${encodeURIComponent(puuid)}`);
   }
 
+  accountByRiotId(platform, gameName, tagLine) {
+    return this.get(accountRegionOf(platform), `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`);
+  }
+
   summoner(platform, puuid) {
     return this.get(platform, `/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(puuid)}`);
   }

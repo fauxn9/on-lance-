@@ -67,11 +67,17 @@ export function appRouter({ riot = new RiotApi() } = {}) {
   // le quota d'enregistrements de ceux qui réessaient.
   r.post('/register', needRiot, rateLimit({ max: 10, windowMs: 60 * 60 * 1000 }), async (req, res, next) => {
     try {
-      const { puuid, platform, appVersion } = req.body ?? {};
-      if (!PUUID.test(puuid ?? '') || !isPlatform(platform)) return res.status(400).json({ erreur: 'Compte ou plateforme invalide.' });
+      const { puuid: puuidClient, platform, gameName, tagLine, appVersion } = req.body ?? {};
+      if (!isPlatform(platform)) return res.status(400).json({ erreur: 'Plateforme invalide.' });
+      const riotIdOk = typeof gameName === 'string' && typeof tagLine === 'string'
+        && /^[^/#?]{1,32}$/u.test(gameName) && /^[^/#?]{1,8}$/u.test(tagLine);
 
-      const acc = await riot.account(platform, puuid);
+      // Le client League donne le puuid en clair (un UUID) ; l'API Riot attend
+      // sa version chiffrée, propre à notre clé. On la retrouve par le Riot ID.
+      let acc = PUUID.test(puuidClient ?? '') ? await riot.account(platform, puuidClient) : null;
+      if (!acc && riotIdOk) acc = await riot.accountByRiotId(platform, gameName, tagLine);
       if (!acc) return res.status(404).json({ erreur: 'Compte Riot introuvable.' });
+      const puuid = acc.puuid;
       const sum = await riot.summoner(platform, puuid);
       if (!sum) return res.status(404).json({ erreur: "Pas de compte League of Legends sur ce serveur." });
 
