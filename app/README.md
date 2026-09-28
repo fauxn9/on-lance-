@@ -51,3 +51,10 @@ cargo run -p lcu --example sonde   # affiche en direct ce que l'app voit du clie
 - Le jeton d'appareil ne quitte jamais le Rust.
 - Chaque fenêtre coûte de la RAM : on en ajoute une seulement si c'est
   indispensable.
+- **Aucune animation infinie au repos.** WebView2 tourne sans GPU (−25 Mo) :
+  chaque image est dessinée en logiciel, et une animation en boucle fait
+  grimper la RAM de ~1,5 Mo/s jusqu'à +70 Mo. Les pulsations se jouent 3 fois
+  au changement d'état puis s'arrêtent ; seuls les indicateurs de chargement
+  tournent, et seulement pendant le chargement.
+- Mesurer avant de livrer :
+  `powershell -File scripts/mesure-ram.ps1 -Lancer target\release\onlance.exe -Attente 40`

@@ -65,4 +65,27 @@ export const synchroniser = async () => {
   return { added: 0 };
 };
 
-export const ecouter = () => () => {};
+// `?cycle` : une game complète en accéléré, de la file à l'écran de fin.
+const ecouteurs = {};
+export const ecouter = (nom, fn) => {
+  (ecouteurs[nom] ??= []).push(fn);
+  return () => { ecouteurs[nom] = ecouteurs[nom].filter((f) => f !== fn); };
+};
+const emettre = (nom, v) => (ecouteurs[nom] ?? []).forEach((f) => f(v));
+
+if (params.has('cycle')) {
+  const suite = ['menus', 'file', 'selection', 'chargement', 'en_jeu', 'fin', 'menus'];
+  let i = 0;
+  setInterval(() => {
+    i = (i + 1) % suite.length;
+    const e = suite[i];
+    const rs = e === 'menus' && i > 0 ? rangs.map((r) => (r.file === 'RANKED_SOLO_5x5' ? { ...r, lp: r.lp + 21, victoires: r.victoires + 1 } : r)) : rangs;
+    emettre('client', { etape: e, phase: e, compte, plateforme: 'euw1', rangs: rs });
+    if (e === 'fin') {
+      setTimeout(() => emettre('fin-de-partie', {
+        puuid: 'demo', matchId: 'EUW1_1', file: 'RANKED_SOLO_5x5', variation: 21,
+        rangApres: { file: 'RANKED_SOLO_5x5', tier: 'EMERALD', division: 'II', lp: 85, victoires: 59, defaites: 49 },
+      }), 800);
+    }
+  }, 2600);
+}

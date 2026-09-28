@@ -20,7 +20,8 @@
         "minHeight": 640,
         "center": true,
         "decorations": false,
-        "backgroundColor": "#060709"
+        "backgroundColor": "#060709",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu"
       }
     ],
     "security": {

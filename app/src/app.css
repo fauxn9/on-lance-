@@ -87,6 +87,35 @@ img { display: block; }
 .tag.v { color: var(--volt); box-shadow: inset 0 0 0 1px var(--volt-line); background: var(--volt-soft); }
 .tag.r { color: var(--red); box-shadow: inset 0 0 0 1px rgba(255, 77, 106, .35); background: var(--red-soft); }
 
+/* Onde de clic (action `onde`) */
+.ondulable { position: relative; overflow: hidden; isolation: isolate; }
+.onde {
+  position: absolute; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, currentColor 0, transparent 62%); opacity: .22;
+  transform: scale(0); animation: onde .65s var(--ease) forwards;
+}
+@keyframes onde { to { transform: scale(1); opacity: 0; } }
+
+/* Squelettes de chargement */
+.squelette { position: relative; overflow: hidden; background: var(--panel-2); border-radius: 10px; }
+.squelette::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .05) 50%, transparent 80%);
+  transform: translateX(-100%); animation: reflet 1.4s ease-in-out infinite;
+}
+@keyframes reflet { to { transform: translateX(100%); } }
+
+/* Changement d'onglet : l'ancien contenu s'efface, le nouveau glisse depuis
+   le côté où se trouve l'onglet (View Transitions API de Chromium). */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-group(contenu) { animation-duration: .45s; }
+::view-transition-old(contenu) { animation: vt-sortie .2s ease-in both; }
+::view-transition-new(contenu) { animation: vt-entree .5s var(--ease) both; }
+html[data-sens='haut']::view-transition-new(contenu) { animation-name: vt-entree-haut; }
+@keyframes vt-sortie { to { opacity: 0; transform: scale(.985); } }
+@keyframes vt-entree { from { opacity: 0; transform: translateY(22px); } }
+@keyframes vt-entree-haut { from { opacity: 0; transform: translateY(-22px); } }
+
 @keyframes tourne { to { transform: rotate(360deg); } }
 .tourne { animation: tourne 1s linear infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(214, 255, 63, .55); } 70% { box-shadow: 0 0 0 8px rgba(214, 255, 63, 0); } 100% { box-shadow: 0 0 0 0 rgba(214, 255, 63, 0); } }
@@ -94,4 +123,5 @@ img { display: block; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }

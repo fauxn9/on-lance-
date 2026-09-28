@@ -35,6 +35,18 @@ export function ilYa(ms) {
   return "à l'instant";
 }
 
+// Version courte pour les listes serrées : « 24 min », « 6 h », « hier », « 3 j ».
+const jourMois = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+export function ilYaCourt(ms) {
+  const min = (Date.now() - ms) / 60000;
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `${Math.round(min)} min`;
+  if (min < 1440) return `${Math.round(min / 60)} h`;
+  if (min < 2880) return 'hier';
+  if (min < 10080) return `${Math.round(min / 1440)} j`;
+  return jourMois.format(ms);
+}
+
 export const duree = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 const nf1 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
