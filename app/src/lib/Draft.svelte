@@ -314,7 +314,8 @@
   .raison { font-size: 11px; color: var(--ink-2); line-height: 1.35; }
   .raison.v { color: var(--volt); } .raison.r { color: var(--red); }
 
-  .explorer { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; animation: apparait .4s var(--ease) .05s both; }
+  /* Au-dessus du panneau du build : la liste des résultats déborde dessus. */
+  .explorer { position: relative; z-index: 10; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; animation: apparait .4s var(--ease) .05s both; }
   .recherche { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 40px; min-width: 260px; border-radius: 12px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-3); }
   .recherche :global(svg) { width: 16px; height: 16px; flex: none; }
   .recherche:focus-within { box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 24px -10px var(--volt-glow); }
