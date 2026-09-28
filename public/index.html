@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="fr" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On lance ? — Le tracker LoL gratuit. Pour de vrai.</title>
+<meta name="description" content="Aide au draft, overlay en jeu, analyse d'après-partie, historique complet : tout ce que les autres trackers League of Legends font payer, gratuit, dans une app ultra légère. Sans abonnement, sans Overwolf, sans pub.">
+<meta name="theme-color" content="#060709">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<link rel="canonical" href="https://onlance.xyz/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="On lance ?">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:url" content="https://onlance.xyz/">
+<meta property="og:title" content="On lance ? — Tout ce qu'ils font payer. Gratuit.">
+<meta property="og:description" content="Le tracker League of Legends gratuit et ultra léger. Sans abonnement, sans Overwolf, sans pub.">
+<meta property="og:image" content="https://onlance.xyz/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="On lance ? — Tout ce qu'ils font payer. Gratuit.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="On lance ? — Tout ce qu'ils font payer. Gratuit.">
+<meta name="twitter:description" content="Le tracker League of Legends gratuit et ultra léger. Sans abonnement, sans Overwolf, sans pub.">
+<meta name="twitter:image" content="https://onlance.xyz/og.png">
+<script src="/main.js" defer></script>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-discord" viewBox="0 0 24 24"><path fill="currentColor" d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.946 2.418-2.157 2.418Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1.5c.5 5.6 4.9 10 10.5 10.5-5.6.5-10 4.9-10.5 10.5C11.5 16.9 7.1 12.5 1.5 12 7.1 11.5 11.5 7.1 12 1.5Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-feather" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z"/><path d="M16 8 2 22M17.5 15H9"/></g></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></g></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></g></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/><path d="M19 16v4M17 18h4" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85"/></g></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></g></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></g></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></g></symbol>
+  <symbol id="i-replay" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></g></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></g></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></g></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></g></symbol>
+  <symbol id="i-swords" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 6.5 13 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></g></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></g></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></g></symbol>
+  <symbol id="i-dragon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c2-6 6-9 12-9l4-5-1 6c1 2 0 5-3 7"/><path d="M8 14c1-2 3-3 5-3"/></g></symbol>
+</svg>
+
+<a class="skip" href="#contenu">Aller au contenu</a>
+
+<header class="nav" data-nav>
+  <div class="nav-in">
+    <a class="brand" href="#top" aria-label="On lance ? — retour en haut">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#d6ff3f"/><path d="M11.6 12.2a4.4 4.4 0 1 1 6.2 4c-1.2.55-1.8 1.45-1.8 2.7v1" fill="none" stroke="#0a0c02" stroke-width="3.2" stroke-linecap="round"/><circle cx="16" cy="24.6" r="1.9" fill="#0a0c02"/></svg>
+      <span class="brand-name">On lance<span class="q">&nbsp;?</span></span>
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#ticket">Le ticket</a>
+      <a href="#fonctions">L'app</a>
+      <a href="#leger">Légèreté</a>
+      <a href="#promesses">Promesses</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-volt btn-sm" href="https://discord.gg/BA6JcwFP8a" target="_blank" rel="noopener">
+      <svg class="ico" aria-hidden="true"><use href="#i-discord"/></svg><span>Rejoindre<span class="hide-s"> le Discord</span></span>
+    </a>
+  </div>
+</header>
+
+<main id="contenu">
+
+<!-- ====================================================== HERO -->
+<section class="hero" id="top" data-hero>
+  <div class="hero-bg" aria-hidden="true">
+    <div class="grid-dots"></div>
+    <div class="spot"></div>
+    <div class="glow"></div>
+  </div>
+
+  <div class="shell hero-copy">
+    <p class="pill"><span class="live" aria-hidden="true"></span>En construction · premiers tests sur Discord</p>
+
+    <h1 class="hero-title">
+      <span class="h1-a" data-split>Tout ce qu'ils font payer.</span>
+      <span class="h1-b" data-split>Gratuit.</span>
+    </h1>
+
+    <p class="lede">Aide au draft, overlay en jeu, analyse d'après-partie, historique complet. Un tracker League&nbsp;of&nbsp;Legends <strong>ultra léger</strong>, sans abonnement, sans Overwolf, sans pub. Et qui tient ses promesses.</p>
+
+    <div class="ticker" aria-label="Ailleurs : 4,99 € par mois. Ici : 0 €.">
+      <span class="t-lab">Ailleurs</span>
+      <span class="t-old">4,99&nbsp;€/mois</span>
+      <svg class="t-arrow" aria-hidden="true"><use href="#i-arrow"/></svg>
+      <span class="t-lab">Ici</span>
+      <span class="t-new">0&nbsp;€</span>
+    </div>
+
+    <div class="cta-row">
+      <a class="btn btn-volt btn-lg" href="https://discord.gg/BA6JcwFP8a" target="_blank" rel="noopener">
+        <svg class="ico" aria-hidden="true"><use href="#i-discord"/></svg>Rejoindre le Discord
+      </a>
+      <a class="btn btn-ghost btn-lg" href="#ticket">Voir l'addition<svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></a>
+    </div>
+  </div>
+
+  <!-- Maquette de l'app : décorative, l'app est en construction -->
+  <div class="stage-wrap" data-stage>
+    <div class="stage">
+      <div class="app app-hero" role="img" aria-label="Aperçu de l'application On lance ? : profil classé, dernières parties et conseils du coach, avec des éléments d'overlay en jeu autour.">
+        <div class="app-bar" aria-hidden="true">
+          <span class="app-logo"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#d6ff3f"/><path d="M11.6 12.2a4.4 4.4 0 1 1 6.2 4c-1.2.55-1.8 1.45-1.8 2.7v1" fill="none" stroke="#0a0c02" stroke-width="3.2" stroke-linecap="round"/><circle cx="16" cy="24.6" r="1.9" fill="#0a0c02"/></svg>On lance&nbsp;?</span>
+          <span class="app-tabs"><b>Accueil</b><i>Draft</i><i>En jeu</i><i>Parties</i></span>
+          <span class="app-status"><span class="dot-ok"></span>Client LoL détecté</span>
+          <span class="win-ctl"><i></i><i></i><i></i></span>
+        </div>
+        <div class="app-body" aria-hidden="true">
+          <aside class="app-side">
+            <svg class="on"><use href="#i-home"/></svg><svg><use href="#i-swords"/></svg><svg><use href="#i-history"/></svg><svg><use href="#i-chart"/></svg><svg class="end"><use href="#i-gear"/></svg>
+          </aside>
+          <div class="app-main hero-grid">
+            <div class="card rank">
+              <p class="c-lab">Solo/Duo</p>
+              <p class="rank-name">Émeraude II</p>
+              <div class="bar"><span class="fill w64"></span></div>
+              <p class="c-sub"><span class="mono">64 PL</span> · <span class="mono">58V 49D</span> · <span class="mono v">54 %</span></p>
+            </div>
+            <div class="card form">
+              <p class="c-lab">Ta forme · 20 dernières</p>
+              <svg class="spark" viewBox="0 0 200 60" preserveAspectRatio="none"><defs><linearGradient id="gsp" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d6ff3f" stop-opacity=".35"/><stop offset="1" stop-color="#d6ff3f" stop-opacity="0"/></linearGradient></defs><path d="M0 48 L10 44 L20 46 L30 38 L40 40 L50 33 L60 36 L70 30 L80 34 L90 26 L100 29 L110 22 L120 25 L130 20 L140 23 L150 16 L160 18 L170 12 L180 14 L190 8 L200 10 L200 60 L0 60Z" fill="url(#gsp)"/><path d="M0 48 L10 44 L20 46 L30 38 L40 40 L50 33 L60 36 L70 30 L80 34 L90 26 L100 29 L110 22 L120 25 L130 20 L140 23 L150 16 L160 18 L170 12 L180 14 L190 8 L200 10" fill="none" stroke="#d6ff3f" stroke-width="2"/></svg>
+              <p class="c-sub"><span class="mono v">+86 PL</span> cette semaine</p>
+            </div>
+            <div class="card games">
+              <p class="c-lab">Dernières parties</p>
+              <ul>
+                <li><img src="/img/sett.webp" alt="" width="28" height="28"><b>Sett</b><span class="res win">Victoire</span><span class="mono">8/3/6</span><span class="mono dim">7,8 CS/min</span><span class="mono v">+21</span></li>
+                <li><img src="/img/kennen.webp" alt="" width="28" height="28"><b>Kennen</b><span class="res loss">Défaite</span><span class="mono">4/6/9</span><span class="mono dim">6,9 CS/min</span><span class="mono r">−17</span></li>
+                <li><img src="/img/sett.webp" alt="" width="28" height="28"><b>Sett</b><span class="res win">Victoire</span><span class="mono">11/2/4</span><span class="mono dim">8,2 CS/min</span><span class="mono v">+22</span></li>
+                <li><img src="/img/quinn.webp" alt="" width="28" height="28"><b>Quinn</b><span class="res win">Victoire</span><span class="mono">6/4/7</span><span class="mono dim">7,4 CS/min</span><span class="mono v">+20</span></li>
+              </ul>
+            </div>
+            <div class="card coach">
+              <p class="c-lab">À retenir</p>
+              <p class="tip"><span class="n">1</span>Tu perds 12 CS entre 14 et 20 min.</p>
+              <p class="tip"><span class="n">2</span>3 morts sur 4 sans vision de rivière.</p>
+              <p class="tip"><span class="n">3</span>Sett reste ton meilleur pick : 7 victoires sur 9.</p>
+              <p class="c-lab mt">Champions de la semaine</p>
+              <div class="champ-row"><img src="/img/sett.webp" alt="" width="30" height="30"><span class="mono">78 %</span><img src="/img/kennen.webp" alt="" width="30" height="30"><span class="mono">50 %</span><img src="/img/quinn.webp" alt="" width="30" height="30"><span class="mono">67 %</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chip chip-a" data-depth="1.4" aria-hidden="true">
+        <span class="chip-ico ok"><svg><use href="#i-check"/></svg></span>
+        <span><b>Runes, sorts et build importés</b><small>Sett · Top · en 0,3 s</small></span>
+      </div>
+      <div class="chip chip-b" data-depth="2" aria-hidden="true">
+        <span><small>Écart de gold</small><b class="mono v big">+1&nbsp;240</b></span>
+        <svg class="mini" viewBox="0 0 80 28"><path d="M0 22 L12 20 L24 21 L36 15 L48 16 L60 9 L72 8 L80 4" fill="none" stroke="#d6ff3f" stroke-width="2.2"/></svg>
+      </div>
+      <div class="chip chip-c" data-depth="1.1" aria-hidden="true">
+        <span class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="ring-bg"/><circle cx="18" cy="18" r="15" class="ring-fg"/></svg><svg class="ring-ico"><use href="#i-dragon"/></svg></span>
+        <span><small>Dragon</small><b class="mono big">0:42</b></span>
+      </div>
+      <div class="chip chip-d" data-depth="1.7" aria-hidden="true">
+        <img src="/img/darius.webp" alt="" width="36" height="36">
+        <span><small>En face, top</small><b>1<sup>re</sup> game sur Darius</b><em class="tag warn">3 défaites d'affilée</em></span>
+      </div>
+      <div class="sticker sticker-hero" aria-hidden="true"><span class="s-big">0&nbsp;€</span><span class="s-small">pour de vrai</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Sans abonnement</span><svg><use href="#i-star"/></svg><span>Sans Overwolf</span><svg><use href="#i-star"/></svg><span>Sans pub</span><svg><use href="#i-star"/></svg><span>Sans essai de 7 jours</span><svg><use href="#i-star"/></svg><span>Sans cadenas</span><svg><use href="#i-star"/></svg><span>Léger</span><svg><use href="#i-star"/></svg><span>Gratuit</span><svg><use href="#i-star"/></svg>
+    <span>Sans abonnement</span><svg><use href="#i-star"/></svg><span>Sans Overwolf</span><svg><use href="#i-star"/></svg><span>Sans pub</span><svg><use href="#i-star"/></svg><span>Sans essai de 7 jours</span><svg><use href="#i-star"/></svg><span>Sans cadenas</span><svg><use href="#i-star"/></svg><span>Léger</span><svg><use href="#i-star"/></svg><span>Gratuit</span><svg><use href="#i-star"/></svg>
+  </div>
+</div>
+
+<!-- ====================================================== TICKET -->
+<section class="ticket-sec" id="ticket" data-ticket>
+  <div class="ticket-pin">
+    <div class="shell ticket-grid">
+      <div class="ticket-copy">
+        <p class="kicker">Le ticket</p>
+        <h2 class="h2">On a fait l'addition.</h2>
+        <p class="body-l">Chaque ligne, c'est une fonction qu'on trouve derrière un abonnement ailleurs. Chez nous, elle est dans l'app, pour tout le monde, dès le premier jour.</p>
+        <div class="saving" data-saving>
+          <p class="saving-old"><span class="mono">59,88&nbsp;€</span></p>
+          <p class="saving-new"><span class="mono">0&nbsp;€</span></p>
+          <p class="saving-cap">par an, face à un abonnement à 4,99&nbsp;€ par mois.</p>
+        </div>
+      </div>
+
+      <div class="printer" data-printer>
+        <div class="paper-clip">
+          <div class="paper" data-paper>
+            <div class="receipt">
+              <div class="r-head">
+                <p class="r-logo">ON LANCE&nbsp;?</p>
+                <p>Tracker League of Legends</p>
+                <p class="r-meta"><span>Ticket n°&nbsp;000001</span><span>Caisse&nbsp;: la commu</span></p>
+              </div>
+              <p class="r-sep" aria-hidden="true"></p>
+              <p class="r-cols"><span>Article</span><span>Ailleurs</span><span>Ici</span></p>
+              <ul class="r-items">
+                <li><span class="it">Aide au draft</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Import runes, sorts, build</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Fiche des 10 joueurs</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Overlay en jeu</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Items selon la compo adverse</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Augments ARAM Mayhem</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Analyse d'après-partie</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Historique complet</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Plusieurs comptes</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Classements Discord</span><s>PREMIUM</s><b>0,00</b></li>
+                <li><span class="it">Zéro pub</span><s>PREMIUM</s><b>0,00</b></li>
+              </ul>
+              <p class="r-sep" aria-hidden="true"></p>
+              <p class="r-line"><span>Abonnement ailleurs</span><s>4,99&nbsp;€/mois</s></p>
+              <p class="r-total"><span>TOTAL</span><span>0,00&nbsp;€</span></p>
+              <p class="r-line"><span>Essai gratuit</span><span>inutile</span></p>
+              <p class="r-line"><span>Abonnement</span><span>jamais</span></p>
+              <p class="r-sep" aria-hidden="true"></p>
+              <svg class="barcode" data-barcode viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <p class="r-foot">Merci. Maintenant, on lance&nbsp;?</p>
+            </div>
+            <div class="sticker sticker-ticket" aria-hidden="true"><span class="s-big">0&nbsp;€</span><span class="s-small">pour de vrai</span></div>
+          </div>
+        </div>
+        <div class="slot" aria-hidden="true"><span class="slot-led"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== FONCTIONS -->
+<section class="features" id="fonctions">
+  <div class="shell">
+    <header class="sec-head">
+      <p class="kicker">L'app</p>
+      <h2 class="h2">Une game. Quatre moments.<br><span class="volt">Zéro cadenas.</span></h2>
+      <p class="body-l">De la sélection des champions à l'écran de fin, l'app t'accompagne à chaque étape. Tout ce que tu vois ici sera gratuit, sans limite.</p>
+    </header>
+
+    <div class="story" data-story>
+      <div class="steps">
+        <article class="step" data-step="0">
+          <p class="step-n mono">01 · Sélection des champions</p>
+          <h3 class="h3">Tu sais quoi prendre avant de lock.</h3>
+          <p>Des picks proposés selon la compo adverse et ton pool, puis runes, sorts et build importés en un clic dans le client. Ça marche aussi en ARAM et en ARAM Mayhem.</p>
+          <ul class="ticks"><li>Suggestions contre les picks visibles</li><li>Import runes, sorts, items</li><li>Augments Mayhem notés au moment du choix</li></ul>
+          <div class="step-visual" data-slot="0"></div>
+        </article>
+        <article class="step" data-step="1">
+          <p class="step-n mono">02 · Écran de chargement</p>
+          <h3 class="h3">Tu connais les 10 joueurs.</h3>
+          <p>Rang, forme du moment, expérience sur le champion : chaque joueur a sa fiche dès que la game charge. Le OTP, le duo, celui qui découvre son champion.</p>
+          <ul class="ticks"><li>Rang et winrate sur le champion</li><li>Séries en cours</li><li>Duos repérés</li></ul>
+          <div class="step-visual" data-slot="1"></div>
+        </article>
+        <article class="step" data-step="2">
+          <p class="step-n mono">03 · En jeu</p>
+          <h3 class="h3">L'overlay qui ne gêne pas.</h3>
+          <p>Écart de gold, timers d'objectifs, prochain achat adapté à la compo d'en face, rappels de montée de compétence. Discret, déplaçable, et rien de ce que Riot interdit.</p>
+          <ul class="ticks"><li>Écart de gold en direct</li><li>Timers d'objectifs</li><li>Build qui s'adapte à la game</li></ul>
+          <div class="step-visual" data-slot="2"></div>
+        </article>
+        <article class="step" data-step="3">
+          <p class="step-n mono">04 · Après la partie</p>
+          <h3 class="h3">Tu comprends pourquoi.</h3>
+          <p>L'analyse détaillée de chaque partie, ton écart avec l'adversaire direct minute par minute, et trois choses concrètes à retenir. Sur tout ton historique, sans limite.</p>
+          <ul class="ticks"><li>Écart minute par minute</li><li>Trois points à travailler</li><li>Historique illimité</li></ul>
+          <div class="step-visual" data-slot="3"></div>
+        </article>
+      </div>
+
+      <div class="stage-col" aria-hidden="true">
+        <div class="story-stage" data-story-stage>
+          <div class="app app-story">
+            <div class="app-bar">
+              <span class="app-logo"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#d6ff3f"/><path d="M11.6 12.2a4.4 4.4 0 1 1 6.2 4c-1.2.55-1.8 1.45-1.8 2.7v1" fill="none" stroke="#0a0c02" stroke-width="3.2" stroke-linecap="round"/><circle cx="16" cy="24.6" r="1.9" fill="#0a0c02"/></svg>On lance&nbsp;?</span>
+              <span class="app-tabs story-tabs"><i data-tab="0">Draft</i><i data-tab="1">Chargement</i><i data-tab="2">En jeu</i><i data-tab="3">Après-partie</i></span>
+              <span class="win-ctl"><i></i><i></i><i></i></span>
+            </div>
+            <div class="scenes">
+
+              <!-- Scène 1 : draft -->
+              <div class="scene scene-draft" data-scene="0">
+                <div class="sc-head"><b>Sélection des champions</b><span class="tag">Classée Solo/Duo</span><span class="tag v">Tu es Top</span></div>
+                <div class="draft-grid">
+                  <div class="draft-enemy">
+                    <p class="c-lab">Picks adverses</p>
+                    <div class="icons5"><img src="/img/darius.webp" alt="" width="40" height="40"><img src="/img/viego.webp" alt="" width="40" height="40"><img src="/img/ahri.webp" alt="" width="40" height="40"><img src="/img/jinx.webp" alt="" width="40" height="40"><img src="/img/nautilus.webp" alt="" width="40" height="40"></div>
+                    <p class="c-lab mt">Pour toi, contre eux</p>
+                    <ul class="picks">
+                      <li class="best"><img src="/img/sett.webp" alt="" width="34" height="34"><span><b>Sett</b><small>Tient la lane face à Darius</small></span><span class="score"><i class="s92"></i><em class="mono">92</em></span></li>
+                      <li><img src="/img/kennen.webp" alt="" width="34" height="34"><span><b>Kennen</b><small>Punit les mêlées à distance</small></span><span class="score"><i class="s88"></i><em class="mono">88</em></span></li>
+                      <li><img src="/img/quinn.webp" alt="" width="34" height="34"><span><b>Quinn</b><small>Gagne les 6 premiers niveaux</small></span><span class="score"><i class="s84"></i><em class="mono">84</em></span></li>
+                    </ul>
+                  </div>
+                  <div class="draft-build">
+                    <p class="c-lab">Build de Sett</p>
+                    <div class="b-row"><img class="round" src="/img/conqueror.webp" alt="" width="34" height="34"><span><b>Conquérant</b><small>Précision · Volonté</small></span></div>
+                    <div class="b-row"><img src="/img/flash.webp" alt="" width="30" height="30"><img src="/img/teleport.webp" alt="" width="30" height="30"><span><small>Saut éclair · Téléportation</small></span></div>
+                    <div class="b-items"><img src="/img/item-3071.webp" alt="" width="34" height="34"><img src="/img/item-3053.webp" alt="" width="34" height="34"><img src="/img/item-6333.webp" alt="" width="34" height="34"><img src="/img/item-3047.webp" alt="" width="34" height="34"></div>
+                    <span class="fake-btn">Tout importer</span>
+                    <p class="toast"><svg><use href="#i-check"/></svg>Importé dans le client</p>
+                  </div>
+                </div>
+                <div class="compo">
+                  <p class="c-lab">Les deux compos</p>
+                  <div class="compo-row"><span class="compo-who">Ton équipe</span><span class="dmg"><i class="ad w55"></i><i class="ap w45"></i></span><span class="mono dim">55 % phys. · 45 % mag.</span></div>
+                  <div class="compo-row"><span class="compo-who">En face</span><span class="dmg"><i class="ad w75"></i><i class="ap w25"></i></span><span class="mono dim">75 % phys. · 25 % mag.</span></div>
+                  <p class="compo-note"><svg><use href="#i-shield"/></svg>En face tape surtout en physique : l'armure rentabilise tôt.</p>
+                </div>
+              </div>
+
+              <!-- Scène 2 : chargement -->
+              <div class="scene scene-load" data-scene="1">
+                <div class="sc-head"><b>Écran de chargement</b><span class="tag">Classée Solo/Duo</span></div>
+                <div class="teams">
+                  <ul class="team blue">
+                    <li class="me"><img src="/img/sett.webp" alt="" width="34" height="34"><span><b>Toi</b><small>Émeraude II · 54 %</small></span><em class="tag v">Main Sett</em></li>
+                    <li><img src="/img/leesin.webp" alt="" width="34" height="34"><span><b>Émeraude IV</b><small>57 % sur Lee Sin</small></span><em class="tag v">4 victoires d'affilée</em></li>
+                    <li><img src="/img/orianna.webp" alt="" width="34" height="34"><span><b>Diamant IV</b><small>61 % sur Orianna</small></span><em class="tag">OTP</em></li>
+                    <li><img src="/img/kaisa.webp" alt="" width="34" height="34"><span><b>Émeraude I</b><small>52 % sur Kai'Sa</small></span></li>
+                    <li><img src="/img/thresh.webp" alt="" width="34" height="34"><span><b>Platine I</b><small>55 % sur Thresh</small></span><em class="tag">Duo avec Kai'Sa</em></li>
+                  </ul>
+                  <ul class="team red">
+                    <li><img src="/img/darius.webp" alt="" width="34" height="34"><span><b>Émeraude II</b><small>0 partie sur Darius</small></span><em class="tag warn">1<sup>re</sup> game</em></li>
+                    <li><img src="/img/viego.webp" alt="" width="34" height="34"><span><b>Émeraude III</b><small>312 parties sur Viego</small></span><em class="tag">OTP</em></li>
+                    <li><img src="/img/ahri.webp" alt="" width="34" height="34"><span><b>Diamant IV</b><small>58 % sur Ahri</small></span></li>
+                    <li><img src="/img/jinx.webp" alt="" width="34" height="34"><span><b>Émeraude IV</b><small>48 % sur Jinx</small></span><em class="tag warn">3 défaites d'affilée</em></li>
+                    <li><img src="/img/nautilus.webp" alt="" width="34" height="34"><span><b>Émeraude II</b><small>53 % sur Nautilus</small></span><em class="tag">Duo avec Jinx</em></li>
+                  </ul>
+                </div>
+                <div class="load-sum">
+                  <p><b class="mono">1</b><span>joueur découvre son champion</span></p>
+                  <p><b class="mono">2</b><span>duos dans la game</span></p>
+                  <p><b class="mono">1</b><span>OTP en face, sur Viego</span></p>
+                </div>
+              </div>
+
+              <!-- Scène 3 : en jeu -->
+              <div class="scene scene-game" data-scene="2">
+                <div class="rift">
+                  <svg class="rift-art" viewBox="0 0 640 400" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="rg1" cx="30%" cy="70%" r="70%"><stop offset="0" stop-color="#1b2a22"/><stop offset="1" stop-color="#0b100e"/></radialGradient><linearGradient id="riv" x1="0" x2="1"><stop offset="0" stop-color="#1b3a4a"/><stop offset="1" stop-color="#16303d"/></linearGradient></defs><rect width="640" height="400" fill="url(#rg1)"/><path d="M-20 330 C 120 260, 220 250, 320 200 S 520 110, 660 60 L 660 110 C 540 150, 440 190, 340 245 S 120 320, -20 380Z" fill="url(#riv)" opacity=".8"/><g fill="#0d1512" opacity=".9"><ellipse cx="140" cy="120" rx="90" ry="46"/><ellipse cx="480" cy="300" rx="110" ry="52"/><ellipse cx="520" cy="130" rx="60" ry="30"/><ellipse cx="170" cy="300" rx="50" ry="24"/></g><g fill="none" stroke="#2c3b33" stroke-width="1"><path d="M60 360 C 200 330 260 250 330 205"/><path d="M340 200 C 420 150 520 120 610 40"/></g></svg>
+                </div>
+                <div class="ov ov-gold"><small>Écart de gold</small><div class="gbar"><i class="gb-blue"></i><i class="gb-red"></i></div><b class="mono v">+1&nbsp;240</b></div>
+                <div class="ov ov-obj">
+                  <p><svg><use href="#i-dragon"/></svg><span>Dragon</span><b class="mono">0:42</b></p>
+                  <p><svg><use href="#i-spark"/></svg><span>Nashor</span><b class="mono">4:10</b></p>
+                  <p><svg><use href="#i-shield"/></svg><span>Inhib. mid</span><b class="mono">2:31</b></p>
+                </div>
+                <div class="ov ov-item"><img src="/img/item-3071.webp" alt="" width="38" height="38"><span><small>Prochain achat</small><b>Couperet noir</b><em>3 ennemis font de l'armure</em></span></div>
+                <div class="ov ov-skill"><span class="kbd mono">R</span>Niveau 6 · monte ton ultime</div>
+                <div class="ov ov-map"><svg viewBox="0 0 100 100"><rect width="100" height="100" rx="4" fill="#0b1411"/><path d="M8 92 L8 8 L92 8 M8 92 L92 92 L92 8 M10 90 L90 10" stroke="#2a3a33" stroke-width="3" fill="none"/><circle cx="14" cy="30" r="3.4" fill="#5fb4ff"/><circle cx="45" cy="55" r="3.4" fill="#5fb4ff"/><circle cx="70" cy="86" r="3.4" fill="#5fb4ff"/><circle cx="66" cy="88" r="3.4" fill="#5fb4ff"/><circle cx="30" cy="70" r="3.4" fill="#5fb4ff"/><circle cx="18" cy="12" r="3.4" fill="#ff4d6a"/><circle cx="58" cy="42" r="3.4" fill="#ff4d6a"/><circle cx="84" cy="30" r="3.4" fill="#ff4d6a"/></svg></div>
+              </div>
+
+              <!-- Scène 4 : après-partie -->
+              <div class="scene scene-post" data-scene="3">
+                <div class="sc-head"><img src="/img/sett.webp" alt="" width="30" height="30" class="round"><b>Victoire</b><span class="tag">31:24</span><span class="tag">Sett · Top</span><span class="tag v">+21 PL</span></div>
+                <div class="post-stats">
+                  <p><small>KDA</small><b class="mono">8/3/6</b></p>
+                  <p><small>CS/min</small><b class="mono">7,8</b></p>
+                  <p><small>Dégâts</small><b class="mono">28,4k</b></p>
+                  <p><small>Vision</small><b class="mono">24</b></p>
+                </div>
+                <div class="post-chart">
+                  <p class="c-lab">Écart de gold avec ton adversaire direct</p>
+                  <svg viewBox="0 0 320 110" preserveAspectRatio="none"><defs><linearGradient id="gpos" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d6ff3f" stop-opacity=".45"/><stop offset="1" stop-color="#d6ff3f" stop-opacity="0"/></linearGradient><clipPath id="cpos"><rect width="320" height="55"/></clipPath><clipPath id="cneg"><rect y="55" width="320" height="55"/></clipPath></defs><line x1="0" x2="320" y1="55" y2="55" stroke="#2a2f3a" stroke-dasharray="3 4"/><g clip-path="url(#cpos)"><path d="M0 55 L20 52 L40 50 L60 56 L80 62 L100 64 L120 60 L140 50 L160 44 L180 40 L200 34 L220 30 L240 26 L260 22 L280 18 L300 14 L320 10 L320 55 L0 55Z" fill="url(#gpos)"/></g><g clip-path="url(#cneg)"><path d="M0 55 L20 52 L40 50 L60 56 L80 62 L100 64 L120 60 L140 50 L140 55 L0 55Z" fill="#ff4d6a" opacity=".25"/></g><path d="M0 55 L20 52 L40 50 L60 56 L80 62 L100 64 L120 60 L140 50 L160 44 L180 40 L200 34 L220 30 L240 26 L260 22 L280 18 L300 14 L320 10" fill="none" stroke="#d6ff3f" stroke-width="2.2"/><circle cx="100" cy="64" r="4" fill="#ff4d6a"/></svg>
+                  <p class="chart-note"><span class="r mono">−9 min</span> ta mort à 2v1 sans vision</p>
+                </div>
+                <div class="post-tips">
+                  <p class="tip"><span class="n">1</span>Tu perds 18 CS entre 14 et 20 min : pense à tes vagues avant de rejoindre un combat.</p>
+                  <p class="tip"><span class="n">2</span>Tes deux TP ont rapporté un kill chacun : continue.</p>
+                  <p class="tip"><span class="n">3</span>À 9 min, tu meurs sans vision de rivière.</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <p class="stage-note">Maquette : l'app est en construction.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="also">
+      <h3 class="h3 also-title">Et aussi, toujours gratuit</h3>
+      <ul class="tiles">
+        <li class="tile"><svg class="t-ico"><use href="#i-spark"/></svg><h4>ARAM Mayhem</h4><p>Chaque augment noté au moment du choix, et des builds tirés de parties Mayhem, pas de la Faille.</p></li>
+        <li class="tile"><svg class="t-ico"><use href="#i-users"/></svg><h4>Plusieurs comptes</h4><p>Ton main et tes autres comptes au même endroit, avec un seul historique.</p></li>
+        <li class="tile"><svg class="t-ico"><use href="#i-trophy"/></svg><h4>Classements entre potes</h4><p>Le classement de la semaine directement sur ton serveur Discord.</p></li>
+        <li class="tile"><svg class="t-ico"><use href="#i-history"/></svg><h4>Historique complet</h4><p>Toutes tes parties, sans limite de temps ni de nombre.</p></li>
+        <li class="tile soon"><svg class="t-ico"><use href="#i-video"/></svg><h4>Clips automatiques <span class="badge">Bientôt</span></h4><p>Tes meilleures actions enregistrées toutes seules, sans plomber tes FPS.</p></li>
+        <li class="tile soon"><svg class="t-ico"><use href="#i-replay"/></svg><h4>Replays <span class="badge">Bientôt</span></h4><p>Revois n'importe quelle partie, en entier, quand tu veux.</p></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== LÉGER -->
+<section class="light" id="leger">
+  <div class="shell">
+    <header class="sec-head">
+      <p class="kicker">Légèreté</p>
+      <h2 class="h2">Ta RAM est pour ta game.<br><span class="volt">Pas pour ton tracker.</span></h2>
+      <p class="body-l">Les trackers les plus connus tournent sur Overwolf ou embarquent un navigateur entier. On part sur Tauri et Rust : l'app utilise le moteur web déjà présent dans Windows, et rien d'autre.</p>
+    </header>
+
+    <div class="light-grid">
+      <div class="bars" data-bars>
+        <div class="bar-row">
+          <p class="bar-lab"><span>Une app populaire sur Overwolf</span><b class="mono r">1,4 à 2&nbsp;Go</b></p>
+          <div class="track"><span class="b-heavy"></span><span class="b-spike"></span></div>
+        </div>
+        <div class="bar-row">
+          <p class="bar-lab"><span>On lance&nbsp;? <em class="obj">objectif</em></span><b class="mono v">&lt;&nbsp;150&nbsp;Mo</b></p>
+          <div class="track"><span class="b-ours"></span></div>
+        </div>
+        <div class="axis mono" aria-hidden="true"><span>0</span><span>500 Mo</span><span>1 Go</span><span>1,5 Go</span><span>2 Go</span></div>
+        <p class="footnote">Chiffres rapportés par des joueurs en 2026 pour une app très utilisée qui tourne sur Overwolf. Notre chiffre est un objectif : on publiera nos mesures à chaque version.</p>
+
+        <ul class="facts">
+          <li><svg class="f-ico"><use href="#i-feather"/></svg><span><b>Tauri + Rust</b>Pas de Chrome embarqué dans l'app.</span></li>
+          <li><svg class="f-ico"><use href="#i-ban"/></svg><span><b>Sans Overwolf</b>Un installeur, une app. Rien derrière.</span></li>
+          <li><svg class="f-ico"><use href="#i-gauge"/></svg><span><b>Mesuré</b>La RAM publiée à chaque mise à jour.</span></li>
+        </ul>
+      </div>
+
+      <div class="ram" data-ram>
+        <div class="ram-head">
+          <p class="ram-q">Ton PC a combien de RAM&nbsp;?</p>
+          <div class="seg" role="group" aria-label="Quantité de RAM de ton PC">
+            <button type="button" data-gb="8" aria-pressed="false">8 Go</button>
+            <button type="button" data-gb="16" aria-pressed="true">16 Go</button>
+            <button type="button" data-gb="32" aria-pressed="false">32 Go</button>
+          </div>
+        </div>
+        <div class="cells" data-cells aria-hidden="true"></div>
+        <div class="ram-out" aria-live="polite">
+          <p><span class="sw heavy"></span><span>Une app à 2&nbsp;Go prend</span><b class="mono r" data-heavy>12,5&nbsp;%</b></p>
+          <p><span class="sw ours"></span><span>On lance&nbsp;? vise</span><b class="mono v" data-ours>moins de 1&nbsp;%</b></p>
+        </div>
+        <p class="ram-cap" data-cap>Chaque case vaut 256&nbsp;Mo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== PROMESSES -->
+<section class="promises" id="promesses">
+  <div class="shell">
+    <header class="sec-head">
+      <p class="kicker">Promesses</p>
+      <h2 class="h2">Écrit noir sur blanc.<br><span class="volt">Et on s'y tient.</span></h2>
+    </header>
+    <ol class="plist">
+      <li data-reveal><span class="p-n mono">01</span><h3>Gratuit.</h3><p>Pas un essai de 7 jours. Pas «&nbsp;gratuit jusqu'à samedi&nbsp;». Toutes les fonctions, pour tout le monde, tout le temps.</p></li>
+      <li data-reveal><span class="p-n mono">02</span><h3>Léger.</h3><p>Moins de 150&nbsp;Mo en partie. Et on publie les mesures à chaque version, pour que tu vérifies toi-même.</p></li>
+      <li data-reveal><span class="p-n mono">03</span><h3>Sans pub.</h3><p>Ni dans le jeu, ni dans l'app. Jamais de vidéo qui se lance toute seule dans ton lobby.</p></li>
+      <li data-reveal><span class="p-n mono">04</span><h3>Sans Overwolf.</h3><p>Un installeur, une app. Rien d'autre qui s'installe derrière ton dos.</p></li>
+      <li data-reveal><span class="p-n mono">05</span><h3>Dans les règles.</h3><p>Uniquement ce que Riot autorise : pas d'injection, pas de lecture de la mémoire du jeu, pas de fonction bannie.</p></li>
+    </ol>
+    <div class="screenshot" data-reveal>
+      <svg class="sc-ico"><use href="#i-camera"/></svg>
+      <p><b>Fais une capture de cette section.</b> Si un jour on casse une de ces promesses, ressors-la.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== FAQ -->
+<section class="faq" id="faq">
+  <div class="shell faq-grid">
+    <header class="sec-head">
+      <p class="kicker">FAQ</p>
+      <h2 class="h2">Les questions<br>qu'on nous pose.</h2>
+      <p class="body-l">Une autre question&nbsp;? Pose-la sur le <a class="link" href="https://discord.gg/BA6JcwFP8a" target="_blank" rel="noopener">Discord</a>.</p>
+    </header>
+    <div class="qa">
+      <details>
+        <summary>C'est vraiment gratuit&nbsp;?<svg class="q-ico" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+        <div class="a"><p>Oui. Pas d'essai, pas d'abonnement, pas de fonction bloquée derrière un paiement. Tout ce qui est sur cette page sera dans l'app, pour tout le monde.</p></div>
+      </details>
+      <details>
+        <summary>Alors comment vous payez les serveurs&nbsp;?<svg class="q-ico" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+        <div class="a"><p>L'essentiel du travail se fait sur ton PC, donc les serveurs coûtent peu. Si la commu veut soutenir le projet, ce sera un don, facultatif, qui ne débloquera jamais rien.</p></div>
+      </details>
+      <details>
+        <summary>C'est autorisé par Riot&nbsp;?<svg class="q-ico" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+        <div class="a"><p>L'app n'utilise que ce que Riot met à disposition des développeurs : l'API officielle, le client et les données de partie en direct. Elle sera enregistrée auprès de Riot, comme leur règlement l'exige. Rien de banni : pas de timers d'ultimes adverses, pas de pseudos révélés en sélection classée, rien d'injecté dans le jeu.</p></div>
+      </details>
+      <details>
+        <summary>Ça sort quand&nbsp;?<svg class="q-ico" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+        <div class="a"><p>On construit en ce moment. Les premières versions de test passeront par le Discord : rejoins-le pour être dans les premiers.</p></div>
+      </details>
+      <details>
+        <summary>Et sur Mac&nbsp;?<svg class="q-ico" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+        <div class="a"><p>Windows d'abord, parce que c'est là que joue la grande majorité. Tauri tourne aussi sur Mac : si la demande est là, on suivra.</p></div>
+      </details>
+      <details>
+        <summary>Je peux proposer une fonction&nbsp;?<svg class="q-ico" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+        <div class="a"><p>C'est même le but du Discord. L'app se construit avec la commu, pas dans son dos.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== FIN -->
+<section class="final" data-final>
+  <div class="final-bg" aria-hidden="true"></div>
+  <div class="shell final-in">
+    <p class="final-word" aria-hidden="true">On lance<span>&nbsp;?</span></p>
+    <h2 class="final-title">Rejoins le Discord. Teste l'app avant tout le monde.</h2>
+    <a class="btn btn-volt btn-xl" href="https://discord.gg/BA6JcwFP8a" target="_blank" rel="noopener">
+      <svg class="ico" aria-hidden="true"><use href="#i-discord"/></svg>Rejoindre le Discord
+    </a>
+    <p class="final-meta mono" data-members>discord.gg/BA6JcwFP8a</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="shell foot-in">
+    <div class="foot-top">
+      <a class="brand" href="#top" aria-label="On lance ? — retour en haut">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#d6ff3f"/><path d="M11.6 12.2a4.4 4.4 0 1 1 6.2 4c-1.2.55-1.8 1.45-1.8 2.7v1" fill="none" stroke="#0a0c02" stroke-width="3.2" stroke-linecap="round"/><circle cx="16" cy="24.6" r="1.9" fill="#0a0c02"/></svg>
+        <span class="brand-name">On lance<span class="q">&nbsp;?</span></span>
+      </a>
+      <p class="weight mono" data-weight>Cette page est légère, elle aussi.</p>
+    </div>
+    <p class="legal">On lance&nbsp;? n'est pas approuvé par Riot Games et ne reflète pas les opinions de Riot Games ni de quiconque officiellement impliqué dans la production ou la gestion des propriétés de Riot Games. Riot Games, League of Legends et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.</p>
+    <p class="legal">© 2026 On lance&nbsp;? · Fait par des joueurs, pour des joueurs.</p>
+  </div>
+</footer>
+
+</body>
+</html>
