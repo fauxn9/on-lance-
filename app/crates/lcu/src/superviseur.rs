@@ -38,11 +38,13 @@ pub struct EtatClient {
     pub rangs: Vec<Rang>,
     /// Sélection des champions en cours (brique 4).
     pub selection: Option<Selection>,
+    /// Identifiant de la partie en cours, du chargement à la fin (brique 5).
+    pub partie: Option<u64>,
 }
 
 impl Default for EtatClient {
     fn default() -> Self {
-        Self { etape: Etape::Hors, phase: String::new(), compte: None, plateforme: None, rangs: Vec::new(), selection: None }
+        Self { etape: Etape::Hors, phase: String::new(), compte: None, plateforme: None, rangs: Vec::new(), selection: None, partie: None }
     }
 }
 
@@ -158,6 +160,7 @@ async fn session_client(lock: &Lockfile, envoye: &mut EtatClient, tx: &mpsc::Sen
         let nouvelle = etape(&etat.phase, en_jeu && jeu_charge().await);
         transition(&lcu, &mut suivi, etat.etape, nouvelle, &etat, tx).await;
         etat.etape = nouvelle;
+        etat.partie = if nouvelle.en_partie() { suivi.game_id } else { None };
 
         // Sélection des champions : état initial par HTTP (le WebSocket ne
         // prévient que des changements), et la file une fois pour toutes.

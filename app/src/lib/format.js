@@ -14,6 +14,16 @@ export function nomRang(tier, division) {
   return ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(tier) || !division ? t : `${t} ${division}`;
 }
 
+// Inverse de l'échelle continue du serveur (Fer IV 0 PL = 0, 100 par division).
+const ORDRE_TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND'];
+export function rangDepuisEchelle(l) {
+  if (l == null) return null;
+  if (l >= 2800) return { tier: 'MASTER', division: null, nom: 'Maître+' };
+  const tier = ORDRE_TIERS[Math.max(0, Math.floor(l / 400))];
+  const division = ['IV', 'III', 'II', 'I'][Math.floor((l % 400) / 100)];
+  return { tier, division, nom: nomRang(tier, division) };
+}
+
 const FILES = {
   420: 'Classée Solo/Duo', 440: 'Classée Flex', 400: 'Normale (draft)', 430: 'Normale (aveugle)',
   480: 'Swiftplay', 490: 'Partie rapide', 450: 'ARAM', 2400: 'ARAM Mayhem', 1700: 'Arena', 1710: 'Arena',

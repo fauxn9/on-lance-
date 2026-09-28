@@ -46,6 +46,8 @@ export const dd = {
       nom: c?.nom ?? secours ?? '?',
       icone: donnees.version && c ? `${CDN}/cdn/${donnees.version}/img/champion/${c.id}.png` : null,
       splash: c ? `${CDN}/cdn/img/champion/splash/${c.id}_0.jpg` : null,
+      // L'illustration verticale de l'écran de chargement du jeu (308 × 560).
+      portrait: c ? `${CDN}/cdn/img/champion/loading/${c.id}_0.jpg` : null,
     };
   },
   // Tous les champions, triés par nom (recherche de build).

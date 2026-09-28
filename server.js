@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 if (existsSync(new URL('./.env', import.meta.url))) process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url)));
 
 const { appRouter } = await import('./api/routes.js');
+const { RiotApi } = await import('./api/riot.js');
 const { statsRouter } = await import('./api/stats/routes.js');
 
 const PORT = process.env.PORT || 3000;
@@ -46,13 +47,16 @@ app.use((req, res, next) => {
 
 app.get('/health', (req, res) => res.type('text').send('ok'));
 
-app.use('/api/app', appRouter());
+// Un seul client Riot pour tout le serveur : l'app et la collecte partagent le
+// même limiteur, donc le même budget de requêtes.
+const riot = new RiotApi();
+app.use('/api/app', appRouter({ riot }));
 app.use('/api/stats', statsRouter());
 
 // Collecte des statistiques en fond, si demandée (COLLECTE=on).
 if (process.env.COLLECTE === 'on') {
-  const [{ RiotApi }, { lancerCollecte }] = await Promise.all([import('./api/riot.js'), import('./api/stats/crawler.js')]);
-  lancerCollecte(new RiotApi(), { platform: process.env.COLLECTE_PLATFORM || 'euw1' });
+  const { lancerCollecte } = await import('./api/stats/crawler.js');
+  lancerCollecte(riot, { platform: process.env.COLLECTE_PLATFORM || 'euw1' });
 }
 
 let discordCache = { at: 0, data: null };

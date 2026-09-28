@@ -93,6 +93,16 @@ export class RiotApi {
     return this.get(regionOf(platform), `/lol/match/v5/matches/${encodeURIComponent(matchId)}/timeline`, opts);
   }
 
+  // Partie en cours (dès l'écran de chargement), ou null.
+  activeGame(platform, puuid, opts) {
+    return this.get(platform, `/lol/spectator/v5/active-games/by-summoner/${encodeURIComponent(puuid)}`, opts);
+  }
+
+  // Toutes les maîtrises d'un joueur, de la plus haute à la plus basse.
+  masteries(platform, puuid, opts) {
+    return this.get(platform, `/lol/champion-mastery/v4/champion-masteries/by-puuid/${encodeURIComponent(puuid)}`, opts);
+  }
+
   // Classements : les ligues « apex » (Maître, Grand Maître, Challenger) et
   // les pages d'une division (Émeraude II, page 3…).
   apex(platform, ligue, opts) {

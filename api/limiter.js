@@ -8,7 +8,9 @@
 //
 // Deux priorités : `high` pour ce que l'utilisateur attend à l'écran, `low`
 // pour le rattrapage de l'historique en fond. Le fond ne consomme jamais plus
-// de 70 % d'une fenêtre, pour laisser de la place aux demandes interactives.
+// de 70 % d'une fenêtre, pour laisser de la place aux demandes interactives,
+// et il s'efface complètement tant qu'une demande à l'écran attend son tour
+// (écran de chargement : 10 joueurs à analyser avant le début de la partie).
 
 const LOW_SHARE = 0.7;
 
@@ -29,12 +31,14 @@ export class HostLimiter {
     this.sleep = sleep;
     this.hits = [];
     this.pausedUntil = 0;
+    this.urgentes = 0;
   }
 
   // Temps à attendre avant de pouvoir envoyer une requête (0 = tout de suite).
   wait(priority = 'high') {
     const t = this.now();
     let wait = Math.max(0, this.pausedUntil - t);
+    if (priority === 'low' && this.urgentes > 0) wait = Math.max(wait, 50);
     for (const { max, windowMs } of this.limits) {
       const cap = priority === 'low' ? Math.max(1, Math.floor(max * LOW_SHARE)) : max;
       const inWindow = this.hits.filter((h) => h > t - windowMs);
@@ -48,10 +52,16 @@ export class HostLimiter {
   }
 
   async acquire(priority = 'high') {
-    for (;;) {
-      const w = this.wait(priority);
-      if (w <= 0) break;
-      await this.sleep(w);
+    const urgente = priority !== 'low';
+    if (urgente) this.urgentes++;
+    try {
+      for (;;) {
+        const w = this.wait(priority);
+        if (w <= 0) break;
+        await this.sleep(w);
+      }
+    } finally {
+      if (urgente) this.urgentes--;
     }
     const t = this.now();
     this.hits.push(t);

@@ -1,5 +1,5 @@
 <script>
-  import { flushSync, onMount } from 'svelte';
+  import { flushSync, onMount, untrack } from 'svelte';
   import * as api from './lib/api.js';
   import { onde } from './lib/actions.js';
   import { chargerDDragon, dd } from './lib/ddragon.svelte.js';
@@ -8,6 +8,8 @@
   import Accueil from './lib/Accueil.svelte';
   import Parties from './lib/Parties.svelte';
   import Draft from './lib/Draft.svelte';
+  import Partie from './lib/Partie.svelte';
+  import { suivre } from './lib/partie.svelte.js';
   import Icone from './lib/Icone.svelte';
   import Notifications from './lib/Notifications.svelte';
 
@@ -31,11 +33,9 @@
     { id: 'accueil', nom: 'Accueil', icone: 'maison', touche: '1' },
     { id: 'parties', nom: 'Parties', icone: 'historique', touche: '2' },
     { id: 'draft', nom: 'Draft', icone: 'epees', touche: '3' },
+    { id: 'partie', nom: 'En direct', icone: 'cible', touche: '4' },
   ];
-  const BIENTOT = [
-    { nom: 'En jeu', icone: 'cible' },
-    { nom: 'Après-partie', icone: 'courbe' },
-  ];
+  const BIENTOT = [{ nom: 'Après-partie', icone: 'courbe' }];
   const indexVue = $derived(NAV.findIndex((n) => n.id === vue));
 
   // Changement d'onglet animé : le nouvel écran arrive du côté de l'onglet.
@@ -83,11 +83,17 @@
   }
 
   // La sélection des champions commence : l'écran Draft s'ouvre tout seul.
+  // Le chargement commence : l'écran En direct, avec les 10 joueurs.
   let etapePrecedente = 'hors';
   $effect(() => {
     const e = client.etape;
     if (e === 'selection' && etapePrecedente !== 'selection') aller('draft');
+    if (e === 'chargement' && etapePrecedente !== 'chargement') aller('partie');
     etapePrecedente = e;
+  });
+  $effect(() => {
+    const e = client.etape, id = client.partie;
+    untrack(() => suivre(e, id));
   });
 
   // Fin de partie : la notification arrive avant même que Riot publie la partie.
@@ -163,8 +169,10 @@
         <Accueil {client} {profil} {compte} {erreur} {synchro} {revision} onsync={synchroniser} onvoir={() => aller('parties')} />
       {:else if vue === 'parties'}
         <Parties {revision} {profil} {synchro} onsync={synchroniser} />
-      {:else}
+      {:else if vue === 'draft'}
         <Draft {client} />
+      {:else}
+        <Partie {client} />
       {/if}
     </main>
   </div>

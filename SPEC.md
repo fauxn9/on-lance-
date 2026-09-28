@@ -124,6 +124,11 @@ utilisée de tous les trackers : autant la sortir en premier.
 
 **Livrable** : les 10 fiches affichées avant la fin du chargement.
 
+> Fait (`api/live.js`, onglet « En direct ») : sur une vraie partie, rangs en
+> 0,5 s, maîtrises et duos en 2,6 s. La forme (jusqu'à 50 parties à lire)
+> suit le débit de la clé : ~1 min avec la clé personnelle, quelques
+> secondes avec la clé de production.
+
 ## Brique 6 — Overlay en jeu
 
 - **Une seule** fenêtre transparente qui laisse passer les clics, avec tous les

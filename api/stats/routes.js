@@ -37,7 +37,8 @@ async function patchs(queue) {
   });
 }
 
-async function roles(queue) {
+// Part de chaque poste pour chaque champion (sert aussi à l’écran de chargement).
+export async function roles(queue) {
   return enCache(`roles:${queue}`, 10 * 60_000, async () => {
     const { rows } = await query(
       `select champion_id, role, sum(games)::int as games from stats

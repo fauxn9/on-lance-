@@ -193,6 +193,18 @@ async fn importer(etat: State<'_, Etat>, build: Value, titre: String, parties: V
     Ok(faits)
 }
 
+/// Écran de chargement : la partie en cours et ses 10 joueurs. L'interface
+/// rappelle cette commande tant que l'analyse n'est pas complète.
+#[tauri::command]
+async fn partie_en_cours(etat: State<'_, Etat>) -> Result<Value, String> {
+    let partie = etat.client.lock().unwrap().partie;
+    let chemin = match partie {
+        Some(id) => format!("/live?gameId={id}"),
+        None => "/live".to_string(),
+    };
+    etat.appel("GET", &chemin, None).await
+}
+
 #[tauri::command]
 async fn synchroniser(app: AppHandle, etat: State<'_, Etat>) -> Result<Value, String> {
     let v = etat.appel("POST", "/sync", Some(json!({}))).await?;
@@ -288,7 +300,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

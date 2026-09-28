@@ -16,12 +16,16 @@ Tauri 2 (Rust) + Svelte 5. Voir `../SPEC.md` pour le plan en briques.
 | 2 | Historique : 20 dernières parties tout de suite, le reste en fond | ✅ |
 | 2 | Accueil : rang, courbe de PL, dernières parties | ✅ |
 | 2 | Parties : filtres par file, défilement infini | ✅ |
-| 3 | Moteur de stats (serveur, `api/stats/`) : collecte, agrégats, builds par Wilson | ✅ en attente de la clé Riot pour tourner |
+| 3 | Moteur de stats (serveur, `api/stats/`) : collecte, agrégats, builds par Wilson | ✅ en ligne |
 | 4 | Sélection lue en direct (postes, picks, bans, banc ARAM, chrono), sans aucun pseudo | ✅ |
 | 4 | Suggestions : pool (maîtrises), matchup contre l'adversaire probable, historique perso | ✅ |
 | 4 | Import runes (page « On lance ? »), sorts (Flash gardé sur sa touche), set d'items | ✅ à tester en vraie sélection |
 | 4 | Import auto au verrouillage (réglage), analyse physique/magique des compos | ✅ |
 | 4 | Hors sélection : explorer le build de n'importe quel champion | ✅ |
+| 5 | Écran de chargement (`api/live.js`) : les 10 joueurs via l'API spectateur, analysés par étapes | ✅ |
+| 5 | Rang et winrate de la saison, maîtrise du champion (OTP, 1re fois, peu joué), forme sur 5 parties, séries | ✅ |
+| 5 | Duos et groupes repérés (2 parties communes sur les 20 dernières), postes déduits (Châtiment + stats) | ✅ |
+| 5 | Onglet « En direct » ouvert tout seul au chargement ; la dernière partie reste affichée | ✅ à voir en vraie partie |
 
 ## Développer
 

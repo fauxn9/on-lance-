@@ -14,6 +14,8 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { query } from './db.js';
+import { partieEnCours } from './live.js';
+import { DIVS, ladder, TIERS } from './rangs.js';
 import { isPlatform, RiotApi } from './riot.js';
 import { startBackfill, syncRecent } from './sync.js';
 
@@ -26,19 +28,10 @@ const QUEUES = {
   aram: [450, 2400],
 };
 const KNOWN_QUEUES = Object.values(QUEUES).flat();
-const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
-const DIVS = { IV: 0, III: 1, II: 2, I: 3 };
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
-// Position absolue sur l'échelle, pour tracer une courbe qui traverse les
-// divisions sans sauts : Fer IV 0 PL = 0, chaque division vaut 100.
-export function ladder(tier, division, lp) {
-  const t = TIERS.indexOf(tier);
-  if (t < 0) return null;
-  if (t >= 7) return 7 * 400 + lp;
-  return t * 400 + (DIVS[division] ?? 0) * 100 + lp;
-}
+export { ladder };
 
 // Fenêtre glissante très simple, en mémoire : suffisant pour un seul serveur.
 function rateLimit({ max, windowMs }) {
@@ -195,6 +188,17 @@ export function appRouter({ riot = new RiotApi() } = {}) {
       const out = await syncRecent(riot, req.account.puuid);
       startBackfill(riot);
       res.json(out);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Écran de chargement : la partie en cours et ses 10 joueurs, qui se
+  // remplissent au fil des appels (l'app repasse toutes les 1,5 s).
+  r.get('/live', needRiot, rateLimit({ max: 120, windowMs: 60_000 }), async (req, res, next) => {
+    try {
+      const gameId = /^d{1,15}$/.test(String(req.query.gameId ?? '')) ? Number(req.query.gameId) : null;
+      res.json(await partieEnCours(riot, req.account, { gameId }));
     } catch (err) {
       next(err);
     }
