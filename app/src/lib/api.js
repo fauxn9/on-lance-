@@ -16,6 +16,7 @@ export const buildChampion = (champion, role, file) =>
   enTauri ? invoke('build_champion', { champion, role, file }) : demo.buildChampion(champion, role, file);
 export const suggestions = () => (enTauri ? invoke('suggestions') : demo.suggestions());
 export const partieEnCours = () => (enTauri ? invoke('partie_en_cours') : demo.partieEnCours());
+export const etatOverlay = () => (enTauri ? invoke('etat_overlay') : demo.etatOverlay());
 export const importer = (build, titre, parties) =>
   enTauri ? invoke('importer', { build, titre, parties }) : demo.importer(parties);
 

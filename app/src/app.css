@@ -51,6 +51,8 @@ body {
   cursor: default;
 }
 #app { height: 100%; }
+/* L'overlay en jeu : fenêtre transparente, seuls les widgets se voient. */
+html.overlay, html.overlay body { background: transparent; }
 h1, h2, h3, p, ul { margin: 0; }
 ul { padding: 0; list-style: none; }
 button { font: inherit; color: inherit; }

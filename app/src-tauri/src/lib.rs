@@ -1,15 +1,18 @@
 //! La coque Tauri : relie le suivi du client League (crate `lcu`), le serveur
 //! On lance ? et l'interface.
 
+mod overlay;
 mod serveur;
 
-use lcu::{EtatClient, Evenement, FinDePartie};
+use lcu::{Etape, EtatClient, Evenement, FinDePartie};
 use serde_json::{json, Value};
 use serveur::{Jetons, Serveur};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindowBuilder};
 use tokio::sync::mpsc;
 
 struct Etat {
@@ -205,6 +208,55 @@ async fn partie_en_cours(etat: State<'_, Etat>) -> Result<Value, String> {
     etat.appel("GET", &chemin, None).await
 }
 
+/// L'overlay demande ses réglages, ton pick et le catalogue des objets.
+#[tauri::command]
+async fn etat_overlay(app: AppHandle) -> Value {
+    overlay::etat_initial(&app).await
+}
+
+/// Rouvre la fenêtre principale (fermée pendant la partie pour la RAM), ou la
+/// ramène devant si elle existe.
+fn ouvrir_principale(app: &AppHandle, focus: bool) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        if focus {
+            let _ = w.set_focus();
+        }
+        return;
+    }
+    let Some(cfg) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() else { return };
+    if let Ok(b) = WebviewWindowBuilder::from_config(app, &cfg) {
+        let _ = b.focused(focus).build();
+    }
+}
+
+/// La partie est jouable : l'overlay s'ouvre et la fenêtre principale se
+/// ferme. Elle revient à la fin. Rien ne change si le jeu est en plein écran
+/// exclusif (l'overlay y serait invisible).
+fn suivre_partie(app: &AppHandle, etape: Etape) {
+    if overlay::essai() {
+        return;
+    }
+    let en_jeu = etape == Etape::EnJeu;
+    if en_jeu && !overlay::ouverte(app) {
+        if lcu::jeu::mode_fenetre() == Some(0) {
+            let _ = app.emit("overlay-impossible", "plein-ecran");
+            return;
+        }
+        if overlay::ouvrir(app).is_ok() {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.destroy();
+            }
+        }
+    } else if !en_jeu && overlay::ouverte(app) {
+        // D'abord la fenêtre principale, ensuite seulement l'overlay : il
+        // reste toujours une fenêtre ouverte, sinon l'app se fermerait.
+        ouvrir_principale(app, false);
+        overlay::fermer(app);
+    }
+}
+
 #[tauri::command]
 async fn synchroniser(app: AppHandle, etat: State<'_, Etat>) -> Result<Value, String> {
     let v = etat.appel("POST", "/sync", Some(json!({}))).await?;
@@ -261,7 +313,51 @@ async fn partie_terminee(app: AppHandle, fin: FinDePartie) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, raccourci, evenement| overlay::sur_raccourci(app, raccourci, evenement.state()))
+                .build(),
+        )
         .setup(|app| {
+            app.manage(overlay::EtatOverlay::default());
+            // Développement : ONLANCE_OVERLAY=1 ouvre l'overlay sans partie
+            // (avec une fausse API de jeu sur le port 2999).
+            if overlay::essai() {
+                let h = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(Duration::from_millis(1500)).await;
+                    if overlay::ouvrir(&h).is_ok() {
+                        if let Some(w) = h.get_webview_window("main") {
+                            let _ = w.destroy();
+                        }
+                    }
+                });
+            }
+
+            // Icône près de l'horloge : le seul accès à l'app pendant une
+            // partie, quand sa fenêtre est fermée.
+            let ouvrir = MenuItem::with_id(app, "ouvrir", "Ouvrir On lance ?", true, None::<&str>)?;
+            let quitter = MenuItem::with_id(app, "quitter", "Quitter", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&ouvrir, &quitter])?;
+            let mut icone = TrayIconBuilder::with_id("principal")
+                .tooltip("On lance ?")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, e| match e.id.as_ref() {
+                    "ouvrir" => ouvrir_principale(app, true),
+                    "quitter" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, e| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
+                        ouvrir_principale(tray.app_handle(), true);
+                    }
+                });
+            if let Some(i) = app.default_window_icon() {
+                icone = icone.icon(i.clone());
+            }
+            icone.build(app)?;
+
             let chemin_jetons = app.path().app_data_dir()?.join("comptes.json");
             app.manage(Etat {
                 client: Mutex::new(EtatClient::default()),
@@ -279,6 +375,14 @@ pub fn run() {
                 while let Some(ev) = rx.recv().await {
                     match ev {
                         Evenement::Etat(e) => {
+                            // Ton pick, gardé pour l'overlay (la sélection disparaît au chargement).
+                            if let Some(s) = &e.selection {
+                                if let Some(c) = s.mon_champion {
+                                    let pick = json!({ "championId": c, "poste": s.mon_poste, "file": s.file });
+                                    *handle.state::<overlay::EtatOverlay>().pick.lock().unwrap() = Some(pick);
+                                }
+                            }
+                            suivre_partie(&handle, e.etape);
                             let nouveau_compte = {
                                 let etat = handle.state::<Etat>();
                                 let mut client = etat.client.lock().unwrap();
@@ -300,7 +404,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

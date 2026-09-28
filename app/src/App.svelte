@@ -125,6 +125,11 @@
       }),
       api.ecouter('fin-de-partie', finDePartie),
       api.ecouter('erreur-serveur', (e) => (erreur = e)),
+      api.ecouter('overlay-impossible', () => notifier({
+        titre: "L'overlay ne peut pas s'afficher",
+        texte: 'Ton jeu est en plein écran. Passe en « Fenêtré sans bordure » (Options › Vidéo › Mode fenêtre).',
+        icone: 'alerte', duree: 12000,
+      })),
     ];
     const clavier = (e) => {
       const item = e.ctrlKey && NAV.find((n) => n.touche === e.key);

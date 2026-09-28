@@ -142,6 +142,11 @@ utilisée de tous les trackers : autant la sortir en premier.
 - Raccourci pour afficher/masquer, et mode édition pour placer les widgets.
 
 **Livrable** : l'overlay tient une partie entière, sous 150 Mo mesurés.
+
+> Fait : ~105 Mo mesurés (overlay seul, fenêtre principale fermée), sur une
+> fausse API de jeu. Règles Riot respectées : rien sur les temps de recharge
+> adverses, pas d'alerte de « power spike », aucune pub. Reste la partie
+> entière en vrai.
 → **Demande de clé de production** : on a un prototype complet à montrer.
 
 ## Brique 7 — Après la partie

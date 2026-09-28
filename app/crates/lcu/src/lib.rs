@@ -16,6 +16,7 @@
 
 pub mod client;
 pub mod import;
+pub mod jeu;
 pub mod lockfile;
 pub mod modele;
 pub mod phase;

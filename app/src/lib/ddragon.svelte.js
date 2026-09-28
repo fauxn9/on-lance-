@@ -50,6 +50,11 @@ export const dd = {
       portrait: c ? `${CDN}/cdn/img/champion/loading/${c.id}_0.jpg` : null,
     };
   },
+  // « MonkeyKing » (identifiant Data Dragon, celui du jeu) → 62.
+  cle(id) {
+    const e = Object.entries(donnees.champions).find(([, c]) => c.id === id);
+    return e ? Number(e[0]) : null;
+  },
   // Tous les champions, triés par nom (recherche de build).
   get liste() {
     return Object.entries(donnees.champions)

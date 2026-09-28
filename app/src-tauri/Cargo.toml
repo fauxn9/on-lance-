@@ -14,8 +14,12 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 lcu = { path = "../crates/lcu" }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

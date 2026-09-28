@@ -110,6 +110,42 @@ export const partieEnCours = async () => {
   return { enCours: true, gameId: 42, queue, map: queue === 450 ? 12 : 11, mode: queue === 450 ? 'ARAM' : 'CLASSIC', etapes, complet: etapes.forme, duree: Math.min(t, 3800 * x), erreur: null, joueurs };
 };
 
+// Overlay en jeu (`?overlay`) : une partie qui avance de 20 s par seconde,
+// Sett top contre Darius, un dragon pris par chaque équipe, un baron.
+export const etatOverlay = async () => {
+  const items = {};
+  for (const [id, n, p, t] of [
+    [3071, 'Couperet noir', 3000, ['Damage', 'Health', 'ArmorPenetration']], [6333, 'Danse de la mort', 3300, ['Damage', 'Armor']],
+    [6692, 'Éclipse', 2800, ['Damage']], [3047, 'Coques en acier renforcé', 1200, ['Armor', 'Boots']], [3065, 'Visage spirituel', 2700, ['Health', 'SpellBlock']],
+    [3053, "Force de Sterak", 3000, ['Damage', 'Health']], [6694, 'Rancune de Séryldä', 3200, ['Damage']], [3075, 'Cotte épineuse', 2450, ['Armor']],
+    [3742, 'Plaque du mort', 2900, ['Armor', 'Health']], [6610, 'Lame sanguinaire', 3000, ['Damage']], [1055, "Lame de Doran", 450, ['Damage']],
+  ]) items[id] = { n, p, t, d: 3 };
+  return { edition: false, masque: false, pick: { championId: 875, poste: 'TOP', file: 420 }, catalogue: { version: null, items } };
+};
+if (params.has('overlay')) {
+  const debut = Date.now();
+  const P = (champion, equipe, poste, niveau, items, valeur, moi = false) => ({ champion, equipe, poste, niveau, items, valeur, moi });
+  setInterval(() => {
+    const temps = 780 + ((Date.now() - debut) / 1000) * 20;
+    const niveau = Math.min(18, 9 + Math.floor((temps - 780) / 120));
+    emettre('jeu', {
+      temps, mode: 'CLASSIC', or: 700 + (temps % 3000), niveau, competences: [5, 1, 3, 1],
+      joueurs: [
+        P('Sett', 'ORDER', 'TOP', niveau, [1055, 3071, 3047], 4650, true), P('LeeSin', 'ORDER', 'JUNGLE', 10, [], 5100), P('Ahri', 'ORDER', 'MIDDLE', 11, [], 5600),
+        P('Jinx', 'ORDER', 'BOTTOM', 9, [], 4900), P('Thresh', 'ORDER', 'UTILITY', 8, [], 2400),
+        P('Darius', 'CHAOS', 'TOP', 10, [], 5100), P('Viego', 'CHAOS', 'JUNGLE', 10, [], 5300), P('Syndra', 'CHAOS', 'MIDDLE', 10, [], 5000),
+        P('Kaisa', 'CHAOS', 'BOTTOM', 9, [], 4400), P('Nautilus', 'CHAOS', 'UTILITY', 8, [], 2600),
+      ],
+      objectifs: [
+        { genre: 'dragon', temps: 390, equipe: 'ORDER', element: 'Fire' },
+        { genre: 'dragon', temps: 745, equipe: 'CHAOS', element: 'Hextech' },
+        ...(temps > 1300 ? [{ genre: 'baron', temps: 1300, equipe: 'ORDER', element: null }] : []),
+      ],
+    });
+  }, 1000);
+  setTimeout(() => emettre('overlay-edition', params.has('edition')), 300);
+}
+
 // Une série de parties plausible, générée une fois.
 const CHAMPS = [[875, 'Sett', 'TOP'], [85, 'Kennen', 'TOP'], [133, 'Quinn', 'TOP'], [122, 'Darius', 'TOP'], [875, 'Sett', 'TOP'], [64, 'LeeSin', 'JUNGLE']];
 const BUILDS = [[3071, 3053, 6333, 3047, 3065, 0, 3364], [3078, 3053, 3071, 3111, 0, 0, 3340], [6692, 3071, 3047, 6333, 0, 0, 3363]];

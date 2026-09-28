@@ -26,6 +26,13 @@ Tauri 2 (Rust) + Svelte 5. Voir `../SPEC.md` pour le plan en briques.
 | 5 | Rang et winrate de la saison, maîtrise du champion (OTP, 1re fois, peu joué), forme sur 5 parties, séries | ✅ |
 | 5 | Duos et groupes repérés (2 parties communes sur les 20 dernières), postes déduits (Châtiment + stats) | ✅ |
 | 5 | Onglet « En direct » ouvert tout seul au chargement ; la dernière partie reste affichée | ✅ à voir en vraie partie |
+| 6 | Overlay : une fenêtre transparente calée sur le jeu, traversée par les clics, jamais activée, visible seulement jeu au premier plan | ✅ |
+| 6 | Widgets : écart d'or (valeur des objets), dragons/ancien/baron, compétence à monter, prochain achat adapté à la compo | ✅ |
+| 6 | Ctrl+Maj+H masquer, Ctrl+Maj+E déplacer les widgets (positions en % de l'écran) ; icône près de l'horloge | ✅ |
+| 6 | Fenêtre principale fermée pendant la partie, rouverte à la fin ; ~105 Mo mesurés overlay seul | ✅ à voir en vraie partie |
+
+Essai de l'overlay sans partie : `ONLANCE_OVERLAY=1` ouvre l'overlay au lancement, avec une
+fausse API de jeu sur le port 2999 (HTTPS, certificat auto-signé) pour les données.
 
 ## Développer
 
