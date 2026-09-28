@@ -102,3 +102,61 @@ alter table devices        enable row level security;
 alter table player_matches enable row level security;
 alter table lp_changes     enable row level security;
 alter table rank_snapshots enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Brique 3 : le moteur de statistiques.
+--
+-- Une seule table d'agrégats, volontairement générique : un compteur de parties
+-- et de victoires par (patch, file, champion, rôle, type, clé). Ajouter une
+-- statistique = ajouter un `kind`, pas une table. On ne garde AUCUNE partie
+-- brute : seulement des compteurs.
+--
+--   kind       key                                       exemple
+--   champ      ''                                        parties jouées sur ce rôle
+--   runes      style:4 runes|style:2 runes|3 fragments   8000:8010,9111,9104,8014|8400:8444,8451|5008,5008,5011
+--   spells     sorts triés                               4,12
+--   start      items de départ triés                     1055,2003
+--   boots      bottes                                    3047
+--   core       3 premiers items complets, dans l'ordre   3071>3053>6333
+--   item       un item complet acheté                    6610
+--   skillmax   ordre de montée des compétences           QEW
+--   skillstart 3 premiers points                         QWE
+--   matchup    champion adverse sur le même poste        122
+--   augment    augment choisi (ARAM Mayhem)              123
+--
+-- champion_id 0, role '*', kind 'matches' : nombre de parties analysées, pour
+-- les taux de sélection.
+create table if not exists stats (
+  patch        text not null,
+  queue        int  not null,
+  champion_id  int  not null,
+  role         text not null,
+  kind         text not null,
+  key          text not null,
+  games        int  not null default 0,
+  wins         int  not null default 0,
+  primary key (patch, queue, champion_id, role, kind, key)
+);
+create index if not exists stats_par_type on stats (patch, queue, kind);
+
+-- Parties déjà analysées (pour ne jamais compter deux fois).
+create table if not exists crawl_matches (
+  match_id   text primary key,
+  patch      text,
+  queue      int,
+  crawled_at timestamptz not null default now()
+);
+
+-- Joueurs Émeraude+ dont on suit les parties.
+create table if not exists crawl_players (
+  puuid           text primary key,
+  platform        text not null,
+  tier            text,
+  added_at        timestamptz not null default now(),
+  last_crawled_at timestamptz
+);
+create index if not exists crawl_players_a_faire on crawl_players (platform, last_crawled_at nulls first);
+
+alter table stats         enable row level security;
+alter table crawl_matches enable row level security;
+alter table crawl_players enable row level security;

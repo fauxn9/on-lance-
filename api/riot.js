@@ -73,14 +73,29 @@ export class RiotApi {
     return this.get(platform, `/lol/league/v4/entries/by-puuid/${encodeURIComponent(puuid)}`, opts);
   }
 
-  matchIds(platform, puuid, { start = 0, count = 20, startTime, endTime } = {}, opts) {
+  matchIds(platform, puuid, { start = 0, count = 20, startTime, endTime, queue } = {}, opts) {
     const q = new URLSearchParams({ start: String(start), count: String(count) });
     if (startTime != null) q.set('startTime', String(startTime));
     if (endTime != null) q.set('endTime', String(endTime));
+    if (queue != null) q.set('queue', String(queue));
     return this.get(regionOf(platform), `/lol/match/v5/matches/by-puuid/${encodeURIComponent(puuid)}/ids?${q}`, opts);
   }
 
   match(platform, matchId, opts) {
     return this.get(regionOf(platform), `/lol/match/v5/matches/${encodeURIComponent(matchId)}`, opts);
+  }
+
+  timeline(platform, matchId, opts) {
+    return this.get(regionOf(platform), `/lol/match/v5/matches/${encodeURIComponent(matchId)}/timeline`, opts);
+  }
+
+  // Classements : les ligues « apex » (Maître, Grand Maître, Challenger) et
+  // les pages d'une division (Émeraude II, page 3…).
+  apex(platform, ligue, opts) {
+    return this.get(platform, `/lol/league/v4/${ligue}/by-queue/RANKED_SOLO_5x5`, opts);
+  }
+
+  division(platform, tier, division, page, opts) {
+    return this.get(platform, `/lol/league/v4/entries/RANKED_SOLO_5x5/${tier}/${division}?page=${page}`, opts);
   }
 }

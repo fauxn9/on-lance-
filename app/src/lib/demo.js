@@ -10,10 +10,58 @@ const rangs = [
   { file: 'RANKED_FLEX_SR', tier: 'PLATINUM', division: 'I', lp: 12, victoires: 14, defaites: 9 },
 ];
 
+// Une sélection classée plausible : toi au top, Darius et Viego en face.
+const selectionDemo = {
+  phase: 'BAN_PICK', tempsRestantMs: 27000, file: params.get('file') ? Number(params.get('file')) : 420,
+  monPoste: 'TOP', monChampion: 875, verrouille: false,
+  allies: [
+    { champion: 64, intention: 0, poste: 'JUNGLE', moi: false },
+    { champion: 0, intention: 61, poste: 'MIDDLE', moi: false },
+    { champion: 875, intention: 875, poste: 'TOP', moi: true },
+    { champion: 0, intention: 0, poste: 'BOTTOM', moi: false },
+    { champion: 412, intention: 0, poste: 'UTILITY', moi: false },
+  ],
+  ennemis: [122, 234, 103], bans: [157, 238, 555, 17], banc: [222, 99, 12], sorts: [4, 14],
+};
+
 export const etatClient = async () =>
   etape === 'hors'
-    ? { etape: 'hors', phase: '', compte: null, plateforme: null, rangs: [] }
-    : { etape, phase: 'Lobby', compte, plateforme: 'euw1', rangs };
+    ? { etape: 'hors', phase: '', compte: null, plateforme: null, rangs: [], selection: null }
+    : { etape, phase: 'Lobby', compte, plateforme: 'euw1', rangs, selection: etape === 'selection' ? selectionDemo : null };
+
+const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+export const buildChampion = async (champion, role, file) => {
+  await attendre(350);
+  const aram = file === 450;
+  return {
+    championId: champion, role: aram ? 'ARAM' : role ?? 'TOP', queue: file ?? 420, patchs: ['16.19'], roles: { TOP: 0.86, MIDDLE: 0.14 },
+    games: 4218, winrate: 0.5231, fiable: true,
+    runes: { primaryStyleId: 8000, subStyleId: 8400, perks: [8010, 9111, 9104, 8299], subPerks: [8444, 8451], fragments: [5008, 5010, 5011], selectedPerkIds: [8010, 9111, 9104, 8299, 8444, 8451, 5008, 5010, 5011], games: 2911, winrate: 0.5302, pickrate: 0.69 },
+    sorts: { ids: [4, 14], games: 2402, winrate: 0.5244 },
+    depart: { ids: [1055, 2003], games: 3801, winrate: 0.5236 },
+    bottes: { id: 3047, games: 2210, winrate: 0.5287 },
+    coeur: { ids: [6692, 3071, 6333], games: 812, winrate: 0.5714 },
+    situation: [3053, 3065, 6694, 3075, 3742, 6610].map((id, i) => ({ id, games: 900 - i * 110, winrate: 0.55 - i * 0.008, pickrate: 0.21 - i * 0.02 })),
+    competences: { max: 'QEW', debut: 'QEW' },
+    matchups: {
+      favorables: [[85, 0.562], [133, 0.551], [150, 0.548]].map(([championId, winrate]) => ({ championId, winrate, games: 140, ecart: winrate - 0.5231 })),
+      difficiles: [[122, 0.468], [516, 0.472], [86, 0.481]].map(([championId, winrate]) => ({ championId, winrate, games: 180, ecart: winrate - 0.5231 })),
+    },
+    augments: [],
+  };
+};
+export const suggestions = async () => {
+  await attendre(300);
+  return {
+    role: 'TOP', face: 122, postes: { 122: 'TOP', 234: 'JUNGLE', 103: 'MIDDLE' },
+    suggestions: [
+      { championId: 875, note: 82, winrate: 0.523, games: 4218, raisons: [{ type: 'perso', winrate: 0.61, games: 38 }, { type: 'maitrise', points: 187000 }] },
+      { championId: 85, note: 74, winrate: 0.518, games: 2980, raisons: [{ type: 'contre', championId: 122, winrate: 0.562, games: 140 }] },
+      { championId: 516, note: 61, winrate: 0.531, games: 3310, raisons: [{ type: 'meta', winrate: 0.531, games: 3310 }] },
+    ],
+  };
+};
+export const importer = async (parties) => { await attendre(500); return parties; };
 
 // Une série de parties plausible, générée une fois.
 const CHAMPS = [[875, 'Sett', 'TOP'], [85, 'Kennen', 'TOP'], [133, 'Quinn', 'TOP'], [122, 'Darius', 'TOP'], [875, 'Sett', 'TOP'], [64, 'LeeSin', 'JUNGLE']];

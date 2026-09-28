@@ -63,7 +63,9 @@ export function appRouter({ riot = new RiotApi() } = {}) {
   r.get('/status', (req, res) => res.json({ riot: riot.configured }));
 
   // --- Enregistrement d'un compte sur cet appareil
-  r.post('/register', rateLimit({ max: 10, windowMs: 60 * 60 * 1000 }), needRiot, async (req, res, next) => {
+  // needRiot passe avant la limite : un serveur sans clé ne doit pas épuiser
+  // le quota d'enregistrements de ceux qui réessaient.
+  r.post('/register', needRiot, rateLimit({ max: 10, windowMs: 60 * 60 * 1000 }), async (req, res, next) => {
     try {
       const { puuid, platform, appVersion } = req.body ?? {};
       if (!PUUID.test(puuid ?? '') || !isPlatform(platform)) return res.status(400).json({ erreur: 'Compte ou plateforme invalide.' });

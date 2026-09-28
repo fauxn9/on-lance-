@@ -43,7 +43,14 @@ if ($Lancer) {
   }
   $restes | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   Start-Sleep -Seconds 1
-  Start-Process -FilePath $Lancer | Out-Null
+  # Lancement direct (pas par le shell Windows) : les variables d'environnement
+  # comme ONLANCE_URL passent bien à l'app.
+  $psi = New-Object System.Diagnostics.ProcessStartInfo $Lancer
+  $psi.UseShellExecute = $false
+  # Sorties redirigées : sinon l'app garde la console du script ouverte.
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  [System.Diagnostics.Process]::Start($psi) | Out-Null
   Start-Sleep -Seconds $Attente
   foreach ($i in 1..3) {
     $m = Mesurer

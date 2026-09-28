@@ -7,6 +7,7 @@
   import Barre from './lib/Barre.svelte';
   import Accueil from './lib/Accueil.svelte';
   import Parties from './lib/Parties.svelte';
+  import Draft from './lib/Draft.svelte';
   import Icone from './lib/Icone.svelte';
   import Notifications from './lib/Notifications.svelte';
 
@@ -29,9 +30,9 @@
   const NAV = [
     { id: 'accueil', nom: 'Accueil', icone: 'maison', touche: '1' },
     { id: 'parties', nom: 'Parties', icone: 'historique', touche: '2' },
+    { id: 'draft', nom: 'Draft', icone: 'epees', touche: '3' },
   ];
   const BIENTOT = [
-    { nom: 'Draft', icone: 'epees' },
     { nom: 'En jeu', icone: 'cible' },
     { nom: 'Après-partie', icone: 'courbe' },
   ];
@@ -43,11 +44,18 @@
     const cible = NAV.findIndex((n) => n.id === id);
     document.documentElement.dataset.sens = cible > indexVue ? 'bas' : 'haut';
     const calme = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!document.startViewTransition || calme) {
+    // Fenêtre cachée (réduite, en arrière-plan) : pas d'animation, le
+    // navigateur la refuserait de toute façon.
+    if (!document.startViewTransition || calme || document.visibilityState !== 'visible') {
       vue = id;
       return;
     }
-    document.startViewTransition(() => flushSync(() => (vue = id)));
+    const t = document.startViewTransition(() => flushSync(() => (vue = id)));
+    // Une transition interrompue (autre changement d'onglet en route) n'est
+    // pas une erreur : l'onglet est de toute façon affiché.
+    t.ready.catch(() => {});
+    t.updateCallbackDone.catch(() => {});
+    t.finished.catch(() => {});
   }
 
   async function chargerProfil() {
@@ -73,6 +81,14 @@
       revision++;
     }
   }
+
+  // La sélection des champions commence : l'écran Draft s'ouvre tout seul.
+  let etapePrecedente = 'hors';
+  $effect(() => {
+    const e = client.etape;
+    if (e === 'selection' && etapePrecedente !== 'selection') aller('draft');
+    etapePrecedente = e;
+  });
 
   // Fin de partie : la notification arrive avant même que Riot publie la partie.
   function finDePartie(f) {
@@ -145,8 +161,10 @@
     <main class="contenu">
       {#if vue === 'accueil'}
         <Accueil {client} {profil} {compte} {erreur} {synchro} {revision} onsync={synchroniser} onvoir={() => aller('parties')} />
-      {:else}
+      {:else if vue === 'parties'}
         <Parties {revision} {profil} {synchro} onsync={synchroniser} />
+      {:else}
+        <Draft {client} />
       {/if}
     </main>
   </div>

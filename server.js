@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 if (existsSync(new URL('./.env', import.meta.url))) process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url)));
 
 const { appRouter } = await import('./api/routes.js');
+const { statsRouter } = await import('./api/stats/routes.js');
 
 const PORT = process.env.PORT || 3000;
 const INVITE = 'BA6JcwFP8a';
@@ -46,6 +47,13 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => res.type('text').send('ok'));
 
 app.use('/api/app', appRouter());
+app.use('/api/stats', statsRouter());
+
+// Collecte des statistiques en fond, si demandée (COLLECTE=on).
+if (process.env.COLLECTE === 'on') {
+  const [{ RiotApi }, { lancerCollecte }] = await Promise.all([import('./api/riot.js'), import('./api/stats/crawler.js')]);
+  lancerCollecte(new RiotApi(), { platform: process.env.COLLECTE_PLATFORM || 'euw1' });
+}
 
 let discordCache = { at: 0, data: null };
 app.get('/api/discord', async (req, res) => {

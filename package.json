@@ -10,7 +10,9 @@
   "scripts": {
     "api": "node server.js",
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test test/*.test.js",
+    "collecte": "node api/stats/crawler.js",
+    "test:db": "node --env-file=.env --test test/stats-db.integration.js"
   },
   "dependencies": {
     "express": "^5.1.0",

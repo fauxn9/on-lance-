@@ -3,7 +3,7 @@
 // patchs.
 
 const CDN = 'https://ddragon.leagueoflegends.com';
-const CLE = 'ddragon-v2';
+const CLE = 'ddragon-v3';
 
 let donnees = $state({ version: null, champions: {}, sorts: {}, runes: {} });
 
@@ -22,7 +22,8 @@ export async function chargerDDragon() {
       ['champion.json', 'summoner.json', 'runesReforged.json'].map((f) => fetch(`${base}/${f}`).then((r) => r.json())),
     );
     const champions = {};
-    for (const c of Object.values(champs.data)) champions[c.key] = { id: c.id, nom: c.name };
+    // attack / magic (0-10) : profil de dégâts, pour l'analyse des compos.
+    for (const c of Object.values(champs.data)) champions[c.key] = { id: c.id, nom: c.name, ad: c.info?.attack ?? 5, ap: c.info?.magic ?? 5 };
     const s = {};
     for (const x of Object.values(sorts.data)) s[x.key] = { id: x.id, nom: x.name };
     const r = {};
@@ -46,6 +47,17 @@ export const dd = {
       icone: donnees.version && c ? `${CDN}/cdn/${donnees.version}/img/champion/${c.id}.png` : null,
       splash: c ? `${CDN}/cdn/img/champion/splash/${c.id}_0.jpg` : null,
     };
+  },
+  // Tous les champions, triés par nom (recherche de build).
+  get liste() {
+    return Object.entries(donnees.champions)
+      .map(([cle, c]) => ({ cle: Number(cle), nom: c.nom, icone: `${CDN}/cdn/${donnees.version}/img/champion/${c.id}.png` }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  },
+  // Part de dégâts physiques estimée (0 à 1), d'après les notes officielles.
+  physique(id) {
+    const c = donnees.champions[id];
+    return c ? c.ad / Math.max(1, c.ad + c.ap) : 0.5;
   },
   item: (id) => (donnees.version && id ? `${CDN}/cdn/${donnees.version}/img/item/${id}.png` : null),
   profil: (id) => (donnees.version && id != null ? `${CDN}/cdn/${donnees.version}/img/profileicon/${id}.png` : null),

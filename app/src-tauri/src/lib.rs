@@ -83,6 +83,98 @@ async fn parties(etat: State<'_, Etat>, avant: Option<i64>, file: Option<String>
     etat.appel("GET", &chemin, None).await
 }
 
+fn lcu_courant() -> Result<lcu::Lcu, String> {
+    lcu::lockfile::trouver().map(|l| lcu::Lcu::new(&l)).ok_or_else(|| "Le client League est fermé.".into())
+}
+
+/// Build recommandé d'un champion (brique 3), pour un poste et une file.
+#[tauri::command]
+async fn build_champion(etat: State<'_, Etat>, champion: u32, role: Option<String>, file: Option<u32>) -> Result<Value, String> {
+    let mut chemin = format!("/champion/{champion}?queue={}", file.unwrap_or(420));
+    if let Some(r) = role.filter(|r| r.chars().all(|c| c.is_ascii_uppercase())) {
+        chemin.push_str(&format!("&role={r}"));
+    }
+    etat.serveur.stats_get(&chemin).await
+}
+
+/// Suggestions de picks pour la sélection en cours. Le pool du joueur vient
+/// de ses maîtrises, lues sur le client.
+#[tauri::command]
+async fn suggestions(etat: State<'_, Etat>) -> Result<Value, String> {
+    let (sel, puuid) = {
+        let c = etat.client.lock().unwrap();
+        (c.selection.clone().ok_or("Pas de sélection des champions en cours.")?, c.compte.as_ref().map(|c| c.puuid.clone()))
+    };
+    let lcu = lcu_courant()?;
+    let maitrises = lcu.get("/lol-champion-mastery/v1/local-player/champion-mastery").await.ok().flatten();
+    let pool: Vec<Value> = maitrises
+        .and_then(|v| v.as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .map(|m| json!({ "championId": m["championId"], "points": m["championPoints"] }))
+        .collect();
+    let allies: Vec<u32> = sel
+        .allies
+        .iter()
+        .filter(|a| !a.moi)
+        .map(|a| if a.champion > 0 { a.champion } else { a.intention })
+        .filter(|c| *c > 0)
+        .collect();
+    let mut banc = sel.banc.clone();
+    banc.extend(sel.mon_champion);
+    let corps = json!({
+        "queue": sel.file.unwrap_or(420), "role": sel.mon_poste, "ennemis": sel.ennemis,
+        "allies": allies, "bans": sel.bans, "pool": pool, "banc": banc,
+    });
+    let jeton = puuid.and_then(|p| etat.jetons.lock().unwrap().jetons.get(&p).cloned());
+    etat.serveur.stats_post(jeton.as_deref(), "/suggestions", &corps).await
+}
+
+/// Importe un build dans le client : `parties` parmi « runes », « sorts », « items ».
+#[tauri::command]
+async fn importer(etat: State<'_, Etat>, build: Value, titre: String, parties: Vec<String>) -> Result<Vec<String>, String> {
+    use lcu::import::{self, PageRunes, PREFIXE};
+    let lcu = lcu_courant()?;
+    let sel = etat.client.lock().unwrap().selection.clone();
+    let champion = build["championId"].as_u64().ok_or("Build sans champion.")? as u32;
+    let titre: String = titre.chars().take(40).collect();
+    let ids = |v: &Value| -> Vec<u32> { v.as_array().into_iter().flatten().filter_map(Value::as_u64).map(|x| x as u32).collect() };
+    let mut faits = Vec::new();
+
+    if parties.iter().any(|p| p == "runes") && build["runes"].is_object() {
+        let r = &build["runes"];
+        let page = PageRunes {
+            nom: format!("{PREFIXE} {titre}"),
+            style: r["primaryStyleId"].as_u64().unwrap_or(0) as u32,
+            sous_style: r["subStyleId"].as_u64().unwrap_or(0) as u32,
+            perks: ids(&r["selectedPerkIds"]),
+        };
+        import::importer_runes(&lcu, &page).await.map_err(|e| format!("Runes : {e}"))?;
+        faits.push("runes".to_string());
+    }
+    if parties.iter().any(|p| p == "sorts") {
+        if let (Some(s), [a, b]) = (&sel, ids(&build["sorts"]["ids"]).as_slice()) {
+            let sorts = import::ordonner_sorts([*a, *b], s.sorts);
+            import::importer_sorts(&lcu, sorts).await.map_err(|e| format!("Sorts : {e}"))?;
+            faits.push("sorts".to_string());
+        }
+    }
+    if parties.iter().any(|p| p == "items") {
+        let mut blocs = vec![
+            ("Départ".to_string(), ids(&build["depart"]["ids"])),
+            ("Cœur du build".to_string(), ids(&build["coeur"]["ids"])),
+        ];
+        if let Some(b) = build["bottes"]["id"].as_u64() {
+            blocs.push(("Bottes".to_string(), vec![b as u32]));
+        }
+        blocs.push(("Selon la partie".to_string(), build["situation"].as_array().into_iter().flatten().filter_map(|s| s["id"].as_u64()).map(|x| x as u32).collect()));
+        let carte = if matches!(build["queue"].as_u64(), Some(450) | Some(2400)) { 12 } else { 11 };
+        import::importer_items(&lcu, import::set_items(champion, &titre, carte, &blocs)).await.map_err(|e| format!("Items : {e}"))?;
+        faits.push("items".to_string());
+    }
+    Ok(faits)
+}
+
 #[tauri::command]
 async fn synchroniser(app: AppHandle, etat: State<'_, Etat>) -> Result<Value, String> {
     let v = etat.appel("POST", "/sync", Some(json!({}))).await?;
@@ -177,7 +269,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

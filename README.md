@@ -28,6 +28,22 @@ npm run api   # http://localhost:3000
 La page doit rester légère, comme l'app : pas de framework, pas de CDN, pas de
 traqueur. Son poids réel est affiché en bas de page.
 
+## Le moteur de statistiques (brique 3)
+
+`api/stats/` : parties classées Émeraude+ → compteurs agrégés dans la table
+`stats` (jamais de partie brute, jamais de pseudo). Les builds sont choisis
+par la borne basse de Wilson parmi les options assez jouées.
+
+```bash
+npm run collecte   # collecte en local (clé Riot dans .env), Ctrl+C pour arrêter
+npm run test:db    # test d'intégration contre la base
+```
+
+Sur Render, `COLLECTE=on` lance la collecte en fond dans le serveur.
+
+Routes publiques : `/api/stats/meta`, `/api/stats/champion/:id?role=&queue=`,
+`/api/stats/roles`, `/api/stats/tierlist?role=`, `POST /api/stats/suggestions`.
+
 ## Déploiement
 
 Render redéploie à chaque push sur `main` (service `on-lance-api`, voir

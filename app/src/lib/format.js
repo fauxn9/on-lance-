@@ -27,6 +27,15 @@ export const nomFileClassee = (q) => (q === 'RANKED_SOLO_5x5' ? 'Classée Solo/D
 const POSTES = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Mid', BOTTOM: 'ADC', UTILITY: 'Support' };
 export const nomPoste = (p) => POSTES[p] ?? '';
 
+const FRAGMENTS = {
+  5008: 'Force adaptative', 5005: "Vitesse d'attaque", 5007: 'Accélération de compétence', 5010: 'Vitesse de déplacement',
+  5001: 'PV croissants', 5011: 'PV', 5013: 'Ténacité', 5002: 'Armure', 5003: 'Résistance magique',
+};
+export const nomFragment = (id) => FRAGMENTS[id] ?? 'Fragment';
+
+const PHASES = { PLANNING: 'Planification', BAN_PICK: 'Bans et picks', FINALIZATION: 'Finalisation', GAME_STARTING: 'Lancement' };
+export const nomPhase = (p) => PHASES[p] ?? 'Sélection';
+
 const rtf = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
 export function ilYa(ms) {
   const s = (ms - Date.now()) / 1000;

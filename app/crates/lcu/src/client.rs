@@ -12,6 +12,8 @@ pub enum Erreur {
     Statut(u16),
     #[error("WebSocket du client : {0}")]
     Ws(String),
+    #[error("le client a refusé (HTTP {0}) : {1}")]
+    Refus(u16, String),
 }
 
 /// Le client HTTP local.
@@ -57,6 +59,23 @@ impl Lcu {
             404 => Ok(None),
             s => Err(Erreur::Statut(s)),
         }
+    }
+
+    /// Écriture dans le client (brique 4 : runes, sorts, sets d'items). Toujours
+    /// déclenchée par l'utilisateur ou par un réglage qu'il a activé.
+    pub async fn envoyer(&self, methode: reqwest::Method, chemin: &str, corps: Option<&Value>) -> Result<Option<Value>, Erreur> {
+        let mut req = self.http.request(methode, format!("{}{}", self.base, chemin)).header("Authorization", &self.autorisation);
+        if let Some(c) = corps {
+            req = req.json(c);
+        }
+        let rep = req.send().await.map_err(|e| Erreur::Appel(e.to_string()))?;
+        let statut = rep.status().as_u16();
+        if !(200..300).contains(&statut) {
+            let detail = rep.text().await.unwrap_or_default();
+            return Err(Erreur::Refus(statut, detail.chars().take(200).collect()));
+        }
+        let texte = rep.text().await.unwrap_or_default();
+        Ok(if texte.trim().is_empty() { None } else { serde_json::from_str(&texte).ok() })
     }
 }
 

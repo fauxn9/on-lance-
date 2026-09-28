@@ -13,6 +13,7 @@ use crate::client::{jeu_charge, Lcu};
 use crate::lockfile::{self, Lockfile};
 use crate::modele::{compte_depuis, plateforme_depuis, rangs_depuis, variation, Compte, Rang};
 use crate::phase::{etape, Etape};
+use crate::selection::{selection_depuis, Selection};
 use crate::ws;
 use serde::Serialize;
 use serde_json::Value;
@@ -24,6 +25,7 @@ const PHASE: &str = "/lol-gameflow/v1/gameflow-phase";
 const COMPTE: &str = "/lol-summoner/v1/current-summoner";
 const RANGS: &str = "/lol-ranked/v1/current-ranked-stats";
 const SESSION: &str = "/lol-gameflow/v1/session";
+const SELECTION: &str = "/lol-champ-select/v1/session";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,11 +36,13 @@ pub struct EtatClient {
     pub compte: Option<Compte>,
     pub plateforme: Option<String>,
     pub rangs: Vec<Rang>,
+    /// Sélection des champions en cours (brique 4).
+    pub selection: Option<Selection>,
 }
 
 impl Default for EtatClient {
     fn default() -> Self {
-        Self { etape: Etape::Hors, phase: String::new(), compte: None, plateforme: None, rangs: Vec::new() }
+        Self { etape: Etape::Hors, phase: String::new(), compte: None, plateforme: None, rangs: Vec::new(), selection: None }
     }
 }
 
@@ -111,13 +115,15 @@ async fn session_client(lock: &Lockfile, envoye: &mut EtatClient, tx: &mpsc::Sen
 
     let (ev_tx, ev_rx) = mpsc::channel(64);
     let lock_ws = lock.clone();
-    let ecoute = tokio::spawn(async move { ws::ecouter(&lock_ws, &[PHASE, COMPTE, RANGS], ev_tx).await });
+    let ecoute = tokio::spawn(async move { ws::ecouter(&lock_ws, &[PHASE, COMPTE, RANGS, SELECTION], ev_tx).await });
     let mut rx = Some(ev_rx);
 
     let mut tick = interval(Duration::from_secs(3));
     tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut suivi = Suivi::default();
     let mut ticks: u32 = 0;
+    // File de la sélection en cours (420, 450…), lue une fois par sélection.
+    let mut file_selection: Option<u32> = None;
 
     loop {
         let recu = match rx.as_mut() {
@@ -153,6 +159,27 @@ async fn session_client(lock: &Lockfile, envoye: &mut EtatClient, tx: &mpsc::Sen
         transition(&lcu, &mut suivi, etat.etape, nouvelle, &etat, tx).await;
         etat.etape = nouvelle;
 
+        // Sélection des champions : état initial par HTTP (le WebSocket ne
+        // prévient que des changements), et la file une fois pour toutes.
+        if nouvelle == Etape::Selection {
+            if etat.selection.is_none() {
+                if let Ok(Some(v)) = lcu.get(SELECTION).await {
+                    etat.selection = selection_depuis(&v);
+                }
+            }
+            if file_selection.is_none() {
+                if let Ok(Some(s)) = lcu.get(SESSION).await {
+                    file_selection = s["gameData"]["queue"]["id"].as_u64().map(|q| q as u32);
+                }
+            }
+            if let Some(s) = etat.selection.as_mut() {
+                s.file = file_selection;
+            }
+        } else {
+            etat.selection = None;
+            file_selection = None;
+        }
+
         if etat != *envoye {
             *envoye = etat.clone();
             if tx.send(Evenement::Etat(etat.clone())).await.is_err() {
@@ -180,6 +207,9 @@ fn appliquer(etat: &mut EtatClient, ev: &ws::EvenementLcu) {
             }
         }
         RANGS => etat.rangs = rangs_depuis(&ev.data),
+        SELECTION => {
+            etat.selection = if ev.type_evenement == "Delete" { None } else { selection_depuis(&ev.data) };
+        }
         _ => {}
     }
 }

@@ -49,6 +49,20 @@ impl Serveur {
     pub async fn post(&self, jeton: &str, chemin: &str, corps: &Value) -> Result<Value, String> {
         self.envoyer(self.http.post(format!("{}/api/app{}", self.base, chemin)).bearer_auth(jeton).json(corps)).await
     }
+
+    /// Statistiques publiques (/api/stats) : le jeton est facultatif et ne sert
+    /// qu'à personnaliser les suggestions avec l'historique du joueur.
+    pub async fn stats_get(&self, chemin: &str) -> Result<Value, String> {
+        self.envoyer(self.http.get(format!("{}/api/stats{}", self.base, chemin))).await
+    }
+
+    pub async fn stats_post(&self, jeton: Option<&str>, chemin: &str, corps: &Value) -> Result<Value, String> {
+        let mut req = self.http.post(format!("{}/api/stats{}", self.base, chemin)).json(corps);
+        if let Some(j) = jeton {
+            req = req.bearer_auth(j);
+        }
+        self.envoyer(req).await
+    }
 }
 
 /// Jetons par compte, et le dernier compte vu : l'app peut afficher son
