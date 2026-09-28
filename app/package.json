@@ -1,0 +1,23 @@
+{
+  "name": "onlance-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "On lance ? — l'app PC (Tauri 2 + Svelte 5)",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "vite": "vite",
+    "vite:build": "vite build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tauri-apps/cli": "^2.12.0",
+    "svelte": "^5.57.1",
+    "vite": "^8.3.1"
+  }
+}

@@ -1,0 +1,226 @@
+// Routes utilisées par l'app PC. Tout est sous /api/app.
+//
+// L'app s'enregistre une fois par compte et reçoit un jeton d'appareil. Le
+// serveur n'en garde que l'empreinte : une fuite de la base ne donne accès à
+// rien.
+//
+// Limite connue, assumée pour la bêta fermée : le puuid vient du client LoL de
+// l'utilisateur, lu en local par l'app. Le serveur vérifie que le compte
+// existe, pas qu'il appartient à celui qui l'envoie. Les données exposées ici
+// (historique, rang) sont de toute façon publiques chez Riot ; la vraie preuve
+// de propriété (Riot Sign-On) viendra avec la clé de production, avant les
+// classements entre potes (brique 8).
+
+import crypto from 'node:crypto';
+import express from 'express';
+import { query } from './db.js';
+import { isPlatform, RiotApi } from './riot.js';
+import { startBackfill, syncRecent } from './sync.js';
+
+const PUUID = /^[A-Za-z0-9_-]{60,90}$/;
+const MATCH_ID = /^[A-Z0-9]{2,5}_\d{5,15}$/;
+const QUEUES = {
+  solo: [420],
+  flex: [440],
+  normales: [400, 430, 490],
+  aram: [450, 2400],
+};
+const KNOWN_QUEUES = Object.values(QUEUES).flat();
+const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
+const DIVS = { IV: 0, III: 1, II: 2, I: 3 };
+
+const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
+
+// Position absolue sur l'échelle, pour tracer une courbe qui traverse les
+// divisions sans sauts : Fer IV 0 PL = 0, chaque division vaut 100.
+export function ladder(tier, division, lp) {
+  const t = TIERS.indexOf(tier);
+  if (t < 0) return null;
+  if (t >= 7) return 7 * 400 + lp;
+  return t * 400 + (DIVS[division] ?? 0) * 100 + lp;
+}
+
+// Fenêtre glissante très simple, en mémoire : suffisant pour un seul serveur.
+function rateLimit({ max, windowMs }) {
+  const hits = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    const list = (hits.get(req.ip) ?? []).filter((t) => t > now - windowMs);
+    if (list.length >= max) return res.status(429).json({ erreur: 'Trop de demandes, réessaie dans un moment.' });
+    list.push(now);
+    hits.set(req.ip, list);
+    next();
+  };
+}
+
+export function appRouter({ riot = new RiotApi() } = {}) {
+  const r = express.Router();
+  r.use(express.json({ limit: '8kb' }));
+
+  const needRiot = (req, res, next) =>
+    riot.configured ? next() : res.status(503).json({ erreur: "La clé de l'API Riot n'est pas configurée sur le serveur." });
+
+  r.get('/status', (req, res) => res.json({ riot: riot.configured }));
+
+  // --- Enregistrement d'un compte sur cet appareil
+  r.post('/register', rateLimit({ max: 10, windowMs: 60 * 60 * 1000 }), needRiot, async (req, res, next) => {
+    try {
+      const { puuid, platform, appVersion } = req.body ?? {};
+      if (!PUUID.test(puuid ?? '') || !isPlatform(platform)) return res.status(400).json({ erreur: 'Compte ou plateforme invalide.' });
+
+      const acc = await riot.account(platform, puuid);
+      if (!acc) return res.status(404).json({ erreur: 'Compte Riot introuvable.' });
+      const sum = await riot.summoner(platform, puuid);
+      if (!sum) return res.status(404).json({ erreur: "Pas de compte League of Legends sur ce serveur." });
+
+      await query(
+        `insert into accounts (puuid, platform, game_name, tag_line, profile_icon_id, summoner_level)
+         values ($1, $2, $3, $4, $5, $6)
+         on conflict (puuid) do update set platform = $2, game_name = $3, tag_line = $4,
+           profile_icon_id = $5, summoner_level = $6, updated_at = now()`,
+        [puuid, platform, acc.gameName, acc.tagLine, sum.profileIconId ?? null, sum.summonerLevel ?? null],
+      );
+      const token = crypto.randomBytes(32).toString('base64url');
+      await query('insert into devices (token_hash, puuid, app_version) values ($1, $2, $3)', [
+        sha256(token), puuid, String(appVersion ?? '').slice(0, 32) || null,
+      ]);
+      res.status(201).json({ token });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // --- Tout ce qui suit exige un jeton d'appareil
+  r.use(async (req, res, next) => {
+    try {
+      const token = /^Bearer (.+)$/.exec(req.get('authorization') ?? '')?.[1];
+      if (!token) return res.status(401).json({ erreur: 'Jeton manquant.' });
+      const { rows } = await query(
+        `update devices set last_seen_at = now() where token_hash = $1
+         returning puuid, (select platform from accounts a where a.puuid = devices.puuid) as platform`,
+        [sha256(token)],
+      );
+      if (!rows[0]) return res.status(401).json({ erreur: 'Jeton inconnu.' });
+      req.account = rows[0];
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  r.get('/profile', async (req, res, next) => {
+    try {
+      const { puuid } = req.account;
+      const [acc, ranks, lpRows, count] = await Promise.all([
+        query('select * from accounts where puuid = $1', [puuid]),
+        query(
+          `select distinct on (queue) queue, tier, division, lp, wins, losses, taken_at
+             from rank_snapshots where puuid = $1 order by queue, taken_at desc`,
+          [puuid],
+        ),
+        query(
+          `select * from (
+             select tier, division, lp, taken_at as t from rank_snapshots where puuid = $1 and queue = 'RANKED_SOLO_5x5'
+             union all
+             select tier_after, division_after, lp_after, created_at from lp_changes
+              where puuid = $1 and queue = 'RANKED_SOLO_5x5' and lp_after is not null
+           ) pts order by t desc limit 60`,
+          [puuid],
+        ),
+        query('select count(*)::int as n from player_matches where puuid = $1', [puuid]),
+      ]);
+      const a = acc.rows[0];
+      res.json({
+        account: {
+          puuid, platform: a.platform, gameName: a.game_name, tagLine: a.tag_line,
+          profileIconId: a.profile_icon_id, summonerLevel: a.summoner_level,
+        },
+        ranks: ranks.rows.map((x) => ({ queue: x.queue, tier: x.tier, division: x.division, lp: x.lp, wins: x.wins, losses: x.losses })),
+        lpHistory: lpRows.rows
+          .map((x) => ({ t: new Date(x.t).getTime(), tier: x.tier, division: x.division, lp: x.lp, ladder: ladder(x.tier, x.division, x.lp) }))
+          .reverse(),
+        history: { count: count.rows[0].n, backfillDone: a.backfill_done, lastSyncAt: a.last_sync_at },
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  r.get('/matches', async (req, res, next) => {
+    try {
+      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+      const before = Number(req.query.before) || Number.MAX_SAFE_INTEGER;
+      const filter = String(req.query.file ?? 'toutes');
+      const params = [req.account.puuid, before, limit + 1];
+      let where = '';
+      if (QUEUES[filter]) {
+        params.push(QUEUES[filter]);
+        where = 'and pm.queue_id = any($4)';
+      } else if (filter === 'autres') {
+        params.push(KNOWN_QUEUES);
+        where = 'and not (pm.queue_id = any($4))';
+      }
+      const { rows } = await query(
+        `select pm.*, lc.delta as lp_delta
+           from player_matches pm
+           left join lp_changes lc on lc.puuid = pm.puuid and lc.match_id = pm.match_id
+          where pm.puuid = $1 and pm.game_start < $2 ${where}
+          order by pm.game_start desc limit $3`,
+        params,
+      );
+      const more = rows.length > limit;
+      const page = rows.slice(0, limit).map((x) => ({
+        matchId: x.match_id, queueId: x.queue_id, gameStart: Number(x.game_start), durationS: x.duration_s,
+        remake: x.remake, championId: x.champion_id, championName: x.champion_name, position: x.team_position,
+        win: x.win, kills: x.kills, deaths: x.deaths, assists: x.assists, cs: x.cs, gold: x.gold,
+        damage: x.damage, vision: x.vision, champLevel: x.champ_level, items: x.items, spells: x.spells,
+        keystone: x.keystone, secondaryStyle: x.secondary_style, lpDelta: x.lp_delta,
+      }));
+      res.json({ matches: page, next: more ? page[page.length - 1].gameStart : null });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  r.post('/sync', needRiot, async (req, res, next) => {
+    try {
+      const out = await syncRecent(riot, req.account.puuid);
+      startBackfill(riot);
+      res.json(out);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Variation de PL mesurée par l'app sur le client, à la fin d'une partie.
+  r.post('/lp', async (req, res, next) => {
+    try {
+      const { matchId, queue, delta, lpAfter, tierAfter, divisionAfter } = req.body ?? {};
+      const okInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+      if (!MATCH_ID.test(matchId ?? '') || !['RANKED_SOLO_5x5', 'RANKED_FLEX_SR'].includes(queue) || !okInt(delta, -100, 100)) {
+        return res.status(400).json({ erreur: 'Variation de PL invalide.' });
+      }
+      await query(
+        `insert into lp_changes (puuid, match_id, queue, delta, lp_after, tier_after, division_after)
+         values ($1, $2, $3, $4, $5, $6, $7) on conflict (puuid, match_id) do nothing`,
+        [
+          req.account.puuid, matchId, queue, delta,
+          okInt(lpAfter, 0, 5000) ? lpAfter : null,
+          TIERS.includes(tierAfter) ? tierAfter : null,
+          Object.hasOwn(DIVS, divisionAfter ?? '') ? divisionAfter : null,
+        ],
+      );
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  r.use((err, req, res, next) => {
+    console.error('api/app :', err.message);
+    const status = err.status === 403 || err.status === 401 ? 502 : 500;
+    res.status(status).json({ erreur: status === 502 ? "L'API Riot refuse la clé du serveur (expirée ?)." : 'Erreur serveur.' });
+  });
+
+  return r;
+}

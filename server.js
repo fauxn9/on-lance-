@@ -1,12 +1,17 @@
-// On lance ? — serveur de la page de pré-lancement.
+// On lance ? — serveur du site et de l'API de l'app.
 //
 // Render lance `npm run api` : on garde ce nom de script pour ne rien avoir à
-// toucher dans le dashboard. Tout est statique, sauf /api/discord qui relaie le
-// nombre de membres du serveur (mis en cache, pour ne pas taper Discord à
-// chaque visite).
+// toucher dans le dashboard. Le site est statique ; /api/discord relaie le
+// nombre de membres du serveur (en cache) ; /api/app sert l'app PC.
 
 import express from 'express';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+// En local, les secrets viennent de .env ; sur Render, du dashboard.
+if (existsSync(new URL('./.env', import.meta.url))) process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url)));
+
+const { appRouter } = await import('./api/routes.js');
 
 const PORT = process.env.PORT || 3000;
 const INVITE = 'BA6JcwFP8a';
@@ -14,6 +19,9 @@ const PUBLIC = fileURLToPath(new URL('./public', import.meta.url));
 
 const app = express();
 app.disable('x-powered-by');
+// Render passe par un proxy : sans ça, toutes les requêtes auraient la même IP
+// et la limite d'enregistrements par IP bloquerait tout le monde d'un coup.
+app.set('trust proxy', 1);
 
 app.use((req, res, next) => {
   res.set({
@@ -36,6 +44,8 @@ app.use((req, res, next) => {
 });
 
 app.get('/health', (req, res) => res.type('text').send('ok'));
+
+app.use('/api/app', appRouter());
 
 let discordCache = { at: 0, data: null };
 app.get('/api/discord', async (req, res) => {
@@ -75,6 +85,7 @@ app.use(
 // Les anciens liens du tracker Valorant (tableau de bord, coach, invitations…)
 // renvoient vers l'accueil plutôt que vers une erreur.
 app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ erreur: 'Introuvable' });
   if (req.method === 'GET' && req.accepts('html')) return res.redirect(302, '/');
   res.status(404).type('text').send('Introuvable');
 });

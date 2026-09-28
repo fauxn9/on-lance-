@@ -1,0 +1,21 @@
+[package]
+name = "onlance"
+version = "0.1.0"
+edition = "2021"
+description = "On lance ? — le tracker League of Legends gratuit et ultra léger"
+license = "MIT"
+
+[lib]
+name = "onlance_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+lcu = { path = "../crates/lcu" }
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }

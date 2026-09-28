@@ -1,0 +1,20 @@
+[package]
+name = "lcu"
+version = "0.1.0"
+edition = "2021"
+description = "Connexion au client League of Legends (LCU) et aux données de partie en direct, en lecture."
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+thiserror = "2"
+tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+tokio-tungstenite = { version = "0.30", features = ["native-tls"] }
+native-tls = "0.2"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
