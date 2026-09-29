@@ -82,7 +82,7 @@
     if (!build || importEnCours) return;
     importEnCours = true;
     const nom = dd.champion(build.championId).nom;
-    const titre = aram || build.role === 'ARAM' ? `${nom} · ARAM` : `${nom} · ${nomPoste(build.role)}`;
+    const titre = build.queue === 2400 ? `${nom} · Mayhem` : aram || build.role === 'ARAM' ? `${nom} · ARAM` : `${nom} · ${nomPoste(build.role)}`;
     try {
       const ok = await api.importer(build, titre, parties);
       faits = new Set([...faits, ...ok]);

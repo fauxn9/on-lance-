@@ -51,9 +51,18 @@
 
   const montre = $derived(edition || (visible && !masque));
   // ARAM Mayhem : on choisit un augment au début de la partie, puis aux
-  // niveaux 7, 11 et 15 en revenant à la base après une mort. La carte ne
-  // s'affiche qu'à ces moments-là.
-  const momentAugment = $derived(mayhem && jeu && moi && (jeu.temps < 90 || (moi.mort && jeu.niveau >= 7)));
+  // niveaux 7, 11 et 15, à la base après une mort. La carte ne s'affiche qu'à
+  // ces moments-là : au début, et pendant une mort s'il reste un augment à
+  // prendre (une mort passée à la base « consomme » ceux débloqués avant).
+  const debloques = $derived(jeu ? [7, 11, 15].filter((n) => jeu.niveau >= n).length : 0);
+  let consommes = $state(0);
+  let etaitMort = false;
+  $effect(() => {
+    const mort = !!moi?.mort;
+    if (etaitMort && !mort) consommes = untrack(() => debloques);
+    etaitMort = mort;
+  });
+  const momentAugment = $derived(mayhem && jeu && moi && (jeu.temps < 90 || (moi.mort && debloques > consommes)));
   const augmentsBuild = $derived(build?.augments?.length ? build.augments : null);
   const dans = (t) => {
     const reste = t - (jeu?.temps ?? 0);
@@ -157,11 +166,12 @@
   {/if}
 
   {#if (momentAugment && augmentsBuild) || edition}
-    <Widget id="augments" titre="Augments" defaut={{ x: 84, y: 20 }} {edition} {generation}>
+    <Widget id="augments" titre="Augments" defaut={{ x: 91, y: 24 }} {edition} {generation}>
       <div class="carte augments">
         <span class="etiq">Meilleurs augments{#if moi}{' · '}{dd.champion(dd.cle(moi.champion)).nom}{/if}</span>
+        <small class="astuce">Tes 3 cartes ont la même rareté : regarde sa section.</small>
         {#if augmentsBuild}
-          <ListeAugments augments={augmentsBuild} par={4} compact />
+          <ListeAugments augments={augmentsBuild} par={3} compact vertical />
         {:else}
           <small class="vide">Les meilleurs augments de ton champion, par rareté, au moment de choisir.</small>
         {/if}
@@ -248,7 +258,8 @@
   @keyframes appel { 0% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 0 rgba(var(--volt-rgb), .45); } 100% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 14px rgba(var(--volt-rgb), 0); } }
 
   /* Augments (ARAM Mayhem) */
-  .augments { flex-direction: column; align-items: stretch; gap: 8px; width: 540px; white-space: normal; }
+  .augments { flex-direction: column; align-items: stretch; gap: 6px; width: 250px; white-space: normal; }
+  .astuce { font-size: 10.5px; color: var(--ink-3); line-height: 1.35; margin-bottom: 2px; }
 
   /* Prochain achat */
   .achat { flex-direction: column; align-items: stretch; gap: 7px; width: 230px; white-space: normal; }

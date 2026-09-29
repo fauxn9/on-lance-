@@ -357,10 +357,18 @@ fn suivre_partie(app: &AppHandle, etape: Etape) {
     if overlay::essai() {
         return;
     }
+    // Jeu en plein écran exclusif : prévenu une fois par partie, pas à chaque
+    // changement d'état du client.
+    static PREVENU: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     let en_jeu = etape == Etape::EnJeu;
+    if !en_jeu {
+        PREVENU.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
     if en_jeu && !overlay::ouverte(app) {
         if lcu::jeu::mode_fenetre() == Some(0) {
-            let _ = app.emit("overlay-impossible", "plein-ecran");
+            if !PREVENU.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                let _ = app.emit("overlay-impossible", "plein-ecran");
+            }
             return;
         }
         if overlay::ouvrir(app).is_ok() {

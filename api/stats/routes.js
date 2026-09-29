@@ -164,11 +164,17 @@ export function statsRouter() {
         };
         const mayhem = await lire(queue);
         let { ps, rows } = mayhem;
-        // ARAM Mayhem peu fourni : objets et runes de l'ARAM classique ; les
-        // augments, eux, sont toujours classés sur les parties Mayhem.
-        if (queue === 2400 && parties(rows) < SEUIL_FIABLE) {
+        // ARAM Mayhem : le build vient des parties Mayhem si elles sont plus
+        // nombreuses que celles d'ARAM, sinon de l'ARAM. Runes, compétences
+        // et départ ne sont pas dans l'historique Mayhem du client : toujours
+        // ceux de l'ARAM. Les augments, eux, viennent toujours de Mayhem.
+        if (queue === 2400) {
           const aram = await lire(450);
           if (parties(aram.rows) > parties(rows)) ({ ps, rows } = aram);
+          else {
+            const COMPLEMENT = new Set(['runes', 'skillmax', 'skillstart', 'start']);
+            rows = [...rows, ...aram.rows.filter((x) => COMPLEMENT.has(x.kind))];
+          }
         }
         const build = construireBuild(rows);
         if (queue === 2400) {

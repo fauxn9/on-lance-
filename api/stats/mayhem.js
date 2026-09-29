@@ -1,14 +1,14 @@
 // ARAM Mayhem : Riot ne publie pas ces parties dans son API (403 sur
 // match-v5, et absentes des historiques). Le client de chaque joueur, lui,
 // les montre dans son historique avec les augments des 10 joueurs. L'app en
-// envoie un résumé anonyme (champion, équipe, victoire, augments : aucun
-// pseudo), et chaque partie n'est comptée qu'une fois, même si plusieurs
+// envoie un résumé anonyme (champion, équipe, victoire, augments, objets
+// finaux, sorts : aucun pseudo), et chaque partie n'est comptée qu'une fois, même si plusieurs
 // joueurs de la partie utilisent l'app.
 
 import { query } from '../db.js';
 import { ecrire } from './crawler.js';
 import { patchDe } from './extract.js';
-import { patchsRecents } from './items.js';
+import { itemsDuPatch, patchsRecents } from './items.js';
 
 export const FILE_MAYHEM = 2400;
 const DUREE_MIN = 300; // en dessous, un remake : rien à en tirer
@@ -28,7 +28,10 @@ export function valider(p) {
   for (const j of p.joueurs) {
     if (!j || !entier(j.championId, 1, 9999) || ![100, 200].includes(j.equipe) || typeof j.victoire !== 'boolean') return null;
     if (!Array.isArray(j.augments) || j.augments.length > 6 || !j.augments.every((a) => entier(a, 1, 99999))) return null;
-    joueurs.push({ championId: j.championId, equipe: j.equipe, victoire: j.victoire, augments: [...new Set(j.augments)] });
+    // Objets et sorts : facultatifs (les apps 0.3.1 ne les envoient pas).
+    const items = Array.isArray(j.items) && j.items.length <= 7 && j.items.every((i) => entier(i, 1, 999999)) ? j.items : [];
+    const sorts = Array.isArray(j.sorts) && j.sorts.length === 2 && j.sorts.every((x) => entier(x, 1, 99)) ? j.sorts : null;
+    joueurs.push({ championId: j.championId, equipe: j.equipe, victoire: j.victoire, augments: [...new Set(j.augments)], items, sorts });
   }
   // Cinq contre cinq, une seule équipe gagnante.
   const bleus = joueurs.filter((j) => j.equipe === 100);
@@ -38,13 +41,23 @@ export function valider(p) {
   return { gameId: p.gameId, plateforme: p.plateforme, patch: patchDe(p.version), joueurs };
 }
 
-// Les lignes de stats d'une partie : le champion joué et chacun de ses augments.
-export function lignesMayhem(partie) {
+// Les lignes de stats d'une partie : le champion joué, ses augments, et si
+// l'app les envoie, ses sorts et ses objets finaux. « objets » : les objets
+// complets et les bottes du patch (items.js). L'ordre des emplacements sert
+// d'ordre d'achat : un objet va dans la première case libre.
+export function lignesMayhem(partie, objets = { complets: new Set(), bottes: new Set() }) {
   const lignes = [];
   for (const j of partie.joueurs) {
     const base = { champion_id: j.championId, role: 'ARAM', games: 1, wins: j.victoire ? 1 : 0 };
-    lignes.push({ ...base, kind: 'champ', key: '' });
-    for (const a of j.augments) lignes.push({ ...base, kind: 'augment', key: String(a) });
+    const ajout = (kind, key) => lignes.push({ ...base, kind, key: String(key) });
+    ajout('champ', '');
+    for (const a of j.augments) ajout('augment', a);
+    if (j.sorts) ajout('spells', [...j.sorts].sort((a, b) => a - b).join(','));
+    const complets = [...new Set(j.items.filter((i) => objets.complets.has(i)))];
+    for (const i of complets) ajout('item', i);
+    if (complets.length >= 3) ajout('core', complets.slice(0, 3).join('>'));
+    const bottes = j.items.find((i) => objets.bottes.has(i));
+    if (bottes) ajout('boots', bottes);
   }
   return lignes;
 }
@@ -62,7 +75,7 @@ export async function recevoir(brutes) {
       [p.plateforme, p.gameId, p.patch],
     );
     if (!rowCount) continue;
-    await ecrire({ patch: p.patch, queue: FILE_MAYHEM, lignes: lignesMayhem(p) });
+    await ecrire({ patch: p.patch, queue: FILE_MAYHEM, lignes: lignesMayhem(p, await itemsDuPatch(p.patch)) });
     nouvelles++;
   }
   return { recues: parties.length, nouvelles };

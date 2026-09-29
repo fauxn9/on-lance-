@@ -100,8 +100,8 @@
     etapePrecedente = e;
   });
   $effect(() => {
-    const e = client.etape, id = client.partie;
-    untrack(() => suivre(e, id));
+    const e = client.etape, id = client.partie, f = client.filePartie;
+    untrack(() => suivre(e, id, f));
   });
 
   // Entre potes : toutes les minutes (hors partie), les nouveaux événements des

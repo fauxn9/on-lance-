@@ -40,11 +40,13 @@ pub struct EtatClient {
     pub selection: Option<Selection>,
     /// Identifiant de la partie en cours, du chargement à la fin (brique 5).
     pub partie: Option<u64>,
+    /// File de la partie en cours (420, 450, 2400…).
+    pub file_partie: Option<u32>,
 }
 
 impl Default for EtatClient {
     fn default() -> Self {
-        Self { etape: Etape::Hors, phase: String::new(), compte: None, plateforme: None, rangs: Vec::new(), selection: None, partie: None }
+        Self { etape: Etape::Hors, phase: String::new(), compte: None, plateforme: None, rangs: Vec::new(), selection: None, partie: None, file_partie: None }
     }
 }
 
@@ -72,6 +74,7 @@ pub enum Evenement {
 struct Suivi {
     game_id: Option<u64>,
     file: Option<String>,
+    queue: Option<u32>,
     avant: Option<Rang>,
 }
 
@@ -162,6 +165,7 @@ async fn session_client(lock: &Lockfile, envoye: &mut EtatClient, tx: &mpsc::Sen
         transition(&lcu, &mut suivi, etat.etape, nouvelle, &etat, tx).await;
         etat.etape = nouvelle;
         etat.partie = if nouvelle.en_partie() { suivi.game_id } else { None };
+        etat.file_partie = if nouvelle.en_partie() { suivi.queue } else { None };
 
         // Sélection des champions : état initial par HTTP (le WebSocket ne
         // prévient que des changements), et la file une fois pour toutes.
@@ -244,6 +248,7 @@ async fn transition(lcu: &Lcu, suivi: &mut Suivi, avant: Etape, apres: Etape, et
             let donnees = &s["gameData"];
             suivi.game_id = donnees["gameId"].as_u64().filter(|g| *g > 0);
             suivi.file = donnees["queue"]["type"].as_str().filter(|f| !f.is_empty()).map(str::to_string);
+            suivi.queue = donnees["queue"]["id"].as_u64().map(|q| q as u32);
             suivi.avant = suivi.file.as_ref().and_then(|f| etat.rangs.iter().find(|r| &r.file == f).cloned());
         }
     }

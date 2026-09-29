@@ -202,7 +202,7 @@ export function appRouter({ riot = new RiotApi() } = {}) {
   // remplissent au fil des appels (l'app repasse toutes les 1,5 s).
   r.get('/live', needRiot, rateLimit({ max: 120, windowMs: 60_000 }), async (req, res, next) => {
     try {
-      const gameId = /^d{1,15}$/.test(String(req.query.gameId ?? '')) ? Number(req.query.gameId) : null;
+      const gameId = /^\d{1,15}$/.test(String(req.query.gameId ?? '')) ? Number(req.query.gameId) : null;
       res.json(await partieEnCours(riot, req.account, { gameId }));
     } catch (err) {
       next(err);

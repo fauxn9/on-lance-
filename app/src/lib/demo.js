@@ -27,7 +27,7 @@ const selectionDemo = {
 export const etatClient = async () =>
   etape === 'hors'
     ? { etape: 'hors', phase: '', compte: null, plateforme: null, rangs: [], selection: null }
-    : { etape, phase: 'Lobby', compte, plateforme: 'euw1', rangs, selection: etape === 'selection' ? selectionDemo : null, partie: ['chargement', 'en_jeu'].includes(etape) ? 42 : null };
+    : { etape, phase: 'Lobby', compte, plateforme: 'euw1', rangs, selection: etape === 'selection' ? selectionDemo : null, partie: ['chargement', 'en_jeu'].includes(etape) ? 42 : null, filePartie: ['chargement', 'en_jeu'].includes(etape) ? (Number(params.get('file')) || 420) : null };
 
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 export const buildChampion = async (champion, role, file) => {

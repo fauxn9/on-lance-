@@ -41,6 +41,20 @@ test('chaque joueur donne son champion et ses augments, sans pseudo', () => {
   assert.ok(lignes.every((l) => !('puuid' in l) && !('pseudo' in l)));
 });
 
+test('objets finaux et sorts, quand l’app les envoie', () => {
+  const p = partie();
+  p.joueurs[8] = { ...p.joueurs[8], items: [6676, 2523, 3031, 3036, 3006, 6696], sorts: [6, 4] };
+  const objets = { complets: new Set([6676, 3031, 3036, 6696]), bottes: new Set([3006]) };
+  const jhin = lignesMayhem(valider(p), objets).filter((l) => l.champion_id === 202);
+  const cles = (kind) => jhin.filter((l) => l.kind === kind).map((l) => l.key);
+  assert.deepEqual(cles('item'), ['6676', '3031', '3036', '6696']);
+  assert.deepEqual(cles('core'), ['6676>3031>3036'], 'les trois premiers objets complets, dans l’ordre des cases');
+  assert.deepEqual(cles('boots'), ['3006']);
+  assert.deepEqual(cles('spells'), ['4,6']);
+  // Une app 0.3.1 (sans objets) reste acceptée.
+  assert.equal(lignesMayhem(valider(partie()), objets).filter((l) => l.kind === 'item').length, 0);
+});
+
 test('un augment beaucoup joué passe devant un coup de chance', () => {
   const rows = [
     { kind: 'champ', key: '', games: 1000, wins: 500 },

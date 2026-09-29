@@ -7,6 +7,8 @@
   import { coach, objectifTexte } from './coach.svelte.js';
   import { COULEUR_TIER, duree as formatDuree, nomFile, nomPoste, rangDepuisEchelle } from './format.js';
   import Fiche from './partie/Fiche.svelte';
+  import ListeAugments from './augments/ListeAugments.svelte';
+  import { dd } from './ddragon.svelte.js';
   import Icone from './Icone.svelte';
 
   let { client } = $props();
@@ -67,10 +69,44 @@
   // Le focus du moment, rappelé pendant le chargement (sur la Faille).
   const focus = $derived(enPartie && d?.map === 11 ? coach.donnees?.focus : null);
 
+  // ARAM Mayhem : Riot ne publie pas ces parties, pas d'analyse des joueurs.
+  // À la place, les meilleurs augments du champion choisi en sélection.
+  let mayhem = $state(null);
+  $effect(() => {
+    if (!partie.horsApi || !enPartie) return;
+    let fini = false;
+    api.etatOverlay()
+      .then((e) => (e?.pick?.championId ? api.buildChampion(e.pick.championId, null, 2400) : null))
+      .then((b) => { if (!fini) mayhem = b; })
+      .catch(() => {});
+    return () => (fini = true);
+  });
+
   const secondes = (ms) => (ms / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 </script>
 
-{#if d}
+{#if partie.horsApi && enPartie}
+  {@const champ = mayhem ? dd.champion(mayhem.championId) : null}
+  <header class="tete">
+    <div>
+      <p class="kicker mono">ARAM Mayhem{chrono ? ` · ${chrono}` : ''}</p>
+      <h1>{titre}</h1>
+    </div>
+  </header>
+  <p class="dim sous">Riot ne publie pas les parties ARAM Mayhem : pas d'analyse des 10 joueurs dans ce mode. À la place, prépare tes choix d'augments.</p>
+  <section class="carte mayhem">
+    <div class="titre-carte">
+      <p class="etiquette">Tes meilleurs augments{champ ? ` · ${champ.nom}` : ''}</p>
+      {#if mayhem?.partiesMayhem}<span class="mono dim petit">{mayhem.partiesMayhem} partie{mayhem.partiesMayhem > 1 ? 's' : ''} Mayhem</span>{/if}
+    </div>
+    {#if mayhem?.augments?.length}
+      <ListeAugments augments={mayhem.augments} />
+      <p class="dim petit">En jeu, la liste réapparaît au début de la partie et à chaque mort où un augment t'attend.</p>
+    {:else}
+      <p class="dim">Pas encore assez de parties Mayhem sur ce champion. Chaque partie jouée avec l'app ouverte enrichit la liste, sans ton pseudo.</p>
+    {/if}
+  </section>
+{:else if d}
   <header class="tete">
     <div>
       <p class="kicker mono">{nomFile(d.queue)}{chrono ? ` · ${chrono}` : ''}</p>
@@ -233,6 +269,9 @@
   .fantome .contre { margin: 4px 0; }
 
   .note { margin-top: 12px; font-size: 12px; }
+  .mayhem { display: grid; gap: 12px; animation: apparait .45s var(--ease) .1s both; }
+  .mayhem .titre-carte { margin-bottom: 0; }
+  .petit { font-size: 11.5px; }
 
   .vide { position: relative; min-height: 460px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; }
   .vide h1 { font-size: 32px; }

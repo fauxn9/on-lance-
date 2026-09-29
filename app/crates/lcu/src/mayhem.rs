@@ -22,11 +22,16 @@ pub fn resumer(g: &Value) -> Option<Value> {
         .map(|p| {
             let st = &p["stats"];
             let augments: Vec<u64> = (1..=6).filter_map(|n| st[format!("playerAugment{n}")].as_u64()).filter(|&a| a > 0).collect();
+            // Objets de fin de partie, dans l'ordre des cases (≈ l'ordre d'achat).
+            let items: Vec<u64> = (0..=5).filter_map(|n| st[format!("item{n}")].as_u64()).filter(|&i| i > 0).collect();
+            let sorts: Vec<u64> = [&p["spell1Id"], &p["spell2Id"]].iter().filter_map(|s| s.as_u64()).filter(|&s| s > 0).collect();
             json!({
                 "championId": p["championId"],
                 "equipe": p["teamId"],
                 "victoire": st["win"].as_bool().unwrap_or(false),
                 "augments": augments,
+                "items": items,
+                "sorts": sorts,
             })
         })
         .collect();
@@ -73,8 +78,9 @@ mod tests {
         let participants: Vec<Value> = (0..10)
             .map(|i| {
                 json!({
-                    "championId": 200 + i, "teamId": if i < 5 { 100 } else { 200 },
-                    "stats": { "win": i < 5, "playerAugment1": 1154, "playerAugment2": 1047, "playerAugment3": 0, "playerAugment4": 0 }
+                    "championId": 200 + i, "teamId": if i < 5 { 100 } else { 200 }, "spell1Id": 6, "spell2Id": 4,
+                    "stats": { "win": i < 5, "playerAugment1": 1154, "playerAugment2": 1047, "playerAugment3": 0, "playerAugment4": 0,
+                               "item0": 6676, "item1": 0, "item2": 3031, "item6": 3340 }
                 })
             })
             .collect();
@@ -91,6 +97,8 @@ mod tests {
         assert_eq!(r["joueurs"].as_array().unwrap().len(), 10);
         assert_eq!(r["joueurs"][0]["augments"], json!([1154, 1047]), "les emplacements vides ne comptent pas");
         assert_eq!(r["joueurs"][7]["victoire"], json!(false));
+        assert_eq!(r["joueurs"][0]["items"], json!([6676, 3031]), "cases vides et bijou exclus");
+        assert_eq!(r["joueurs"][0]["sorts"], json!([6, 4]));
         let texte = r.to_string();
         assert!(!texte.contains("FOUrbe") && !texte.contains("secret"), "aucun pseudo ni identifiant");
     }

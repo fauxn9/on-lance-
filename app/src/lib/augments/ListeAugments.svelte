@@ -4,7 +4,8 @@
   // suffit de regarder la bonne colonne.
   import { augs, chargerAugments } from '../augments.svelte.js';
 
-  let { augments = [], par = 5, compact = false } = $props();
+  // vertical : une rareté sous l'autre (overlay, au bord de l'écran).
+  let { augments = [], par = 5, compact = false, vertical = false } = $props();
   chargerAugments();
 
   const RARETES = [['argent', 'Argent'], ['or', 'Or'], ['prisme', 'Prismatique']];
@@ -13,7 +14,7 @@
 </script>
 
 <div class="cadre">
-<div class="colonnes" class:compact>
+<div class="colonnes" class:compact class:vertical>
   {#each colonnes as c}
     <div class="col {c.r}">
       <small class="rarete">{c.nom}</small>
@@ -60,7 +61,13 @@
   .compact .aug { padding: 3px 5px 3px 3px; gap: 6px; }
   .compact .ico { width: 24px; height: 24px; }
   .compact .nom { font-size: 11.5px; }
-  /* Panneau étroit (sélection des champions, petite fenêtre) : une rareté par ligne. */
+  .vertical { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .vertical .col + .col { padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, .07); }
+  /* Panneau moyen (pendant la sélection) : les noms d'abord, le winrate reste au survol. */
+  @container (max-width: 760px) {
+    .wr { display: none; }
+  }
+  /* Panneau étroit (petite fenêtre) : une rareté par ligne. */
   @container (max-width: 430px) {
     .colonnes { grid-template-columns: minmax(0, 1fr); }
   }

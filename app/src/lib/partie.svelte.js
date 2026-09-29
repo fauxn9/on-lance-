@@ -5,7 +5,10 @@
 
 import * as api from './api.js';
 
-const etat = $state({ donnees: null, cherche: false, erreur: null });
+const etat = $state({ donnees: null, cherche: false, erreur: null, horsApi: false });
+
+// Files que Riot ne publie pas dans son API (ARAM Mayhem) : rien à demander au serveur.
+const HORS_API = new Set([2400]);
 
 export const partie = {
   get donnees() { return etat.donnees; },
@@ -13,6 +16,8 @@ export const partie = {
   // quelques secondes à la publier).
   get cherche() { return etat.cherche; },
   get erreur() { return etat.erreur; },
+  // Partie d'un mode que Riot ne publie pas : pas d'analyse des 10 joueurs.
+  get horsApi() { return etat.horsApi; },
 };
 
 let cle = null;
@@ -39,9 +44,10 @@ async function boucle(g) {
   }
 }
 
-export function suivre(etape, gameId) {
+export function suivre(etape, gameId, file = null) {
   const enPartie = etape === 'chargement' || etape === 'en_jeu';
-  if (!enPartie) {
+  etat.horsApi = enPartie && HORS_API.has(file);
+  if (!enPartie || etat.horsApi) {
     etat.cherche = false;
     if (cle !== null) {
       cle = null;
