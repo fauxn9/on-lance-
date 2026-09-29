@@ -1,6 +1,6 @@
 [package]
 name = "onlance"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "On lance ? — le tracker League of Legends gratuit et ultra léger"
 license = "MIT"
