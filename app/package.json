@@ -1,7 +1,7 @@
 {
   "name": "onlance-app",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "On lance ? — l'app PC (Tauri 2 + Svelte 5)",
   "type": "module",
   "scripts": {
