@@ -234,3 +234,12 @@ test('suggestions ARAM : on classe le banc', () => {
   const s = suggerer({ role: 'ARAM', banc: [875, 222], base });
   assert.deepEqual(s.map((x) => x.championId), [222, 875]);
 });
+
+test('collecte : palier tiré au sort selon les poids', async () => {
+  const { tirerPalier } = await import('../api/stats/crawler.js');
+  const poids = { EMERALD: 0.5, DIAMOND: 0.3, MASTER: 0.2 };
+  assert.equal(tirerPalier(poids, 0.1), 'EMERALD');
+  assert.equal(tirerPalier(poids, 0.6), 'DIAMOND');
+  assert.equal(tirerPalier(poids, 0.95), 'MASTER');
+  assert.equal(tirerPalier(poids, 0.9999999), 'MASTER');
+});

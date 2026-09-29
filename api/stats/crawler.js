@@ -26,6 +26,21 @@ import { lignesReperes, mesurer, palierDe } from './reperes.js';
 const PALIERS = ['EMERALD', 'DIAMOND'];
 const PALIERS_BAS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
 const PART_BAS = 0.25;
+
+// D'où partir : un palier tiré au sort (avec ces poids), puis un joueur de ce
+// palier. Sans ça, la collecte épuise les joueurs dans l'ordre où ils ont été
+// ajoutés (10 000 Maîtres avant le premier Émeraude, tous les Fer avant le
+// premier Bronze), et les repères comme les builds penchent d'un côté.
+const POIDS_HAUT = { EMERALD: 0.35, DIAMOND: 0.35, MASTER: 0.15, GRANDMASTER: 0.08, CHALLENGER: 0.07 };
+const POIDS_BAS = { IRON: 0.2, BRONZE: 0.2, SILVER: 0.2, GOLD: 0.2, PLATINUM: 0.2 };
+export function tirerPalier(poids, alea = Math.random()) {
+  let cumul = 0;
+  for (const [tier, p] of Object.entries(poids)) {
+    cumul += p;
+    if (alea < cumul) return tier;
+  }
+  return Object.keys(poids).at(-1);
+}
 const DIVISIONS = ['I', 'II', 'III', 'IV'];
 const APEX = ['challengerleagues', 'grandmasterleagues', 'masterleagues'];
 const LOW = { priority: 'low' };
@@ -92,11 +107,19 @@ const marquer = (id, patch, queue) =>
 // Une étape : un joueur, ses dernières parties, celles du patch en cours.
 // Renvoie le nombre de parties analysées.
 export async function etape(riot, platform, patch, { bas = Math.random() < PART_BAS } = {}) {
-  const { rows } = await query(
-    `select puuid, tier from crawl_players where platform = $1 and (tier = any($2)) = $3
-      order by last_crawled_at nulls first limit 1`,
-    [platform, PALIERS_BAS, bas],
+  const tirage = tirerPalier(bas ? POIDS_BAS : POIDS_HAUT);
+  let { rows } = await query(
+    'select puuid, tier from crawl_players where platform = $1 and tier = $2 order by last_crawled_at nulls first, random() limit 1',
+    [platform, tirage],
   );
+  if (!rows[0]) {
+    // Palier pas encore semé : n'importe quel joueur du même côté de l'échelle.
+    ({ rows } = await query(
+      `select puuid, tier from crawl_players where platform = $1 and (tier = any($2)) = $3
+        order by last_crawled_at nulls first, random() limit 1`,
+      [platform, PALIERS_BAS, bas],
+    ));
+  }
   if (!rows[0]) {
     await semer(riot, platform, { bas });
     return 0;
