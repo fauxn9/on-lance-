@@ -32,7 +32,7 @@ export const etatClient = async () =>
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 export const buildChampion = async (champion, role, file) => {
   await attendre(350);
-  const aram = file === 450;
+  const aram = file === 450 || file === 2400;
   return {
     championId: champion, role: aram ? 'ARAM' : role ?? 'TOP', queue: file ?? 420, patchs: ['16.19'], roles: { TOP: 0.86, MIDDLE: 0.14 },
     games: 4218, winrate: 0.5231, fiable: true,
@@ -47,8 +47,26 @@ export const buildChampion = async (champion, role, file) => {
       favorables: [[85, 0.562], [133, 0.551], [150, 0.548]].map(([championId, winrate]) => ({ championId, winrate, games: 140, ecart: winrate - 0.5231 })),
       difficiles: [[122, 0.468], [516, 0.472], [86, 0.481]].map(([championId, winrate]) => ({ championId, winrate, games: 180, ecart: winrate - 0.5231 })),
     },
-    augments: [],
+    augments: file === 2400 ? augmentsDemo() : [],
+    partiesMayhem: file === 2400 ? 412 : undefined,
   };
+};
+// Augments Mayhem de démo : de vrais identifiants, classés du meilleur au moins bon.
+const augmentsDemo = () => [
+  1154, 1356, 2103, 1047, 1418, 2016, 1344, 1211, 1103, 1405, 2006, 1082, 1151, 2073, 1323, 1041, 1032, 1108, 2107, 1390, 2088, 1001,
+].map((id, i, t) => {
+  const q = i / t.length;
+  return { id, games: 180 - i * 7, winrate: 0.6 - i * 0.008, pickrate: 0.3 - i * 0.01, tier: q < 0.15 ? 'S' : q < 0.4 ? 'A' : q < 0.75 ? 'B' : 'C' };
+});
+// Catalogue de démo : directement depuis CommunityDragon, mis en forme comme par le serveur.
+export const augments = async () => {
+  const cd = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global';
+  const r = await fetch(`${cd}/fr_fr/v1/cherry-augments.json`);
+  const rar = { kSilver: 'argent', kGold: 'or', kPrismatic: 'prisme' };
+  return Object.fromEntries((await r.json()).map((a) => [a.id, {
+    n: a.nameTRA, r: rar[a.rarity] ?? 'argent',
+    i: a.augmentSmallIconPath ? `${cd}/default/${a.augmentSmallIconPath.replace(/^\/lol-game-data\/assets\//i, '').toLowerCase()}` : null,
+  }]));
 };
 // Counters de démo : trois colonnes plausibles, plus fournies sur 3 patchs.
 export const counters = async (champion, role, patchs) => {
@@ -133,7 +151,8 @@ export const etatOverlay = async () => {
     [3053, "Force de Sterak", 3000, ['Damage', 'Health']], [6694, 'Rancune de Séryldä', 3200, ['Damage']], [3075, 'Cotte épineuse', 2450, ['Armor']],
     [3742, 'Plaque du mort', 2900, ['Armor', 'Health']], [6610, 'Lame sanguinaire', 3000, ['Damage']], [1055, "Lame de Doran", 450, ['Damage']],
   ]) items[id] = { n, p, t, d: 3 };
-  return { edition: false, masque: false, pick: { championId: 875, poste: 'TOP', file: 420 }, catalogue: { version: null, items } };
+  const pick = params.has('mayhem') ? { championId: 202, poste: null, file: 2400 } : { championId: 875, poste: 'TOP', file: 420 };
+  return { edition: false, masque: false, pick, catalogue: { version: null, items } };
 };
 if (params.has('overlay')) {
   const debut = Date.now();
@@ -142,9 +161,10 @@ if (params.has('overlay')) {
     const temps = 780 + ((Date.now() - debut) / 1000) * 20;
     const niveau = Math.min(18, 9 + Math.floor((temps - 780) / 120));
     emettre('jeu', {
-      temps, mode: params.has('aram') ? 'ARAM' : 'CLASSIC', or: 700 + (temps % 3000), niveau, competences: [5, 1, 3, 1],
+      temps, mode: params.has('mayhem') ? 'KIWI' : params.has('aram') ? 'ARAM' : 'CLASSIC', or: 700 + (temps % 3000), niveau, competences: [5, 1, 3, 1],
       joueurs: [
-        P('Sett', 'ORDER', 'TOP', niveau, [1055, 3071, 3047], 4650, true), P('LeeSin', 'ORDER', 'JUNGLE', 10, [], 5100), P('Ahri', 'ORDER', 'MIDDLE', 11, [], 5600),
+        // ?mayhem : Jhin, mort (c'est là qu'on choisit un augment).
+        params.has('mayhem') ? { ...P('Jhin', 'ORDER', null, niveau, [6676, 3031], 5200, true), mort: true } : P('Sett', 'ORDER', 'TOP', niveau, [1055, 3071, 3047], 4650, true), P('LeeSin', 'ORDER', 'JUNGLE', 10, [], 5100), P('Ahri', 'ORDER', 'MIDDLE', 11, [], 5600),
         P('Jinx', 'ORDER', 'BOTTOM', 9, [], 4900), P('Thresh', 'ORDER', 'UTILITY', 8, [], 2400),
         P('Darius', 'CHAOS', 'TOP', 10, [], 5100), P('Viego', 'CHAOS', 'JUNGLE', 10, [], 5300), P('Syndra', 'CHAOS', 'MIDDLE', 10, [], 5000),
         P('Kaisa', 'CHAOS', 'BOTTOM', 9, [], 4400), P('Nautilus', 'CHAOS', 'UTILITY', 8, [], 2600),

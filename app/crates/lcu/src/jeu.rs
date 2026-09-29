@@ -25,6 +25,8 @@ pub struct Joueur {
     /// tout le monde peut faire en regardant le tableau des scores.
     pub valeur: u32,
     pub moi: bool,
+    /// Mort en ce moment (en ARAM Mayhem, c'est là qu'on choisit ses augments).
+    pub mort: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -90,6 +92,7 @@ pub fn resumer(v: &Value, prix: impl Fn(u32) -> u32) -> Option<EnJeu> {
                 items: items.iter().filter_map(|i| i["itemID"].as_u64()).map(|x| x as u32).collect(),
                 valeur,
                 moi: meme(p),
+                mort: p["isDead"].as_bool().unwrap_or(false),
             }
         })
         .collect();
@@ -180,7 +183,7 @@ mod tests {
             "allPlayers": [
                 { "riotId": "Kasai#EUW", "riotIdGameName": "Kasai", "rawChampionName": "game_character_displayname_Sett", "team": "ORDER", "position": "TOP", "level": 7,
                   "items": [ { "itemID": 3071, "count": 1 }, { "itemID": 2003, "count": 2, "consumable": true }, { "itemID": 1001, "count": 1 } ] },
-                { "riotId": "RoiDuTop#EUW", "riotIdGameName": "RoiDuTop", "rawChampionName": "game_character_displayname_MonkeyKing", "team": "CHAOS", "position": "TOP", "level": 6,
+                { "riotId": "RoiDuTop#EUW", "riotIdGameName": "RoiDuTop", "rawChampionName": "game_character_displayname_MonkeyKing", "team": "CHAOS", "position": "TOP", "level": 6, "isDead": true,
                   "items": [ { "itemID": 1055, "count": 1 } ] }
             ],
             "events": { "Events": [
@@ -201,6 +204,7 @@ mod tests {
         assert_eq!(r.competences, [3, 1, 2, 1]);
         assert_eq!(r.joueurs[0].champion, "Sett");
         assert!(r.joueurs[0].moi);
+        assert!(!r.joueurs[0].mort && r.joueurs[1].mort);
         assert!(!r.joueurs[1].moi);
         assert_eq!(r.joueurs[1].champion, "MonkeyKing");
         assert_eq!(r.joueurs[0].valeur, 3300, "les potions ne comptent pas");

@@ -41,8 +41,8 @@
   let roleExplore = $state('auto');
   $effect(() => { if (!sel) apercu = null; });
   const champion = $derived(sel ? (apercu ?? sel.monChampion ?? sugg?.suggestions?.[0]?.championId ?? null) : explore);
-  const role = $derived(sel ? (aram ? null : sel.monPoste) : roleExplore === 'auto' || roleExplore === 'ARAM' ? null : roleExplore);
-  const file = $derived(sel ? (sel.file ?? 420) : roleExplore === 'ARAM' ? 450 : 420);
+  const role = $derived(sel ? (aram ? null : sel.monPoste) : ['auto', 'ARAM', 'MAYHEM'].includes(roleExplore) ? null : roleExplore);
+  const file = $derived(sel ? (sel.file ?? 420) : roleExplore === 'ARAM' ? 450 : roleExplore === 'MAYHEM' ? 2400 : 420);
 
   let build = $state(null);
   let chargement = $state(false);
@@ -139,7 +139,7 @@
       default: return { ton: '', texte: '' };
     }
   }
-  const ROLES = [['auto', 'Auto'], ['TOP', 'Top'], ['JUNGLE', 'Jungle'], ['MIDDLE', 'Mid'], ['BOTTOM', 'ADC'], ['UTILITY', 'Support'], ['ARAM', 'ARAM']];
+  const ROLES = [['auto', 'Auto'], ['TOP', 'Top'], ['JUNGLE', 'Jungle'], ['MIDDLE', 'Mid'], ['BOTTOM', 'ADC'], ['UTILITY', 'Support'], ['ARAM', 'ARAM'], ['MAYHEM', 'Mayhem']];
 </script>
 
 {#if sel}

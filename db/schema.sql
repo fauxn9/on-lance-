@@ -280,3 +280,15 @@ create table if not exists coach_focus (
 );
 alter table mesures_joueur enable row level security;
 alter table coach_focus enable row level security;
+
+-- ARAM Mayhem : Riot ne publie pas ces parties dans son API. Les apps les
+-- lisent dans le client et en envoient un résumé anonyme ; chaque partie
+-- n'est comptée qu'une fois, quel que soit le nombre de joueurs qui l'envoient.
+create table if not exists mayhem_parties (
+  platform  text not null,
+  game_id   bigint not null,
+  patch     text not null,
+  recu_le   timestamptz not null default now(),
+  primary key (platform, game_id)
+);
+alter table mayhem_parties enable row level security;

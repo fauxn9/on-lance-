@@ -90,7 +90,7 @@ export async function ecrire({ patch, queue, lignes }, { compter = true } = {}) 
     const valeurs = lot.map((l, k) => {
       params.push(patch, queue, l.champion_id, l.role, l.kind, l.key, l.games, l.wins, Math.round(l.somme ?? 0));
       const b = 9 * k;
-      return `(${b + 1}, ${b + 2}, ${b + 3}, ${b + 4}, ${b + 5}, ${b + 6}, ${b + 7}, ${b + 8}, ${b + 9})`;
+      return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8}, $${b + 9})`;
     });
     await query(
       `insert into stats (patch, queue, champion_id, role, kind, key, games, wins, somme) values ${valeurs.join(', ')}

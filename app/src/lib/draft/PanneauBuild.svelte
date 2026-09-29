@@ -4,6 +4,7 @@
   import { nomPoste, nomPatch } from '../format.js';
   import Icone from '../Icone.svelte';
   import PageRunes from './PageRunes.svelte';
+  import ListeAugments from '../augments/ListeAugments.svelte';
 
   let { build, chargement = false, importEnCours = false, faits = new Set(), auto = $bindable(false), onimporter, peutSorts = false } = $props();
 
@@ -25,7 +26,7 @@
       <div class="titre">
         <h2>{champ?.nom}</h2>
         <p class="sous">
-          <span class="tag">{build.role === 'ARAM' ? 'ARAM' : nomPoste(build.role)}</span>
+          <span class="tag">{build.queue === 2400 ? 'ARAM Mayhem' : build.role === 'ARAM' ? 'ARAM' : nomPoste(build.role)}</span>
           {#if build.games}
             <span><b class="mono" class:v={build.winrate >= 0.5}>{pct(build.winrate)}</b> de victoires</span>
             <span class="dim mono">{nombre.format(build.games)} parties · patch {build.patchs?.map(nomPatch).join(' + ')}</span>
@@ -49,6 +50,20 @@
 
     {#if !build.fiable && build.games}
       <p class="alerte"><Icone nom="alerte" />Seulement {nombre.format(build.games)} parties analysées sur ce patch : à prendre avec des pincettes.</p>
+    {/if}
+
+    {#if build.queue === 2400}
+      <div class="bloc augments">
+        <p class="etiquette">
+          Augments ARAM Mayhem
+          {#if build.partiesMayhem}<span class="mono dim">{nombre.format(build.partiesMayhem)} partie{build.partiesMayhem > 1 ? 's' : ''} Mayhem{build.partiesMayhem < 30 ? ' · encore peu' : ''}</span>{/if}
+        </p>
+        {#if build.augments?.length}
+          <ListeAugments augments={build.augments} />
+        {:else}
+          <p class="explication">Riot ne publie pas les parties Mayhem : cette liste se construit avec celles des joueurs d'On lance ?. Chaque partie Mayhem que tu joues avec l'app ouverte l'enrichit, sans ton pseudo.</p>
+        {/if}
+      </div>
     {/if}
 
     {#if vide}
@@ -191,6 +206,8 @@
   .item-sit, .mu { position: relative; }
   .item-sit em, .mu em { position: absolute; right: -3px; bottom: -4px; font-style: normal; font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 5px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-2); }
   .matchups { grid-column: 1 / -1; }
+  .augments { margin-bottom: 10px; }
+  .explication { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); max-width: 70ch; }
   .colonnes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .colonnes small.v { color: var(--volt); } .colonnes small.r { color: var(--red); }
   /* Panneau étroit (fenêtre réduite, colonne latérale) : une seule colonne. */

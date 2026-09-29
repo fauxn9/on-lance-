@@ -7,6 +7,7 @@ mod serveur;
 use lcu::{Etape, EtatClient, Evenement, FinDePartie};
 use serde_json::{json, Value};
 use serveur::{Jetons, Serveur};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -23,6 +24,8 @@ struct Etat {
     /// Un seul enregistrement à la fois : au démarrage, profil, historique et
     /// synchro demandent un jeton en même temps.
     inscription: tokio::sync::Mutex<()>,
+    /// Parties ARAM Mayhem déjà partagées pendant cette session.
+    mayhem: Mutex<HashSet<u64>>,
 }
 
 impl Etat {
@@ -117,6 +120,12 @@ async fn build_champion(etat: State<'_, Etat>, champion: u32, role: Option<Strin
         chemin.push_str(&format!("&role={r}"));
     }
     etat.serveur.stats_get(&chemin).await
+}
+
+/// Catalogue des augments (nom, rareté, icône) pour la Draft et l'overlay.
+#[tauri::command]
+async fn augments(etat: State<'_, Etat>) -> Result<Value, String> {
+    etat.serveur.stats_get("/augments").await
 }
 
 /// Counters d'un champion à un poste : sur le patch en cours ou les 3 derniers.
@@ -390,6 +399,23 @@ async fn compte_detecte(app: AppHandle) {
             let _ = app.emit("erreur-serveur", &e);
         }
     }
+    partager_mayhem(&app).await;
+}
+
+/// Tes parties ARAM Mayhem, lues dans le client, partagées sans pseudo pour
+/// la tier list des augments : Riot ne publie pas ces parties dans son API.
+async fn partager_mayhem(app: &AppHandle) {
+    let etat = app.state::<Etat>();
+    let Ok(lcu) = lcu_courant() else { return };
+    let deja = etat.mayhem.lock().unwrap().clone();
+    let parties = lcu::mayhem::recentes(&lcu, &deja).await;
+    if parties.is_empty() {
+        return;
+    }
+    let corps = json!({ "parties": parties.iter().map(|(_, p)| p).collect::<Vec<_>>() });
+    if etat.appel("POST", "/mayhem", Some(corps)).await.is_ok() {
+        etat.mayhem.lock().unwrap().extend(parties.iter().map(|(id, _)| *id));
+    }
 }
 
 /// Fin de partie : on envoie la variation de PL, puis on va chercher la partie.
@@ -408,6 +434,13 @@ async fn partie_terminee(app: AppHandle, fin: FinDePartie) {
         }
     }
     let _ = app.emit("fin-de-partie", &fin);
+    // Une partie Mayhem n'arrivera jamais par Riot : on la lit dans le client
+    // dès qu'il l'a rangée dans l'historique.
+    let h = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(20)).await;
+        partager_mayhem(&h).await;
+    });
     for attente in [30, 90] {
         tokio::time::sleep(Duration::from_secs(attente)).await;
         if let Ok(v) = etat.appel("POST", "/sync", Some(json!({}))).await {
@@ -486,6 +519,7 @@ pub fn run() {
                 chemin_jetons,
                 serveur: Serveur::new(),
                 inscription: tokio::sync::Mutex::new(()),
+                mayhem: Mutex::new(HashSet::new()),
             });
 
             let (tx, mut rx) = mpsc::channel::<Evenement>(32);
@@ -525,7 +559,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes, temps_de_jeu, counters, verifier_maj, installer_maj, coach])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes, temps_de_jeu, counters, augments, verifier_maj, installer_maj, coach])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

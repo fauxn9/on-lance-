@@ -18,6 +18,7 @@ pub mod client;
 pub mod import;
 pub mod jeu;
 pub mod lockfile;
+pub mod mayhem;
 pub mod modele;
 pub mod phase;
 pub mod selection;

@@ -78,11 +78,7 @@ export function construireBuild(rows) {
   const favorables = [...m].sort((a, b) => b.ecart - a.ecart).filter((x) => x.ecart > 0).slice(0, 5);
   const difficiles = [...m].sort((a, b) => a.ecart - b.ecart).filter((x) => x.ecart < 0).slice(0, 5);
 
-  const augments = (parType.augment ?? [])
-    .filter((o) => o.games >= 8)
-    .map((o) => ({ id: Number(o.key), games: o.games, winrate: wr(o), score: wilson(o.wins, o.games) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 12);
+  const augments = classerAugments(rows);
 
   return {
     games: n,
@@ -98,6 +94,28 @@ export function construireBuild(rows) {
     matchups: { favorables, difficiles },
     augments,
   };
+}
+
+// Augments d'ARAM Mayhem d'un champion, du meilleur au moins bon, avec une
+// lettre S/A/B/C. Le winrate est lissé vers celui du champion (LISSAGE
+// parties neutres) : un augment pris 3 fois à 100 % ne passe pas devant un
+// augment pris 300 fois à 56 %.
+const LISSAGE = 30;
+export function classerAugments(rows) {
+  const base = rows.find((r) => r.kind === 'champ') ?? { games: 0, wins: 0 };
+  const moyen = base.games ? base.wins / base.games : 0.5;
+  const liste = rows
+    .filter((r) => r.kind === 'augment' && r.games >= 3)
+    .map((o) => ({
+      id: Number(o.key), games: o.games, winrate: wr(o), pickrate: base.games ? o.games / base.games : 0,
+      score: (o.wins + LISSAGE * moyen) / (o.games + LISSAGE),
+    }))
+    .sort((a, b) => b.score - a.score || b.games - a.games);
+  const lettre = (i) => {
+    const q = i / liste.length;
+    return q < 0.15 ? 'S' : q < 0.4 ? 'A' : q < 0.75 ? 'B' : 'C';
+  };
+  return liste.slice(0, 80).map((a, i) => ({ ...a, tier: lettre(i) }));
 }
 
 // Répartition des rôles d'un champion : { TOP: 0.82, MIDDLE: 0.18 }.

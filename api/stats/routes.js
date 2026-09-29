@@ -7,7 +7,8 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { query } from '../db.js';
-import { construireBuild, postesProbables, repartition, SEUIL_FIABLE, wilson } from './build.js';
+import { classerAugments, construireBuild, postesProbables, repartition, SEUIL_FIABLE, wilson } from './build.js';
+import { augments } from './mayhem.js';
 import { patchsRecents } from './items.js';
 import { suggerer } from './suggestions.js';
 
@@ -161,17 +162,20 @@ export function statsRouter() {
           }
           return { ps, rows };
         };
-        let { ps, rows } = await lire(queue);
-        // ARAM Mayhem peu fourni : objets et runes de l'ARAM classique, les
-        // augments restent ceux des parties Mayhem.
+        const mayhem = await lire(queue);
+        let { ps, rows } = mayhem;
+        // ARAM Mayhem peu fourni : objets et runes de l'ARAM classique ; les
+        // augments, eux, sont toujours classés sur les parties Mayhem.
         if (queue === 2400 && parties(rows) < SEUIL_FIABLE) {
           const aram = await lire(450);
-          if (parties(aram.rows) > parties(rows)) {
-            rows = [...aram.rows.filter((x) => x.kind !== 'augment'), ...rows.filter((x) => x.kind === 'augment')];
-            ps = aram.ps;
-          }
+          if (parties(aram.rows) > parties(rows)) ({ ps, rows } = aram);
         }
-        return { championId: id, role, queue, patchs: ps, roles: repart, ...construireBuild(rows) };
+        const build = construireBuild(rows);
+        if (queue === 2400) {
+          build.augments = classerAugments(mayhem.rows);
+          build.partiesMayhem = parties(mayhem.rows);
+        }
+        return { championId: id, role, queue, patchs: ps, roles: repart, ...build };
       });
       res.json(out);
     } catch (e) { next(e); }
@@ -203,6 +207,14 @@ export function statsRouter() {
   });
 
   // Répartition des rôles de chaque champion (pour deviner les postes adverses).
+  // Catalogue des augments (nom, rareté, icône), pour l'app et l'overlay.
+  r.get('/augments', async (req, res, next) => {
+    try {
+      res.set('Cache-Control', 'public, max-age=21600');
+      res.json(await augments());
+    } catch (e) { next(e); }
+  });
+
   r.get('/roles', async (req, res, next) => {
     try {
       res.json(await roles(entier(req.query.queue) ?? 420));

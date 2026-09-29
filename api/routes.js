@@ -21,6 +21,7 @@ import * as potes from './groupes/potes.js';
 import { partieEnCours } from './live.js';
 import { DIVS, ladder, TIERS } from './rangs.js';
 import { isPlatform, RiotApi } from './riot.js';
+import { recevoir as recevoirMayhem } from './stats/mayhem.js';
 import { startBackfill, syncRecent } from './sync.js';
 
 const PUUID = /^[A-Za-z0-9_-]{60,90}$/;
@@ -317,6 +318,16 @@ export function appRouter({ riot = new RiotApi() } = {}) {
   r.get('/coach', needRiot, rateLimit({ max: 60, windowMs: 60_000 }), async (req, res, next) => {
     try {
       res.json(await coach(riot, req.account));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Parties d'ARAM Mayhem lues dans le client (Riot ne les publie pas) :
+  // résumé anonyme pour la tier list des augments.
+  r.post('/mayhem', rateLimit({ max: 20, windowMs: 60 * 60 * 1000 }), async (req, res, next) => {
+    try {
+      res.json(await recevoirMayhem(req.body?.parties));
     } catch (err) {
       next(err);
     }

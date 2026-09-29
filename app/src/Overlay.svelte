@@ -9,6 +9,7 @@
   import { chargerDDragon, dd } from './lib/ddragon.svelte.js';
   import { competenceAMonter, ecartOr, milliers, minutes, objectifs, prochainsAchats } from './lib/overlay/calculs.js';
   import Widget, { reinitialiserPositions } from './lib/overlay/Widget.svelte';
+  import ListeAugments from './lib/augments/ListeAugments.svelte';
 
   let jeu = $state(null);
   let edition = $state(false);
@@ -30,11 +31,12 @@
   const champion = $derived(moi ? (pick && dd.cle(moi.champion) === pick.championId ? pick.championId : dd.cle(moi.champion)) : null);
   // ARAM et ARAM Mayhem (mode « KIWI », file 2400) : pas de poste, builds d'ARAM.
   const aram = $derived(['ARAM', 'KIWI'].includes(jeu?.mode) || [450, 2400].includes(pick?.file));
+  const mayhem = $derived(jeu?.mode === 'KIWI' || pick?.file === 2400);
   $effect(() => {
     const c = champion;
     if (!c) return;
     const role = aram ? null : (untrack(() => moi?.poste) ?? pick?.poste ?? null);
-    const file = pick?.file ?? (aram ? 450 : 420);
+    const file = pick?.file ?? (mayhem ? 2400 : aram ? 450 : 420);
     untrack(() => api.buildChampion(c, role, file)).then((b) => (build = b)).catch(() => (build = null));
   });
 
@@ -48,6 +50,11 @@
   const prochain = $derived(achats?.suivants[0] ? { id: achats.suivants[0], ...catalogue[achats.suivants[0]] } : null);
 
   const montre = $derived(edition || (visible && !masque));
+  // ARAM Mayhem : on choisit un augment au début de la partie, puis aux
+  // niveaux 7, 11 et 15 en revenant à la base après une mort. La carte ne
+  // s'affiche qu'à ces moments-là.
+  const momentAugment = $derived(mayhem && jeu && moi && (jeu.temps < 90 || (moi.mort && jeu.niveau >= 7)));
+  const augmentsBuild = $derived(build?.augments?.length ? build.augments : null);
   const dans = (t) => {
     const reste = t - (jeu?.temps ?? 0);
     return reste <= 0 ? null : minutes(reste);
@@ -149,6 +156,19 @@
     </Widget>
   {/if}
 
+  {#if (momentAugment && augmentsBuild) || edition}
+    <Widget id="augments" titre="Augments" defaut={{ x: 84, y: 20 }} {edition} {generation}>
+      <div class="carte augments">
+        <span class="etiq">Meilleurs augments{#if moi}{' · '}{dd.champion(dd.cle(moi.champion)).nom}{/if}</span>
+        {#if augmentsBuild}
+          <ListeAugments augments={augmentsBuild} par={4} compact />
+        {:else}
+          <small class="vide">Les meilleurs augments de ton champion, par rareté, au moment de choisir.</small>
+        {/if}
+      </div>
+    </Widget>
+  {/if}
+
   {#if prochain || edition}
     <Widget id="achat" titre="Prochain achat" defaut={{ x: 8, y: 36 }} {edition} {generation}>
       <div class="carte achat">
@@ -226,6 +246,9 @@
   .competence b { font-size: 14px; }
   .ordre { margin-left: 4px; color: var(--ink-2) !important; font-size: 11.5px !important; }
   @keyframes appel { 0% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 0 rgba(var(--volt-rgb), .45); } 100% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 14px rgba(var(--volt-rgb), 0); } }
+
+  /* Augments (ARAM Mayhem) */
+  .augments { flex-direction: column; align-items: stretch; gap: 8px; width: 540px; white-space: normal; }
 
   /* Prochain achat */
   .achat { flex-direction: column; align-items: stretch; gap: 7px; width: 230px; white-space: normal; }
