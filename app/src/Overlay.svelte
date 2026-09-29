@@ -28,7 +28,8 @@
   // Le champion joué : celui de la sélection, sinon celui que le jeu annonce.
   // Le build n'est demandé qu'une fois par champion (pas à chaque seconde).
   const champion = $derived(moi ? (pick && dd.cle(moi.champion) === pick.championId ? pick.championId : dd.cle(moi.champion)) : null);
-  const aram = $derived(jeu?.mode === 'ARAM');
+  // ARAM et ARAM Mayhem (mode « KIWI », file 2400) : pas de poste, builds d'ARAM.
+  const aram = $derived(['ARAM', 'KIWI'].includes(jeu?.mode) || [450, 2400].includes(pick?.file));
   $effect(() => {
     const c = champion;
     if (!c) return;

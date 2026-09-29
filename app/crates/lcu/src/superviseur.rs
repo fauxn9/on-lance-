@@ -12,7 +12,7 @@
 use crate::client::{jeu_charge, Lcu};
 use crate::lockfile::{self, Lockfile};
 use crate::modele::{compte_depuis, plateforme_depuis, rangs_depuis, variation, Compte, Rang};
-use crate::phase::{etape, Etape};
+use crate::phase::{etape, reste_en_jeu, Etape};
 use crate::selection::{selection_depuis, Selection};
 use crate::ws;
 use serde::Serialize;
@@ -157,7 +157,8 @@ async fn session_client(lock: &Lockfile, envoye: &mut EtatClient, tx: &mpsc::Sen
         }
 
         let en_jeu = matches!(etat.phase.as_str(), "GameStart" | "InProgress" | "Reconnect");
-        let nouvelle = etape(&etat.phase, en_jeu && jeu_charge().await);
+        let charge = en_jeu && (reste_en_jeu(etat.etape, &etat.phase) || jeu_charge().await);
+        let nouvelle = etape(&etat.phase, charge);
         transition(&lcu, &mut suivi, etat.etape, nouvelle, &etat, tx).await;
         etat.etape = nouvelle;
         etat.partie = if nouvelle.en_partie() { suivi.game_id } else { None };

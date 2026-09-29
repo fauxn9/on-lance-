@@ -143,20 +143,33 @@ export function statsRouter() {
         role = Object.entries(repart).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'TOP';
       }
       const out = await enCache(`build:${queue}:${id}:${role}`, 10 * 60_000, async () => {
-        const ps = await patchs(queue);
-        // Le patch courant seul s'il suffit, sinon on y ajoute le précédent.
-        let { rows } = await query(
-          `select kind, key, sum(games)::int as games, sum(wins)::int as wins from stats
-            where patch = $1 and queue = $2 and champion_id = $3 and role = $4 group by kind, key`,
-          [ps[0], queue, id, role],
-        );
-        const n = rows.find((x) => x.kind === 'champ')?.games ?? 0;
-        if (n < SEUIL_FIABLE && ps.length > 1) {
-          ({ rows } = await query(
+        const parties = (rows) => rows.find((x) => x.kind === 'champ')?.games ?? 0;
+        const lire = async (q) => {
+          const ps = await patchs(q);
+          // Le patch courant seul s'il suffit, sinon on y ajoute le précédent.
+          let { rows } = await query(
             `select kind, key, sum(games)::int as games, sum(wins)::int as wins from stats
-              where patch = any($1) and queue = $2 and champion_id = $3 and role = $4 group by kind, key`,
-            [ps, queue, id, role],
-          ));
+              where patch = $1 and queue = $2 and champion_id = $3 and role = $4 group by kind, key`,
+            [ps[0], q, id, role],
+          );
+          if (parties(rows) < SEUIL_FIABLE && ps.length > 1) {
+            ({ rows } = await query(
+              `select kind, key, sum(games)::int as games, sum(wins)::int as wins from stats
+                where patch = any($1) and queue = $2 and champion_id = $3 and role = $4 group by kind, key`,
+              [ps, q, id, role],
+            ));
+          }
+          return { ps, rows };
+        };
+        let { ps, rows } = await lire(queue);
+        // ARAM Mayhem peu fourni : objets et runes de l'ARAM classique, les
+        // augments restent ceux des parties Mayhem.
+        if (queue === 2400 && parties(rows) < SEUIL_FIABLE) {
+          const aram = await lire(450);
+          if (parties(aram.rows) > parties(rows)) {
+            rows = [...aram.rows.filter((x) => x.kind !== 'augment'), ...rows.filter((x) => x.kind === 'augment')];
+            ps = aram.ps;
+          }
         }
         return { championId: id, role, queue, patchs: ps, roles: repart, ...construireBuild(rows) };
       });

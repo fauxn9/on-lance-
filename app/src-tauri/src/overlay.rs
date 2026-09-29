@@ -69,7 +69,10 @@ pub fn sur_raccourci(app: &AppHandle, raccourci: &Shortcut, etat: ShortcutState)
             // En édition, l'overlay prend la souris (pour déplacer les widgets),
             // toujours sans prendre le focus au jeu.
             #[cfg(windows)]
-            win::traversable(hwnd(&w), !e);
+            {
+                let h = hwnd(&w);
+                let _ = app.run_on_main_thread(move || win::traversable(h, !e));
+            }
             #[cfg(not(windows))]
             let _ = w.set_ignore_cursor_events(!e);
         }
@@ -86,10 +89,13 @@ pub fn sur_raccourci(app: &AppHandle, raccourci: &Shortcut, etat: ShortcutState)
 #[cfg(windows)]
 mod win {
     use windows_sys::Win32::Foundation::{HWND, RECT};
+    // Ces appels partent d'un fil de fond vers une fenêtre du fil principal :
+    // toujours en version « postée » (ShowWindowAsync, SWP_ASYNCWINDOWPOS),
+    // pour ne jamais attendre le fil principal pendant qu'il attend autre chose.
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        FindWindowW, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW, SetWindowPos, ShowWindow,
-        GWL_EXSTYLE, HWND_TOPMOST, SWP_NOACTIVATE, SW_SHOWNOACTIVATE, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-        WS_EX_TRANSPARENT,
+        FindWindowW, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW, SetWindowPos, ShowWindowAsync,
+        GWL_EXSTYLE, HWND_TOPMOST, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SW_SHOWNOACTIVATE, WS_EX_LAYERED, WS_EX_NOACTIVATE,
+        WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
     };
 
     /// La fenêtre du jeu (pas celle du client) et son rectangle en pixels réels.
@@ -123,7 +129,7 @@ mod win {
             let ex = GetWindowLongPtrW(h, GWL_EXSTYLE);
             let ajout = WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TRANSPARENT;
             SetWindowLongPtrW(h, GWL_EXSTYLE, ex | ajout as isize);
-            ShowWindow(h, SW_SHOWNOACTIVATE);
+            ShowWindowAsync(h, SW_SHOWNOACTIVATE);
         }
     }
 
@@ -142,7 +148,7 @@ mod win {
     pub fn placer(h: isize, (x, y, l, ht): (i32, i32, i32, i32)) {
         // SAFETY: `h` est la fenêtre de l'overlay.
         unsafe {
-            SetWindowPos(h as HWND, HWND_TOPMOST, x, y, l, ht, SWP_NOACTIVATE);
+            SetWindowPos(h as HWND, HWND_TOPMOST, x, y, l, ht, SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
         }
     }
 }
@@ -231,8 +237,13 @@ pub fn ouvrir(app: &AppHandle) -> tauri::Result<()> {
         .additional_browser_args(ARGS)
         .build()?;
     caler(&w);
+    // Les styles d'une fenêtre se changent depuis son propre fil (le principal) :
+    // depuis un autre, Windows attendrait que le principal réponde.
     #[cfg(windows)]
-    win::preparer(hwnd(&w));
+    {
+        let h = hwnd(&w);
+        let _ = app.run_on_main_thread(move || win::preparer(h));
+    }
     #[cfg(not(windows))]
     {
         let _ = w.set_ignore_cursor_events(true);

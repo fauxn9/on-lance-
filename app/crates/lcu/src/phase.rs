@@ -35,6 +35,14 @@ pub fn etape(phase: &str, jeu_charge: bool) -> Etape {
     }
 }
 
+/// Une partie devenue jouable le reste tant que le client est en phase de
+/// jeu. Au lancement, l'API du jeu répond une fois sur deux : sans ça, l'app
+/// passait de Chargement à EnJeu et retour plusieurs fois par seconde, et
+/// ouvrait puis fermait ses fenêtres à chaque fois (jusqu'à se bloquer).
+pub fn reste_en_jeu(avant: Etape, phase: &str) -> bool {
+    avant == Etape::EnJeu && matches!(phase, "GameStart" | "InProgress" | "Reconnect")
+}
+
 impl Etape {
     /// Une partie est en cours (du chargement jusqu'à l'écran de fin exclu).
     pub fn en_partie(self) -> bool {
@@ -59,6 +67,14 @@ mod tests {
         assert_eq!(etape("Reconnect", true), Etape::EnJeu);
         assert_eq!(etape("WaitingForStats", false), Etape::Fin);
         assert_eq!(etape("EndOfGame", false), Etape::Fin);
+    }
+
+    #[test]
+    fn une_partie_jouable_le_reste_jusqua_la_fin() {
+        assert!(reste_en_jeu(Etape::EnJeu, "InProgress"));
+        assert!(reste_en_jeu(Etape::EnJeu, "Reconnect"));
+        assert!(!reste_en_jeu(Etape::Chargement, "InProgress"), "le chargement attend que le jeu réponde");
+        assert!(!reste_en_jeu(Etape::EnJeu, "WaitingForStats"), "la partie se termine bien");
     }
 
     #[test]

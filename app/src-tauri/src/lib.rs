@@ -336,6 +336,11 @@ fn ouvrir_principale(app: &AppHandle, focus: bool) {
     }
 }
 
+fn rouvrir(app: &AppHandle) {
+    let h = app.clone();
+    tauri::async_runtime::spawn(async move { ouvrir_principale(&h, true) });
+}
+
 /// La partie est jouable : l'overlay s'ouvre et la fenêtre principale se
 /// ferme. Elle revient à la fin. Rien ne change si le jeu est en plein écran
 /// exclusif (l'overlay y serait invisible).
@@ -417,6 +422,14 @@ async fn partie_terminee(app: AppHandle, fin: FinDePartie) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Si l'app venait à ne plus répondre, Windows remplacerait l'overlay (posé
+    // sur tout l'écran, au-dessus du jeu) par une image figée qui bloque le jeu.
+    // Sans ce « fantôme », une fenêtre bloquée reste transparente et traversable.
+    #[cfg(windows)]
+    // SAFETY: aucun argument, à appeler avant toute fenêtre.
+    unsafe {
+        windows_sys::Win32::UI::WindowsAndMessaging::DisableProcessWindowsGhosting();
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
@@ -449,14 +462,16 @@ pub fn run() {
                 .tooltip("On lance ?")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
+                // Ces gestionnaires tournent sur le fil principal : y créer une
+                // fenêtre bloque l'app (WebView2). On la crée depuis un fil de fond.
                 .on_menu_event(|app, e| match e.id.as_ref() {
-                    "ouvrir" => ouvrir_principale(app, true),
+                    "ouvrir" => rouvrir(app),
                     "quitter" => app.exit(0),
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, e| {
                     if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
-                        ouvrir_principale(tray.app_handle(), true);
+                        rouvrir(tray.app_handle());
                     }
                 });
             if let Some(i) = app.default_window_icon() {
