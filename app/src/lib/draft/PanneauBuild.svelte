@@ -1,7 +1,7 @@
 <script>
   import { onde } from '../actions.js';
   import { dd } from '../ddragon.svelte.js';
-  import { nomPoste } from '../format.js';
+  import { nomPoste, nomPatch } from '../format.js';
   import Icone from '../Icone.svelte';
   import PageRunes from './PageRunes.svelte';
 
@@ -28,7 +28,7 @@
           <span class="tag">{build.role === 'ARAM' ? 'ARAM' : nomPoste(build.role)}</span>
           {#if build.games}
             <span><b class="mono" class:v={build.winrate >= 0.5}>{pct(build.winrate)}</b> de victoires</span>
-            <span class="dim mono">{nombre.format(build.games)} parties · patch {build.patchs?.join(' + ')}</span>
+            <span class="dim mono">{nombre.format(build.games)} parties · patch {build.patchs?.map(nomPatch).join(' + ')}</span>
           {/if}
         </p>
       </div>

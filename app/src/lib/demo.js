@@ -50,6 +50,19 @@ export const buildChampion = async (champion, role, file) => {
     augments: [],
   };
 };
+// Counters de démo : trois colonnes plausibles, plus fournies sur 3 patchs.
+export const counters = async (champion, role, patchs) => {
+  await attendre(300);
+  const x = patchs === 3 ? 3 : 1;
+  const L = (ids, base, pas) => ids.map((id, i) => ({ championId: id, games: Math.round((620 - i * 55) * x * (0.6 + (id % 5) / 10)), winrate: base - i * pas }));
+  return {
+    championId: champion, role: role ?? 'TOP', roles: { TOP: 0.86, MIDDLE: 0.14 }, patchs: x === 3 ? ['16.19', '16.18', '16.17'] : ['16.19'],
+    parties: 4218 * x, duels: 58,
+    meilleurs: L([78, 85, 17, 240, 10, 23, 36, 266], 0.571, 0.0045),
+    pires: L([74, 36, 67, 84, 887, 8, 150, 516], 0.445, -0.0035),
+    lane: [39, 58, 23, 420, 74, 19, 164, 122].map((id, i) => ({ championId: id, games: Math.round((837 - i * 70) * x), gd15: 964 - i * 118 })),
+  };
+};
 export const suggestions = async () => {
   await attendre(300);
   return {

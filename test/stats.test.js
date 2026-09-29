@@ -132,7 +132,34 @@ test('regrouper additionne les doublons', () => {
     { champion_id: 1, role: 'TOP', kind: 'x', key: 'a', games: 1, wins: 1 },
     { champion_id: 1, role: 'TOP', kind: 'x', key: 'a', games: 1, wins: 0 },
   ]);
-  assert.deepEqual(r, [{ champion_id: 1, role: 'TOP', kind: 'x', key: 'a', games: 2, wins: 1 }]);
+  assert.deepEqual(r, [{ champion_id: 1, role: 'TOP', kind: 'x', key: 'a', games: 2, wins: 1, somme: 0 }]);
+  const g = regrouper([
+    { champion_id: 1, role: 'TOP', kind: 'gd15', key: '2', games: 1, wins: 1, somme: 400 },
+    { champion_id: 1, role: 'TOP', kind: 'gd15', key: '2', games: 1, wins: 0, somme: -150 },
+  ]);
+  assert.equal(g[0].somme, 250, 'les écarts d’or s’additionnent');
+});
+
+test('counters : du point de vue de l’adversaire, tri prudent', async () => {
+  const { counters } = await import('../api/stats/routes.js');
+  const r = counters([
+    { kind: 'champ', key: '', games: 900, wins: 460 },
+    { kind: 'matchup', key: '10', games: 400, wins: 170 },  // 10 gagne 57,5 % contre lui
+    { kind: 'matchup', key: '11', games: 6, wins: 0 },      // trop peu de parties : ignoré
+    { kind: 'matchup', key: '12', games: 300, wins: 190 },  // 12 perd 63 % contre lui
+    { kind: 'matchup', key: '13', games: 20, wins: 5 },     // 75 % pour 13, mais sur 20 parties
+    { kind: 'gd15', key: '10', games: 380, wins: 160, somme: -95000 },
+    { kind: 'gd15', key: '12', games: 290, wins: 185, somme: 60900 },
+    { kind: 'gd15', key: '14', games: 20, wins: 5, somme: -18000 },   // +900 à 15 min, mais sur 20 parties
+  ]);
+  assert.equal(r.parties, 900);
+  assert.equal(r.meilleurs[0].championId, 10, '57,5 % sur 400 passe devant 75 % sur 20');
+  assert.equal(r.meilleurs[0].winrate, 0.575);
+  assert.equal(r.pires[0].championId, 12);
+  assert.ok(!r.meilleurs.some((m) => m.championId === 11));
+  assert.deepEqual(r.lane.map((l) => [l.championId, l.gd15]), [[10, 250], [14, 900], [12, -210]], '+250 sur 380 parties devant +900 sur 20');
+  assert.ok(!('tri' in r.lane[0]));
+  assert.ok(!('fort' in r.meilleurs[0]), 'pas de champ interne dans la réponse');
 });
 
 test('Wilson : plus de parties, plus de confiance', () => {

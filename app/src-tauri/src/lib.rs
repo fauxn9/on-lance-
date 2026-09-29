@@ -119,6 +119,16 @@ async fn build_champion(etat: State<'_, Etat>, champion: u32, role: Option<Strin
     etat.serveur.stats_get(&chemin).await
 }
 
+/// Counters d'un champion à un poste : sur le patch en cours ou les 3 derniers.
+#[tauri::command]
+async fn counters(etat: State<'_, Etat>, champion: u32, role: Option<String>, patchs: Option<u32>) -> Result<Value, String> {
+    let mut chemin = format!("/counters/{champion}?patchs={}", if patchs == Some(3) { 3 } else { 1 });
+    if let Some(r) = role.filter(|r| r.chars().all(|c| c.is_ascii_uppercase())) {
+        chemin.push_str(&format!("&role={r}"));
+    }
+    etat.serveur.stats_get(&chemin).await
+}
+
 /// Suggestions de picks pour la sélection en cours. Le pool du joueur vient
 /// de ses maîtrises, lues sur le client.
 #[tauri::command]
@@ -450,7 +460,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes, temps_de_jeu])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes, temps_de_jeu, counters])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

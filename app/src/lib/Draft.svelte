@@ -7,6 +7,7 @@
   import { notifier } from './notifications.svelte.js';
   import Icone from './Icone.svelte';
   import PanneauBuild from './draft/PanneauBuild.svelte';
+  import Counters from './draft/Counters.svelte';
 
   let { client } = $props();
   const sel = $derived(client.selection);
@@ -54,6 +55,21 @@
       .catch((e) => notifier({ titre: 'Build indisponible', texte: String(e), icone: 'alerte' }))
       .finally(() => (chargement = false));
   });
+
+  // ---------------------------------------------------------------- build ou counters
+  let onglet = $state(localStorage.getItem('draft-onglet') === 'counters' ? 'counters' : 'build');
+  $effect(() => { try { localStorage.setItem('draft-onglet', onglet); } catch {} });
+  // Pas de counters en ARAM : pas d'adversaire direct.
+  const countersPossibles = $derived(file !== 450 && file !== 2400);
+  const vueCounters = $derived(onglet === 'counters' && countersPossibles);
+  // Un clic sur un champion des counters : on explore le sien.
+  function voirCounters(id) {
+    if (sel) apercu = id;
+    else {
+      explore = id;
+      try { localStorage.setItem('draft-champion', String(id)); } catch {}
+    }
+  }
 
   // ---------------------------------------------------------------- import
   let auto = $state(localStorage.getItem('import-auto') === '1');
@@ -185,7 +201,17 @@
           </div>
         </section>
       {/if}
-      <PanneauBuild {build} {chargement} {importEnCours} {faits} bind:auto onimporter={importer} peutSorts={true} />
+      {#if countersPossibles}
+        <div class="onglets-draft" role="tablist" aria-label="Build ou counters">
+          <button role="tab" aria-selected={!vueCounters} class:on={!vueCounters} onclick={() => (onglet = 'build')}>Build</button>
+          <button role="tab" aria-selected={vueCounters} class:on={vueCounters} onclick={() => (onglet = 'counters')}>Counters</button>
+        </div>
+      {/if}
+      {#if vueCounters && champion}
+        <Counters {champion} role={sel.monPoste} onchoisir={voirCounters} />
+      {:else}
+        <PanneauBuild {build} {chargement} {importEnCours} {faits} bind:auto onimporter={importer} peutSorts={true} />
+      {/if}
     </div>
 
     <aside class="equipe eux">
@@ -243,13 +269,21 @@
         </ul>
       {/if}
     </div>
+    {#if countersPossibles}
+      <div class="onglets-draft" role="tablist" aria-label="Build ou counters">
+        <button role="tab" aria-selected={!vueCounters} class:on={!vueCounters} onclick={() => (onglet = 'build')}>Build</button>
+        <button role="tab" aria-selected={vueCounters} class:on={vueCounters} onclick={() => (onglet = 'counters')}>Counters</button>
+      </div>
+    {/if}
     <div class="roles" role="group" aria-label="Poste">
       {#each ROLES as [id, nom]}
         <button class:on={roleExplore === id} aria-pressed={roleExplore === id} onclick={() => (roleExplore = id)}>{nom}</button>
       {/each}
     </div>
   </div>
-  {#if champion}
+  {#if champion && vueCounters}
+    <Counters {champion} {role} onchoisir={voirCounters} />
+  {:else if champion}
     <PanneauBuild {build} {chargement} {importEnCours} {faits} bind:auto onimporter={importer} peutSorts={false} />
   {:else}
     <div class="choisis">
@@ -325,6 +359,9 @@
   .resultats button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
   .resultats button:hover { background: rgba(255, 255, 255, .06); }
   .resultats img { width: 28px; height: 28px; border-radius: 7px; }
+  .onglets-draft { display: inline-flex; gap: 2px; padding: 4px; border-radius: 12px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); justify-self: start; }
+  .onglets-draft button { border: 0; background: transparent; padding: 6px 14px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; font-weight: 700; cursor: pointer; transition: background-color .25s, color .25s; }
+  .onglets-draft button.on { background: var(--volt); color: var(--volt-ink); }
   .roles { display: inline-flex; gap: 2px; padding: 4px; border-radius: 12px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
   .roles button { border: 0; background: transparent; padding: 6px 11px; border-radius: 8px; color: var(--ink-2); font-size: 12px; font-weight: 600; cursor: pointer; transition: background-color .25s, color .25s; }
   .roles button.on { background: var(--volt); color: var(--volt-ink); }

@@ -20,7 +20,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query } from '../db.js';
 import { extraire, patchDe, regrouper } from './extract.js';
-import { itemsDuPatch, patchCourant } from './items.js';
+import { itemsDuPatch, patchCourant, patchsRecents } from './items.js';
 import { lignesReperes, mesurer, palierDe } from './reperes.js';
 
 const PALIERS = ['EMERALD', 'DIAMOND'];
@@ -73,14 +73,14 @@ export async function ecrire({ patch, queue, lignes }, { compter = true } = {}) 
     const lot = toutes.slice(i, i + 150);
     const params = [];
     const valeurs = lot.map((l, k) => {
-      params.push(patch, queue, l.champion_id, l.role, l.kind, l.key, l.games, l.wins);
-      const b = 8 * k;
-      return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8})`;
+      params.push(patch, queue, l.champion_id, l.role, l.kind, l.key, l.games, l.wins, Math.round(l.somme ?? 0));
+      const b = 9 * k;
+      return `(${b + 1}, ${b + 2}, ${b + 3}, ${b + 4}, ${b + 5}, ${b + 6}, ${b + 7}, ${b + 8}, ${b + 9})`;
     });
     await query(
-      `insert into stats (patch, queue, champion_id, role, kind, key, games, wins) values ${valeurs.join(', ')}
+      `insert into stats (patch, queue, champion_id, role, kind, key, games, wins, somme) values ${valeurs.join(', ')}
        on conflict (patch, queue, champion_id, role, kind, key)
-       do update set games = stats.games + excluded.games, wins = stats.wins + excluded.wins`,
+       do update set games = stats.games + excluded.games, wins = stats.wins + excluded.wins, somme = stats.somme + excluded.somme`,
       params,
     );
   }
@@ -152,11 +152,9 @@ export async function etape(riot, platform, patch, { bas = Math.random() < PART_
   return analysees;
 }
 
-// On ne garde que le patch en cours et le précédent.
-export async function purger(patch) {
-  const [maj, min] = patch.split('.').map(Number);
-  const precedent = `${maj}.${min - 1}`;
-  await query('delete from stats where patch not in ($1, $2)', [patch, precedent]);
+// On garde les 3 derniers patchs (l'app propose « patch actuel » ou « 3 derniers »).
+export async function purger() {
+  await query('delete from stats where patch <> all($1)', [await patchsRecents(3)]);
   await query("delete from crawl_matches where crawled_at < now() - interval '30 days'");
 }
 
@@ -166,7 +164,7 @@ export function lancerCollecte(riot, { platform = 'euw1', journal = console.log 
   enMarche = true;
   (async () => {
     let patch = await patchCourant();
-    await purger(patch);
+    await purger();
     let total = 0, depuis = Date.now(), tours = 0;
     for (;;) {
       try {
@@ -174,7 +172,7 @@ export function lancerCollecte(riot, { platform = 'euw1', journal = console.log 
         // Toutes les 200 étapes : nouveau patch ? nouveaux joueurs ?
         if (++tours % 200 === 0) {
           const p = await patchCourant();
-          if (p !== patch) { patch = p; await purger(patch); }
+          if (p !== patch) { patch = p; await purger(); }
           const { rows } = await query(
             "select count(*)::int as n from crawl_players where platform = $1 and (last_crawled_at is null or last_crawled_at < now() - interval '6 hours')",
             [platform],

@@ -14,6 +14,8 @@ export const parties = (avant, file) => (enTauri ? invoke('parties', { avant, fi
 export const synchroniser = () => (enTauri ? invoke('synchroniser') : demo.synchroniser());
 export const buildChampion = (champion, role, file) =>
   enTauri ? invoke('build_champion', { champion, role, file }) : demo.buildChampion(champion, role, file);
+export const counters = (champion, role, patchs) =>
+  enTauri ? invoke('counters', { champion, role, patchs }) : demo.counters(champion, role, patchs);
 export const suggestions = () => (enTauri ? invoke('suggestions') : demo.suggestions());
 export const partieEnCours = () => (enTauri ? invoke('partie_en_cours') : demo.partieEnCours());
 export const tempsDeJeu = () => (enTauri ? invoke('temps_de_jeu') : Promise.resolve(754));

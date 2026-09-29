@@ -24,6 +24,13 @@ export function rangDepuisEchelle(l) {
   return { tier, division, nom: nomRang(tier, division) };
 }
 
+// Le jeu dit « 16.19 » (numéro interne), les joueurs et les sites disent
+// « 26.19 » (l'année) : on affiche comme tout le monde.
+export const nomPatch = (p) => {
+  const [maj, min] = String(p ?? '').split('.');
+  return maj && min ? `${Number(maj) + 10}.${min}` : String(p ?? '');
+};
+
 const FILES = {
   420: 'Classée Solo/Duo', 440: 'Classée Flex', 400: 'Normale (draft)', 430: 'Normale (aveugle)',
   480: 'Swiftplay', 490: 'Partie rapide', 450: 'ARAM', 2400: 'ARAM Mayhem', 1700: 'Arena', 1710: 'Arena',

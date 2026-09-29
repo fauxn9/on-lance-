@@ -74,7 +74,7 @@ export function extraire(match, timeline, items) {
     const role = aram ? 'ARAM' : p.teamPosition;
     if (!aram && !ROLES.has(role)) continue; // poste inconnu : on ne devine pas
     const win = p.win ? 1 : 0;
-    const ajout = (kind, key) => lignes.push({ champion_id: p.championId, role, kind, key: String(key), games: 1, wins: win });
+    const ajout = (kind, key, somme = 0) => lignes.push({ champion_id: p.championId, role, kind, key: String(key), games: 1, wins: win, somme });
 
     ajout('champ', '');
     const runes = cleRunes(p.perks);
@@ -97,7 +97,13 @@ export function extraire(match, timeline, items) {
 
     if (!aram) {
       const face = info.participants.find((o) => o.teamId !== p.teamId && o.teamPosition === p.teamPosition);
-      if (face) ajout('matchup', face.championId);
+      if (face) {
+        ajout('matchup', face.championId);
+        // Écart d'or à 15 min avec l'adversaire direct (parties d'au moins 15 min).
+        const f15 = timeline?.info?.frames?.[15]?.participantFrames;
+        const a = f15?.[p.participantId]?.totalGold, b = f15?.[face.participantId]?.totalGold;
+        if (a != null && b != null) ajout('gd15', face.championId, a - b);
+      }
     }
     for (const n of [1, 2, 3, 4, 5, 6]) {
       const a = p[`playerAugment${n}`];
@@ -114,7 +120,7 @@ export function regrouper(lignes) {
   for (const l of lignes) {
     const k = `${l.champion_id}|${l.role}|${l.kind}|${l.key}`;
     const x = m.get(k);
-    if (x) { x.games += l.games; x.wins += l.wins; } else m.set(k, { ...l });
+    if (x) { x.games += l.games; x.wins += l.wins; x.somme = (x.somme ?? 0) + (l.somme ?? 0); } else m.set(k, { somme: 0, ...l });
   }
   return [...m.values()];
 }

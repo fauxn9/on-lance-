@@ -8,14 +8,13 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { query } from '../db.js';
 import { construireBuild, postesProbables, repartition, SEUIL_FIABLE, wilson } from './build.js';
-import { patchCourant } from './items.js';
+import { patchsRecents } from './items.js';
 import { suggerer } from './suggestions.js';
 
 const ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
 const ARAM = new Set([450, 2400]);
 const FILES_PERSO = { 420: [420, 440, 400, 430, 490], 440: [420, 440, 400, 430, 490], 450: [450], 2400: [2400, 450] };
 
-const precedent = (p) => { const [a, b] = p.split('.').map(Number); return `${a}.${b - 1}`; };
 
 // Petit cache mémoire : les agrégats ne bougent qu'au rythme de la collecte.
 const cache = new Map();
@@ -31,9 +30,9 @@ async function enCache(cle, ms, fn) {
 // Patchs à lire : le courant, plus le précédent tant que le courant manque de parties.
 async function patchs(queue) {
   return enCache(`patchs:${queue}`, 10 * 60_000, async () => {
-    const p = await patchCourant();
+    const [p, precedent] = await patchsRecents(2);
     const { rows } = await query("select coalesce(sum(games), 0)::int as n from stats where patch = $1 and queue = $2 and kind = 'matches'", [p, queue]);
-    return rows[0].n >= 2000 ? [p] : [p, precedent(p)];
+    return rows[0].n >= 2000 || !precedent ? [p] : [p, precedent];
   });
 }
 
@@ -86,6 +85,37 @@ function limite({ max, fenetre }) {
 const entier = (v) => (Number.isInteger(Number(v)) ? Number(v) : null);
 const liste = (v) => (Array.isArray(v) ? v.map(Number).filter((x) => Number.isInteger(x) && x > 0).slice(0, 20) : []);
 
+// Les trois colonnes des counters, du point de vue de l'ADVERSAIRE (« Poppy
+// gagne 57 % contre Ambessa »).
+//
+// Le tri se méfie des petits échantillons : chaque matchup part de 50 % (et
+// d'un écart d'or nul), comme s'il avait déjà PRIOR parties neutres, et ne
+// s'en éloigne qu'à mesure que les vraies parties s'accumulent. Un 75 % sur
+// 20 parties est trié comme 54 %, un 57,5 % sur 400 comme 56 % : le second
+// passe devant. Les valeurs affichées restent les vraies.
+export const MIN_COUNTER = 8;
+const PRIOR = 100;
+const lisse = (gagnees, parties) => (gagnees + PRIOR / 2) / (parties + PRIOR);
+export function counters(rows) {
+  const parties = rows.find((r) => r.kind === 'champ')?.games ?? 0;
+  const duels = rows.filter((r) => r.kind === 'matchup' && r.games >= MIN_COUNTER).map((r) => ({
+    championId: Number(r.key), games: r.games, winrate: 1 - r.wins / r.games,
+    fort: lisse(r.games - r.wins, r.games), faible: lisse(r.wins, r.games),
+  }));
+  const net = ({ fort, faible, tri, ...x }) => x;
+  const lane = rows.filter((r) => r.kind === 'gd15' && r.games >= MIN_COUNTER)
+    .map((r) => ({ championId: Number(r.key), games: r.games, gd15: Math.round(-Number(r.somme) / r.games), tri: -Number(r.somme) / (r.games + PRIOR) }))
+    .sort((a, b) => b.tri - a.tri)
+    .map(net);
+  return {
+    parties,
+    meilleurs: [...duels].sort((a, b) => b.fort - a.fort).slice(0, 12).map(net),
+    pires: [...duels].sort((a, b) => b.faible - a.faible).slice(0, 12).map(net),
+    lane: lane.slice(0, 12),
+    duels: duels.length,
+  };
+}
+
 export function statsRouter() {
   const r = express.Router();
   r.use(express.json({ limit: '16kb' }));
@@ -93,7 +123,7 @@ export function statsRouter() {
 
   r.get('/meta', async (req, res, next) => {
     try {
-      const patch = await patchCourant();
+      const [patch] = await patchsRecents(1);
       const { rows } = await query(
         "select patch, queue, sum(games)::int as parties from stats where kind = 'matches' group by patch, queue order by patch desc, queue",
       );
@@ -129,6 +159,31 @@ export function statsRouter() {
           ));
         }
         return { championId: id, role, queue, patchs: ps, roles: repart, ...construireBuild(rows) };
+      });
+      res.json(out);
+    } catch (e) { next(e); }
+  });
+
+  // Counters d'un champion à un poste, façon u.gg : ceux qui le battent, ceux
+  // qu'il bat, et ceux qui prennent l'avantage en lane (écart d'or à 15 min).
+  // ?role=TOP&patchs=1|3 (le patch en cours, ou les 3 derniers réunis).
+  r.get('/counters/:id', async (req, res, next) => {
+    try {
+      const id = entier(req.params.id);
+      if (!id) return res.status(400).json({ erreur: 'Champion invalide.' });
+      const n = req.query.patchs === '3' ? 3 : 1;
+      const repart = (await roles(420))[id] ?? {};
+      let role = String(req.query.role ?? '').toUpperCase();
+      if (!ROLES.includes(role)) role = Object.entries(repart).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'TOP';
+      const out = await enCache(`counters:${id}:${role}:${n}`, 10 * 60_000, async () => {
+        const ps = await patchsRecents(n);
+        const { rows } = await query(
+          `select kind, key, sum(games)::int as games, sum(wins)::int as wins, sum(somme)::bigint as somme from stats
+            where patch = any($1) and queue = 420 and champion_id = $2 and role = $3 and kind in ('champ', 'matchup', 'gd15')
+            group by kind, key`,
+          [ps, id, role],
+        );
+        return { championId: id, role, roles: repart, patchs: ps, ...counters(rows) };
       });
       res.json(out);
     } catch (e) { next(e); }

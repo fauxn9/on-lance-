@@ -249,3 +249,7 @@ alter table groupe_membres enable row level security;
 alter table groupe_semaines enable row level security;
 alter table evenements enable row level security;
 alter table reactions enable row level security;
+
+-- Somme d'une mesure (écart d'or à 15 min des matchups, kind « gd15 ») :
+-- moyenne = somme / games.
+alter table stats add column if not exists somme bigint not null default 0;

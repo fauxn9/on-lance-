@@ -4,11 +4,21 @@
 
 const CDN = 'https://ddragon.leagueoflegends.com';
 
+// Versions Data Dragon, relues toutes les 3 h : le serveur tourne des jours
+// sans redémarrer, il doit voir arriver le patch suivant.
+let versions = { at: 0, liste: null };
+async function lireVersions() {
+  if (!versions.liste || Date.now() - versions.at > 3 * 3600e3) {
+    const liste = await (await fetch(`${CDN}/api/versions.json`)).json();
+    versions = { at: Date.now(), liste };
+  }
+  return versions.liste;
+}
+
 // patch « 16.19 » → version Data Dragon « 16.19.1 » (la plus récente du patch).
-let versions = null;
 async function versionPour(patch) {
-  versions ??= await (await fetch(`${CDN}/api/versions.json`)).json();
-  return versions.find((v) => v.startsWith(`${patch}.`)) ?? versions[0];
+  const v = await lireVersions();
+  return v.find((x) => x.startsWith(`${patch}.`)) ?? v[0];
 }
 
 export function classer(itemJson) {
@@ -45,8 +55,19 @@ export async function itemsDuPatch(patch) {
 
 // Patch en cours d'après Data Dragon : « 16.19.1 » → « 16.19 ».
 export async function patchCourant() {
-  versions ??= await (await fetch(`${CDN}/api/versions.json`)).json();
-  return versions[0].split('.').slice(0, 2).join('.');
+  return (await patchsRecents(1))[0];
+}
+
+// Les n derniers patchs, du plus récent au plus ancien : « 16.19 », « 16.18 »…
+// (lus dans Data Dragon, donc justes aussi au changement de saison).
+export async function patchsRecents(n) {
+  const vus = [];
+  for (const v of await lireVersions()) {
+    const p = v.split('.').slice(0, 2).join('.');
+    if (!vus.includes(p)) vus.push(p);
+    if (vus.length === n) break;
+  }
+  return vus;
 }
 
 // Champions en français (« MonkeyKing » → « Wukong ») avec leur icône, pour
