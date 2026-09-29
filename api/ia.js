@@ -7,7 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-const MODELE = process.env.DEBRIEF_MODELE || 'claude-opus-5-5';
+const MODELE = process.env.DEBRIEF_MODELE || 'claude-sonnet-5-5';
 
 let client = null;
 const lireClient = () => (client ??= new Anthropic({ timeout: 25_000, maxRetries: 1 }));
