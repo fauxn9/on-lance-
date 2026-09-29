@@ -63,10 +63,10 @@
 
   const TUILES = [
     { cle: 'morts', nom: 'KDA', val: (d) => `${d.moi.kills}/${d.moi.deaths}/${d.moi.assists}`, sous: (d) => `${kda(d.moi.kills, d.moi.deaths, d.moi.assists)} KDA`, phrase: 'moins de morts que' },
-    { cle: 'csm', nom: 'CS/min', val: (d) => un(d.moi.csm), sous: (d) => `${d.moi.cs} CS`, phrase: 'mieux que' },
-    { cle: 'degats', nom: 'Dégâts', val: (d) => k(d.moi.degats), sous: () => 'aux champions', phrase: 'mieux que' },
-    { cle: 'vision', nom: 'Vision', val: (d) => String(d.moi.vision), sous: (d) => `${un(d.moi.vision / d.minutes)}/min`, phrase: 'mieux que' },
-    { cle: 'kp', nom: 'Participation', val: (d) => `${Math.round(d.moi.kp * 100)} %`, sous: () => 'aux kills', phrase: 'mieux que' },
+    { cle: 'csm', nom: 'CS/min', nombre: (d) => d.moi.csm, format: (v) => un(v), val: (d) => un(d.moi.csm), sous: (d) => `${d.moi.cs} CS`, phrase: 'mieux que' },
+    { cle: 'degats', nom: 'Dégâts', nombre: (d) => d.moi.degats, format: (v) => k(Math.round(v)), val: (d) => k(d.moi.degats), sous: () => 'aux champions', phrase: 'mieux que' },
+    { cle: 'vision', nom: 'Vision', nombre: (d) => d.moi.vision, format: (v) => String(Math.round(v)), val: (d) => String(d.moi.vision), sous: (d) => `${un(d.moi.vision / d.minutes)}/min`, phrase: 'mieux que' },
+    { cle: 'kp', nom: 'Participation', nombre: (d) => d.moi.kp * 100, format: (v) => `${Math.round(v)} %`, val: (d) => `${Math.round(d.moi.kp * 100)} %`, sous: () => 'aux kills', phrase: 'mieux que' },
     { cle: 'objectifs', nom: 'Objectifs', val: (d) => `${d.objectifs.moi}/${d.objectifs.equipe}`, sous: () => 'de ton équipe', phrase: 'mieux que' },
   ];
   const NOMS_OBJ = { dragon: 'Dragon', ancien: 'Dragon ancien', baron: 'Baron', heraut: 'Héraut', larves: 'Larves', atakhan: 'Atakhan', monstre: 'Monstre épique' };
@@ -136,7 +136,7 @@
           {@const m = mesure(t.cle)}
           <div class="tuile" style:--i={i}>
             <small class="etiquette">{t.nom}</small>
-            <b class="mono">{t.val(d)}</b>
+            {#if t.nombre}<b class="mono"><Compteur valeur={t.nombre(d)} format={t.format} /></b>{:else}<b class="mono">{t.val(d)}</b>{/if}
             <small class="sous">{t.sous(d)}</small>
             {#if m}
               <span class="barre" class:bien={m.mieuxQue >= 0.5}><i style:transform="scaleX({m.mieuxQue})"></i></span>

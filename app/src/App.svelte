@@ -44,6 +44,7 @@
 
   // Changement d'onglet animé : le nouvel écran arrive du côté de l'onglet.
   function aller(id) {
+    if (id === 'potes') nonLues = 0;
     if (id === vue) return;
     const cible = NAV.findIndex((n) => n.id === id);
     document.documentElement.dataset.sens = cible > indexVue ? 'bas' : 'haut';
@@ -103,6 +104,8 @@
   // Entre potes : toutes les minutes (hors partie), les nouveaux événements des
   // groupes. Ta partie → le verdict ; celle d'un pote → une notification.
   let verdict = $state(null);
+  // Vannes des potes pas encore vues : une pastille sur l'onglet.
+  let nonLues = $state(0);
   let revisionPotes = $state(0);
   let dernierEvenement = null;
   async function ecouterPotes() {
@@ -116,7 +119,8 @@
       for (const e of [...fil].reverse()) {
         dernierEvenement = Math.max(dernierEvenement, e.id);
         if (e.moi && e.type === 'partie') verdict = e;
-        else notifier({ titre: e.type === 'couronne' ? `${e.pseudo} gagne la semaine` : `${e.pseudo} · ${e.groupe}`, texte: e.texte, icone: e.type === 'couronne' ? 'couronne' : 'potes', duree: 9000 });
+        else if (vue !== 'potes') nonLues++;
+        if (!(e.moi && e.type === 'partie')) notifier({ titre: e.type === 'couronne' ? `${e.pseudo} gagne la semaine` : `${e.pseudo} · ${e.groupe}`, texte: e.texte, icone: e.type === 'couronne' ? 'couronne' : 'potes', duree: 9000 });
       }
       if (fil.length) revisionPotes++;
     } catch {}
@@ -199,6 +203,7 @@
       {#each NAV as item}
         <button class="nav" class:on={vue === item.id} onclick={() => aller(item.id)} use:onde aria-current={vue === item.id ? 'page' : undefined}>
           <Icone nom={item.icone} />
+          {#if item.id === 'potes' && nonLues}<span class="pastille-nav mono">{nonLues > 9 ? '9+' : nonLues}</span>{/if}
           <span class="bulle">{item.nom}<kbd>Ctrl {item.touche}</kbd></span>
         </button>
       {/each}
@@ -256,6 +261,12 @@
   .nav:hover:not(:disabled) :global(svg) { transform: scale(1.1); }
   .nav:active:not(:disabled) :global(svg) { transform: scale(.88); }
   .nav.on { color: var(--volt); }
+  .pastille-nav {
+    position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+    display: grid; place-items: center; background: var(--red); color: #fff; font-size: 9.5px; font-weight: 800;
+    box-shadow: 0 0 0 2px var(--bg); animation: pastille .45s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  @keyframes pastille { from { transform: scale(0); } }
   .nav:disabled { opacity: .32; cursor: default; }
   .bulle {
     position: absolute; left: 54px; top: 50%; translate: 0 -50%; z-index: 20; display: flex; align-items: center; gap: 8px; white-space: nowrap; pointer-events: none;

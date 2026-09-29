@@ -166,6 +166,7 @@
   <div class="chargement"><span class="squelette"></span><span class="squelette"></span></div>
 {:else if !groupes.length}
   <section class="accueil">
+    <div class="texte">
     <p class="kicker mono">Entre potes</p>
     <h1>Qui carry le groupe cette semaine ?</h1>
     <p class="intro">Monte un groupe avec tes potes : classement des LP de la semaine (remis à zéro chaque lundi), une vanne à chaque fin de partie, et le tout dans votre salon Discord si vous voulez.</p>
@@ -182,6 +183,22 @@
       </form>
     </div>
     {#if erreur}<p class="erreur">{erreur}</p>{/if}
+    </div>
+    <!-- Ce qui attend le groupe : un classement, une vanne. -->
+    <div class="vitrine" aria-hidden="true">
+      <div class="mini">
+        <p class="etiquette">les bouffons · cette semaine</p>
+        {#each [['pingu', 61, 1], ['toi', 45, 2], ['lune rousse', 40, 3], ['kiwi', -12, 4]] as [p, lp, n], i}
+          <div class="mini-ligne" class:toi={p === 'toi'} style:--i={i}>
+            <span class="mono">{n}</span><b>{p}</b>
+            <span class="mini-barre"><i class:neg={lp < 0} style:--w={Math.abs(lp) / 61}></i></span>
+            <span class="mono" class:v={lp > 0} class:r={lp < 0}>{lp > 0 ? '+' : '−'}{Math.abs(lp)}</span>
+          </div>
+        {/each}
+        <p class="mini-bulle">tu passes devant lune rousse et t'es 2e mtn, pingu t'es à 16 LP t'es chaud ?</p>
+        <p class="mini-reactions"><span>GG 2</span><span>cheh 1</span></p>
+      </div>
+    </div>
   </section>
 {:else}
   <header class="tete">
@@ -332,7 +349,25 @@
   .palmares :global(svg) { width: 14px; height: 14px; color: var(--gold); fill: var(--gold); stroke-width: 1.5; }
   .palmares .mono { margin-left: auto; font-size: 11.5px; }
 
-  .accueil { max-width: 720px; margin: 30px auto 0; display: grid; gap: 14px; animation: apparait .45s var(--ease) both; }
+  .accueil { max-width: 1000px; margin: 30px auto 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 34px; align-items: center; animation: apparait .45s var(--ease) both; }
+  .texte { display: grid; gap: 14px; }
+  .vitrine { perspective: 1100px; }
+  .mini {
+    display: grid; gap: 7px; padding: 16px; border-radius: 18px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2), 0 40px 80px -30px rgba(0, 0, 0, .95), 0 0 60px -30px var(--volt-glow);
+    transform: rotateY(-12deg) rotateX(6deg) rotate(1.5deg); animation: vitrine 1s var(--ease) .15s backwards;
+  }
+  @keyframes vitrine { from { opacity: 0; transform: rotateY(-30deg) rotateX(12deg) translateY(30px); } }
+  .mini .etiquette { margin-bottom: 4px; }
+  .mini-ligne { display: grid; grid-template-columns: 14px minmax(0, 1fr) 70px 38px; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 9px; background: var(--panel-2); font-size: 12.5px; animation: apparait .4s var(--ease) backwards; animation-delay: calc(.5s + var(--i) * 80ms); }
+  .mini-ligne .mono { font-size: 11.5px; text-align: right; } .mini-ligne .mono:first-child { color: var(--ink-3); text-align: left; }
+  .mini-ligne.toi { background: var(--volt-soft); box-shadow: inset 2px 0 0 var(--volt); } .mini-ligne.toi b { color: var(--volt); }
+  .mini-barre { position: relative; height: 6px; }
+  .mini-barre i { position: absolute; left: 50%; top: 0; bottom: 0; width: calc(50% * var(--w)); border-radius: 0 4px 4px 0; background: var(--volt); }
+  .mini-barre i.neg { left: auto; right: 50%; border-radius: 4px 0 0 4px; background: var(--red); }
+  .mini-bulle { margin-top: 6px; padding: 9px 12px; border-radius: 4px 14px 14px 14px; background: var(--panel-3); box-shadow: inset 0 0 0 1px var(--volt-line); font-size: 12.5px; line-height: 1.45; animation: apparait .45s var(--ease) 1s backwards; }
+  .mini-reactions { display: flex; gap: 5px; animation: apparait .4s var(--ease) 1.2s backwards; }
+  .mini-reactions span { padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line-2); }
+  .mini-reactions span:first-child { color: var(--volt); background: var(--volt-soft); box-shadow: inset 0 0 0 1px var(--volt-line); }
   .accueil h1 { font-size: 34px; }
   .intro { color: var(--ink-2); font-size: 14.5px; line-height: 1.5; max-width: 60ch; }
   .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
@@ -344,5 +379,6 @@
 
   @media (max-width: 1100px) {
     .grille, .reglages { grid-template-columns: minmax(0, 1fr); }
+    .accueil { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: 22px; }
   }
 </style>

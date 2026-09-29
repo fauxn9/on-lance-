@@ -20,6 +20,7 @@
       <span class="qui">
         <b>{l.pseudo}</b>
         <small class="mono">{l.parties ? `${l.victoires}V ${l.parties - l.victoires}D` : 'pas encore joué'}</small>
+        {#if l.profil === moi && i > 0}<small class="objectif">à {lignes[i - 1].lp - l.lp || 'égalité avec'}{lignes[i - 1].lp - l.lp ? ' LP de' : ''} {lignes[i - 1].pseudo}</small>{/if}
       </span>
       <span class="barre" aria-hidden="true">
         <span class="axe"></span>
@@ -52,6 +53,7 @@
   .qui { display: grid; min-width: 0; line-height: 1.25; }
   .qui b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .qui small { font-size: 11px; color: var(--ink-3); }
+  .qui .objectif { color: var(--volt); font-weight: 650; }
   .barre { position: relative; height: 10px; }
   .axe { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--line-2); }
   .barre i {

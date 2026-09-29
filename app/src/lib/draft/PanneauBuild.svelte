@@ -14,6 +14,7 @@
 </script>
 
 <section class="panneau" aria-busy={chargement}>
+  {#if champ?.splash}{#key champ.splash}<img class="fond" src={champ.splash} alt="" />{/key}{/if}
   {#if !build}
     <div class="attente">
       <span class="squelette a"></span><span class="squelette b"></span><span class="squelette c"></span>
@@ -60,7 +61,7 @@
       <div class="grille">
         {#if build.runes}
           <div class="bloc runes">
-            <p class="etiquette">Runes <span class="mono dim">{pct(build.runes.winrate)} · {Math.round(build.runes.pickrate * 100)} % des parties</span></p>
+            <p class="etiquette">Runes <span class="mono dim" title="{Math.round(build.runes.pickrate * 100)} % des parties sur ce poste">{pct(build.runes.winrate)}<span class="pris"> · {Math.round(build.runes.pickrate * 100)} % des parties</span></span></p>
             <PageRunes runes={build.runes} />
           </div>
         {/if}
@@ -128,8 +129,18 @@
 </section>
 
 <style>
-  .panneau { container-type: inline-size; position: relative; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); padding: 16px; transition: opacity .25s; }
+  .panneau { container-type: inline-size; position: relative; overflow: hidden; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); padding: 16px; transition: opacity .25s; }
   .panneau[aria-busy='true'] { opacity: .6; }
+  /* L'illustration du champion, en fond du haut du panneau, fondue dans le noir. */
+  .fond {
+    position: absolute; top: 0; right: 0; width: 72%; height: 210px; object-fit: cover; object-position: 60% 18%;
+    opacity: .3; pointer-events: none;
+    -webkit-mask-image: radial-gradient(ellipse 80% 90% at 85% 0%, #000 25%, transparent 72%);
+    mask-image: radial-gradient(ellipse 80% 90% at 85% 0%, #000 25%, transparent 72%);
+    animation: fond .9s var(--ease) both;
+  }
+  @keyframes fond { from { opacity: 0; transform: scale(1.06); } }
+  .panneau > :not(.fond) { position: relative; }
   .attente { display: grid; gap: 10px; }
   .a { height: 56px; width: 60%; } .b { height: 120px; } .c { height: 80px; }
   .tete { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; animation: apparait .4s var(--ease) both; }
@@ -157,7 +168,10 @@
   .grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 10px; }
   .bloc { padding: 12px 14px; border-radius: 12px; background: rgba(6, 7, 9, .45); box-shadow: inset 0 0 0 1px var(--line); animation: apparait .45s var(--ease) both; }
   .bloc:nth-child(2) { animation-delay: 60ms; } .bloc:nth-child(3) { animation-delay: 120ms; } .bloc:nth-child(4) { animation-delay: 180ms; }
-  .bloc .etiquette { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .bloc .etiquette { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; white-space: nowrap; }
+  /* Panneau étroit (pendant la sélection) : l'essentiel, sans retour à la ligne. */
+  .bloc.runes { container-type: inline-size; }
+  @container (max-width: 300px) { .pris { display: none; } }
   .runes { grid-row: span 2; }
   .sorts { display: flex; align-items: center; gap: 6px; }
   .sorts img { width: 34px; height: 34px; border-radius: 9px; }

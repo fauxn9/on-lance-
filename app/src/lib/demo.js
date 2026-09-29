@@ -93,7 +93,7 @@ export const partieEnCours = async () => {
   const t = Date.now() - debutDemo;
   const etapes = { rangs: t > 700 * x, maitrises: t > 1300 * x, duos: t > 1700 * x, forme: t > (2000 + 10 * 180) * x };
   const joueurs = JOUEURS_DEMO.map((j, i) => {
-    const v = { moi: j.moi, bot: false, riotId: j.riotId, championId: j.championId, equipe: j.equipe, poste: j.poste, sorts: j.sorts, runes: { cle: j.runes[0], style: j.runes[1], sousStyle: j.runes[2] } };
+    const v = { moi: j.moi, pote: { 1: 'pingu', 8: 'kiwi' }[i] ?? null, bot: false, riotId: j.riotId, championId: j.championId, equipe: j.equipe, poste: j.poste, sorts: j.sorts, runes: { cle: j.runes[0], style: j.runes[1], sousStyle: j.runes[2] } };
     if (etapes.rangs) v.rang = j.rang;
     if (etapes.maitrises) v.maitrise = j.maitrise;
     if (etapes.duos && j.duo) v.duo = { groupe: j.duo, ensemble: 9 + i };
