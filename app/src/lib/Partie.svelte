@@ -2,6 +2,7 @@
   // Écran de chargement (brique 5) : les deux équipes face à face, voie par
   // voie, comme l'écran du jeu. Les fiches se remplissent au fil de l'analyse
   // du serveur (rangs, maîtrises, duos, forme).
+  import * as api from './api.js';
   import { partie } from './partie.svelte.js';
   import { COULEUR_TIER, duree as formatDuree, nomFile, nomPoste, rangDepuisEchelle } from './format.js';
   import Fiche from './partie/Fiche.svelte';
@@ -36,13 +37,19 @@
 
   // Titre et chrono selon le moment de la partie.
   const titre = $derived(client.etape === 'chargement' ? 'La partie se lance' : client.etape === 'en_jeu' ? 'Partie en cours' : 'Dernière partie');
+  // Chrono en jeu : l'horloge du jeu lui-même (même si l'app a été ouverte en
+  // pleine partie), relue toutes les 30 s, et qui avance entre deux lectures.
   let maintenant = $state(Date.now());
+  let repere = $state(null); // { jeu: secondes de jeu, a: Date.now() de la lecture }
   $effect(() => {
-    if (client.etape !== 'en_jeu') return;
+    if (client.etape !== 'en_jeu') { repere = null; return; }
+    const lire = () => api.tempsDeJeu().then((s) => { if (s != null) repere = { jeu: s, a: Date.now() }; }).catch(() => {});
+    lire();
     const t = setInterval(() => (maintenant = Date.now()), 1000);
-    return () => clearInterval(t);
+    const r = setInterval(lire, 30_000);
+    return () => { clearInterval(t); clearInterval(r); };
   });
-  const chrono = $derived(client.etape === 'en_jeu' && partie.debutJeu ? formatDuree(Math.max(0, Math.floor((maintenant - partie.debutJeu) / 1000))) : null);
+  const chrono = $derived(client.etape === 'en_jeu' && repere ? formatDuree(Math.max(0, Math.floor(repere.jeu + (maintenant - repere.a) / 1000))) : null);
 
   // Un éclat traverse le plateau quand la dernière info arrive (une fois).
   let balaye = $state(false);
@@ -219,6 +226,17 @@
   }
   .cartes-deco span:nth-child(3) { background: linear-gradient(180deg, #1c2410, var(--panel)); box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 40px -12px var(--volt-glow); z-index: 1; }
   @keyframes eventail { from { transform: rotate(0deg) translateY(20px); opacity: 0; } }
+
+  /* Fenêtre basse : en-tête compact et cartes un peu plus courtes, pour que
+     les deux équipes tiennent sans défiler. */
+  @media (max-height: 720px) {
+    .tete { margin-bottom: 8px; }
+    h1 { font-size: 22px; }
+    .kicker { margin-bottom: 2px; }
+    .plateau { --haut-fiche: clamp(176px, calc((100vh - 276px) / 2), 300px); gap: 4px; }
+    .nous .entete { margin-bottom: 4px; }
+    .eux .entete { margin-top: 4px; }
+  }
 
   @media (max-width: 1100px) {
     .rangee, .voies { gap: 8px; }

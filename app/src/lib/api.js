@@ -16,6 +16,7 @@ export const buildChampion = (champion, role, file) =>
   enTauri ? invoke('build_champion', { champion, role, file }) : demo.buildChampion(champion, role, file);
 export const suggestions = () => (enTauri ? invoke('suggestions') : demo.suggestions());
 export const partieEnCours = () => (enTauri ? invoke('partie_en_cours') : demo.partieEnCours());
+export const tempsDeJeu = () => (enTauri ? invoke('temps_de_jeu') : Promise.resolve(754));
 export const debrief = (matchId) => (enTauri ? invoke('debrief', { matchId }) : demo.debrief(matchId));
 export const identite = (pseudo = null) => (enTauri ? invoke('identite', { pseudo }) : demo.identite(pseudo));
 export const potes = (methode, chemin, corps = null) => (enTauri ? invoke('potes', { methode, chemin, corps }) : demo.potes(methode, chemin, corps));

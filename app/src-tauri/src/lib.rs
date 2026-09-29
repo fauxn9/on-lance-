@@ -209,6 +209,12 @@ async fn partie_en_cours(etat: State<'_, Etat>) -> Result<Value, String> {
     etat.appel("GET", &chemin, None).await
 }
 
+/// Horloge de la partie en cours, lue dans le jeu (secondes).
+#[tauri::command]
+async fn temps_de_jeu() -> Option<f64> {
+    lcu::client::temps_de_jeu().await
+}
+
 /// Debrief d'après-partie (brique 7), calculé par le serveur.
 #[tauri::command]
 async fn debrief(etat: State<'_, Etat>, match_id: String) -> Result<Value, String> {
@@ -444,7 +450,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes, temps_de_jeu])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

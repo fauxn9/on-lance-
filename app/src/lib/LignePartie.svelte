@@ -144,5 +144,7 @@
   .jauge i.vision { background: var(--blue); }
   @keyframes jauge { from { transform: scaleX(0); } }
   .infos { display: flex; flex-direction: column; gap: 4px; }
-  .capitale { text-transform: capitalize; color: var(--ink); }
+  .capitale { display: block; color: var(--ink); }
+  /* « Mardi 29 septembre à 21:14 » : seule la première lettre prend une majuscule. */
+  .capitale::first-letter { text-transform: uppercase; }
 </style>

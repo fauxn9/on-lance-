@@ -377,8 +377,10 @@
   .chargement .squelette { height: 360px; border-radius: 14px; }
   .chargement .squelette::after { animation-iteration-count: 8; }
 
-  @media (max-width: 1100px) {
+  @media (max-width: 900px) {
     .grille, .reglages { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 1100px) {
     .accueil { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: 22px; }
   }
 </style>

@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 
-const etat = $state({ donnees: null, cherche: false, erreur: null, debutJeu: null });
+const etat = $state({ donnees: null, cherche: false, erreur: null });
 
 export const partie = {
   get donnees() { return etat.donnees; },
@@ -13,7 +13,6 @@ export const partie = {
   // quelques secondes à la publier).
   get cherche() { return etat.cherche; },
   get erreur() { return etat.erreur; },
-  get debutJeu() { return etat.debutJeu; },
 };
 
 let cle = null;
@@ -42,9 +41,7 @@ async function boucle(g) {
 
 export function suivre(etape, gameId) {
   const enPartie = etape === 'chargement' || etape === 'en_jeu';
-  if (etape === 'en_jeu' && etat.debutJeu == null) etat.debutJeu = Date.now();
   if (!enPartie) {
-    etat.debutJeu = null;
     etat.cherche = false;
     if (cle !== null) {
       cle = null;

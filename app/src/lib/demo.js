@@ -129,7 +129,7 @@ if (params.has('overlay')) {
     const temps = 780 + ((Date.now() - debut) / 1000) * 20;
     const niveau = Math.min(18, 9 + Math.floor((temps - 780) / 120));
     emettre('jeu', {
-      temps, mode: 'CLASSIC', or: 700 + (temps % 3000), niveau, competences: [5, 1, 3, 1],
+      temps, mode: params.has('aram') ? 'ARAM' : 'CLASSIC', or: 700 + (temps % 3000), niveau, competences: [5, 1, 3, 1],
       joueurs: [
         P('Sett', 'ORDER', 'TOP', niveau, [1055, 3071, 3047], 4650, true), P('LeeSin', 'ORDER', 'JUNGLE', 10, [], 5100), P('Ahri', 'ORDER', 'MIDDLE', 11, [], 5600),
         P('Jinx', 'ORDER', 'BOTTOM', 9, [], 4900), P('Thresh', 'ORDER', 'UTILITY', 8, [], 2400),

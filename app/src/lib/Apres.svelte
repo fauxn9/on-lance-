@@ -293,7 +293,14 @@
   .vide h1 { font-size: 28px; }
   .vide p { color: var(--ink-2); max-width: 48ch; }
 
+  /* La fenêtre de l'app ne descend pas sous 980 px : on garde tout sur une
+     ligne jusque-là, « À retenir » reste à côté de la courbe. */
   @media (max-width: 1100px) {
+    .tuile { padding: 10px; }
+    .tuile b { font-size: 18px; }
+    .rang { font-size: 10px; }
+  }
+  @media (max-width: 900px) {
     .tuiles, .s-tuiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .grille { grid-template-columns: minmax(0, 1fr); }
   }

@@ -244,6 +244,13 @@
     .bas { padding: 0 10px 10px; }
   }
 
+  /* Fenêtre basse : sorts côte à côte, le texte garde sa place. */
+  @media (max-height: 720px) {
+    .sorts { display: flex; }
+    .ruban, .pote { top: 36px; }
+    .bas { gap: 4px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .fiche, .art, .embleme, .barres i, .ruban { animation: none; }
   }

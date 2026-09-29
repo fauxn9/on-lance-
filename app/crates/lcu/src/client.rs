@@ -79,6 +79,14 @@ impl Lcu {
     }
 }
 
+/// Secondes de jeu de la partie en cours (horloge du jeu), ou `None`.
+pub async fn temps_de_jeu() -> Option<f64> {
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    let http = CLIENT.get_or_init(http_local);
+    let v: Value = http.get("https://127.0.0.1:2999/liveclientdata/gamestats").send().await.ok()?.json().await.ok()?;
+    v["gameTime"].as_f64()
+}
+
 /// Le jeu est-il jouable ? L'API de partie en direct (port 2999) ne répond
 /// qu'une fois l'écran de chargement terminé. C'est l'API officielle du jeu.
 pub async fn jeu_charge() -> bool {
