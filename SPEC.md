@@ -178,6 +178,12 @@ utilisée de tous les trackers : autant la sortir en premier.
 
 **Livrable** : `/classement` sur le serveur Discord de la commu.
 
+> Fait : `api/groupes/` (semaine, potes, chambrage, discord). Pas de notification
+> de navigateur : verdict animé dans l'app, fil avec réactions, salon Discord du
+> groupe par webhook, `/classement` par les interactions HTTP de Discord (aucun
+> bot connecté en permanence). Relevé des membres toutes les 5 min (le chambrage
+> part même app fermée), clôture des semaines toutes les heures.
+
 ## Brique 9 — Lancement public
 
 - Bêta ouverte dès que la clé de production est accordée.

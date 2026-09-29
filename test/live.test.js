@@ -120,7 +120,7 @@ test('écran de chargement complet, une seule analyse par partie', async () => {
   oublierTout();
   const riot = fauxRiot();
   const lireRoles = async () => ({});
-  const premiere = await partieEnCours(riot, { puuid: 'p0', platform: 'euw1' }, { lireRoles });
+  const premiere = await partieEnCours(riot, { puuid: 'p0', platform: 'euw1' }, { lireRoles, lirePotes: async () => new Map() });
   assert.equal(premiere.enCours, true);
   assert.equal(premiere.joueurs.length, 10);
   assert.ok(!('puuid' in premiere.joueurs[0]), 'les puuid restent sur le serveur');
@@ -128,7 +128,7 @@ test('écran de chargement complet, une seule analyse par partie', async () => {
   // Attendre la fin de l'analyse.
   let v;
   for (let i = 0; i < 50; i++) {
-    v = await partieEnCours(riot, { puuid: 'p0', platform: 'euw1' }, { gameId: 42, lireRoles });
+    v = await partieEnCours(riot, { puuid: 'p0', platform: 'euw1' }, { gameId: 42, lireRoles, lirePotes: async () => new Map() });
     if (v.complet) break;
     await new Promise((r) => setTimeout(r, 5));
   }
@@ -156,7 +156,7 @@ test('écran de chargement complet, une seule analyse par partie', async () => {
 test('pas en partie : réponse en cache quelques secondes', async () => {
   oublierTout();
   const riot = fauxRiot();
-  assert.deepEqual(await partieEnCours(riot, { puuid: 'p3', platform: 'euw1' }), { enCours: false });
-  assert.deepEqual(await partieEnCours(riot, { puuid: 'p3', platform: 'euw1' }), { enCours: false });
+  assert.deepEqual(await partieEnCours(riot, { puuid: 'p3', platform: 'euw1' }, { lirePotes: async () => new Map() }), { enCours: false });
+  assert.deepEqual(await partieEnCours(riot, { puuid: 'p3', platform: 'euw1' }, { lirePotes: async () => new Map() }), { enCours: false });
   assert.equal(riot.appels.length, 1);
 });

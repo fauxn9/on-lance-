@@ -16,6 +16,7 @@ import { ladder } from './rangs.js';
 import { postesProbables } from './stats/build.js';
 import { roles as rolesDesChampions } from './stats/routes.js';
 import { recleCompte } from './sync.js';
+import { potesDe } from './groupes/potes.js';
 
 const SMITE = 11;
 const POSTES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
@@ -260,8 +261,9 @@ async function analyser(riot, p, lireRoles) {
   p.etapes.forme = true;
 }
 
-// Ce que l'app reçoit : jamais les puuid des autres joueurs.
-function vue(p, puuid) {
+// Ce que l'app reçoit : jamais les puuid des autres joueurs. `potes` : les
+// potes de ses groupes, signalés s'ils sont dans la partie.
+function vue(p, puuid, potes = new Map()) {
   return {
     enCours: true, gameId: p.gameId, queue: p.queue, map: p.map, mode: p.mode,
     etapes: p.etapes, complet: Boolean(p.fin), duree: p.fin ? p.fin - p.creee : Date.now() - p.creee,
@@ -269,12 +271,13 @@ function vue(p, puuid) {
     joueurs: p.joueurs.map((j) => ({
       moi: j.puuid === puuid, bot: j.bot, riotId: j.riotId, championId: j.championId, equipe: j.equipe,
       poste: j.poste ?? null, sorts: j.sorts, runes: j.runes,
-      rang: j.rang, maitrise: j.maitrise, forme: j.forme, duo: j.duo,
+      rang: j.rang, maitrise: j.maitrise, forme: j.forme, duo: j.duo, pote: potes.get(j.puuid) ?? null,
     })),
   };
 }
 
-export async function partieEnCours(riot, compte, { gameId = null, lireRoles = rolesDesChampions } = {}) {
+export async function partieEnCours(riot, compte, { gameId = null, lireRoles = rolesDesChampions, lirePotes = potesDe } = {}) {
+  const potes = await lirePotes(compte.puuid).catch(() => new Map());
   const now = Date.now();
   for (const [k, p] of parties) if (now - p.creee > TTL_PARTIE) parties.delete(k);
   const { platform } = compte;
@@ -284,7 +287,7 @@ export async function partieEnCours(riot, compte, { gameId = null, lireRoles = r
   // déjà analysée, pas besoin de redemander à Riot.
   if (gameId) {
     const p = parties.get(`${platform}:${gameId}`);
-    if (p) return vue(p, puuid);
+    if (p) return vue(p, puuid, potes);
   }
   if (now - (absents.get(puuid) ?? 0) < TTL_ABSENT) return { enCours: false };
 
@@ -318,7 +321,7 @@ export async function partieEnCours(riot, compte, { gameId = null, lireRoles = r
       })
       .finally(() => (p.fin = Date.now()));
   }
-  return vue(p, puuid);
+  return vue(p, puuid, potes);
 }
 
 // Pour les tests.

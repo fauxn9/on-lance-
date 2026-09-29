@@ -73,6 +73,7 @@ impl Etat {
         let jeton = self.jeton(&puuid, plateforme.as_deref()).await?;
         let rep = match methode {
             "GET" => self.serveur.get(&jeton, chemin).await,
+            "DELETE" => self.serveur.delete(&jeton, chemin).await,
             _ => self.serveur.post(&jeton, chemin, &corps.unwrap_or(Value::Null)).await,
         };
         // Jeton refusé (base remise à zéro…) : on l'oublie, il sera recréé.
@@ -215,6 +216,36 @@ async fn debrief(etat: State<'_, Etat>, match_id: String) -> Result<Value, Strin
         return Err("Partie invalide.".into());
     }
     etat.appel("GET", &format!("/debrief/{match_id}"), None).await
+}
+
+/// Profil de la personne (brique 8) : relie le compte ouvert au profil de
+/// cette installation, et le renomme si `pseudo` est donné.
+#[tauri::command]
+async fn identite(etat: State<'_, Etat>, pseudo: Option<String>) -> Result<Value, String> {
+    let installation = {
+        let mut j = etat.jetons.lock().unwrap();
+        if j.installation.is_none() {
+            j.installation = Some(serveur::identifiant_aleatoire());
+            j.sauver(&etat.chemin_jetons);
+        }
+        j.installation.clone()
+    };
+    etat.appel("POST", "/identite", Some(json!({ "installation": installation, "pseudo": pseudo }))).await
+}
+
+/// Groupes et fil des potes : l'interface appelle ces routes-là, et seulement elles.
+#[tauri::command]
+async fn potes(etat: State<'_, Etat>, methode: String, chemin: String, corps: Option<Value>) -> Result<Value, String> {
+    let permis = ["/groupes", "/fil"].iter().any(|p| chemin == *p || chemin.starts_with(&format!("{p}/")) || chemin.starts_with(&format!("{p}?")));
+    if !permis || chemin.contains("..") {
+        return Err("Route non permise.".into());
+    }
+    match methode.as_str() {
+        "GET" => etat.appel("GET", &chemin, None).await,
+        "POST" => etat.appel("POST", &chemin, Some(corps.unwrap_or(json!({})))).await,
+        "DELETE" => etat.appel("DELETE", &chemin, None).await,
+        _ => Err("Méthode non permise.".into()),
+    }
 }
 
 /// L'overlay demande ses réglages, ton pick et le catalogue des objets.
@@ -413,7 +444,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

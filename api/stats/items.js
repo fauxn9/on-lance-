@@ -49,16 +49,23 @@ export async function patchCourant() {
   return versions[0].split('.').slice(0, 2).join('.');
 }
 
-// Noms français des champions (« MonkeyKing » → « Wukong »), pour les phrases
-// du debrief. En cache 12 h.
-let noms = { at: 0, p: null };
-export async function nomsChampions() {
-  if (!noms.p || Date.now() - noms.at > 12 * 3600e3) {
-    noms = { at: Date.now(), p: (async () => {
+// Champions en français (« MonkeyKing » → « Wukong ») avec leur icône, pour
+// les phrases du debrief et du chambrage. En cache 12 h.
+let infos = { at: 0, p: null };
+export async function infosChampions() {
+  if (!infos.p || Date.now() - infos.at > 12 * 3600e3) {
+    infos = { at: Date.now(), p: (async () => {
       const [v] = await (await fetch(`${CDN}/api/versions.json`)).json();
       const j = await (await fetch(`${CDN}/cdn/${v}/data/fr_FR/champion.json`)).json();
-      return Object.fromEntries(Object.values(j.data).map((c) => [Number(c.key), c.name]));
-    })().catch(() => ({})) };
+      const parCle = {};
+      for (const c of Object.values(j.data)) parCle[Number(c.key)] = { nom: c.name, id: c.id, icone: `${CDN}/cdn/${v}/img/champion/${c.id}.png` };
+      return { version: v, parCle };
+    })().catch(() => ({ version: null, parCle: {} })) };
   }
-  return noms.p;
+  return infos.p;
+}
+
+export async function nomsChampions() {
+  const { parCle } = await infosChampions();
+  return Object.fromEntries(Object.entries(parCle).map(([k, c]) => [k, c.nom]));
 }

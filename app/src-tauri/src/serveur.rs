@@ -52,6 +52,10 @@ impl Serveur {
         self.envoyer(self.http.get(format!("{}/api/app{}", self.base, chemin)).bearer_auth(jeton)).await
     }
 
+    pub async fn delete(&self, jeton: &str, chemin: &str) -> Result<Value, String> {
+        self.envoyer(self.http.delete(format!("{}/api/app{}", self.base, chemin)).bearer_auth(jeton)).await
+    }
+
     pub async fn post(&self, jeton: &str, chemin: &str, corps: &Value) -> Result<Value, String> {
         self.envoyer(self.http.post(format!("{}/api/app{}", self.base, chemin)).bearer_auth(jeton).json(corps)).await
     }
@@ -78,6 +82,23 @@ pub struct Jetons {
     pub dernier: Option<String>,
     pub plateformes: HashMap<String, String>,
     pub jetons: HashMap<String, String>,
+    /// Identifiant secret de cette installation : tous les comptes reliés
+    /// depuis ce PC forment un seul profil (brique 8).
+    #[serde(default)]
+    pub installation: Option<String>,
+}
+
+/// 32 caractères hexadécimaux aléatoires, sans dépendance de plus : chaque
+/// `RandomState` est tiré au hasard par la bibliothèque standard.
+pub fn identifiant_aleatoire() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    (0..2)
+        .map(|_| {
+            let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+            h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0));
+            format!("{:016x}", h.finish())
+        })
+        .collect()
 }
 
 impl Jetons {

@@ -10,6 +10,8 @@
   import Draft from './lib/Draft.svelte';
   import Partie from './lib/Partie.svelte';
   import Apres from './lib/Apres.svelte';
+  import Potes from './lib/Potes.svelte';
+  import Verdict from './lib/potes/Verdict.svelte';
   import { suivre } from './lib/partie.svelte.js';
   import Icone from './lib/Icone.svelte';
   import Notifications from './lib/Notifications.svelte';
@@ -36,6 +38,7 @@
     { id: 'draft', nom: 'Draft', icone: 'epees', touche: '3' },
     { id: 'partie', nom: 'En direct', icone: 'cible', touche: '4' },
     { id: 'apres', nom: 'Après-partie', icone: 'courbe', touche: '5' },
+    { id: 'potes', nom: 'Potes', icone: 'potes', touche: '6' },
   ];
   const indexVue = $derived(NAV.findIndex((n) => n.id === vue));
 
@@ -97,6 +100,28 @@
     untrack(() => suivre(e, id));
   });
 
+  // Entre potes : toutes les minutes (hors partie), les nouveaux événements des
+  // groupes. Ta partie → le verdict ; celle d'un pote → une notification.
+  let verdict = $state(null);
+  let revisionPotes = $state(0);
+  let dernierEvenement = null;
+  async function ecouterPotes() {
+    if (['chargement', 'en_jeu'].includes(client.etape) || document.visibilityState === 'hidden') return;
+    try {
+      const { fil } = await api.potes('GET', `/fil?depuis=${dernierEvenement ?? 0}`);
+      if (dernierEvenement === null) {
+        dernierEvenement = fil[0]?.id ?? 0;
+        return;
+      }
+      for (const e of [...fil].reverse()) {
+        dernierEvenement = Math.max(dernierEvenement, e.id);
+        if (e.moi && e.type === 'partie') verdict = e;
+        else notifier({ titre: e.type === 'couronne' ? `${e.pseudo} gagne la semaine` : `${e.pseudo} · ${e.groupe}`, texte: e.texte, icone: e.type === 'couronne' ? 'couronne' : 'potes', duree: 9000 });
+      }
+      if (fil.length) revisionPotes++;
+    } catch {}
+  }
+
   // Debrief : une partie choisie dans l'historique, sinon la dernière jouée.
   let apresMatch = $state(null);
   function voirDebrief(id) {
@@ -146,6 +171,11 @@
         icone: 'alerte', duree: 12000,
       })),
     ];
+    // Profil de la personne (tous ses comptes réunis), puis l'écoute des potes.
+    api.identite().catch(() => {});
+    const potesT = setInterval(ecouterPotes, api.enTauri ? 60_000 : 4000);
+    setTimeout(ecouterPotes, 1500);
+    stops.push(() => clearInterval(potesT));
     const clavier = (e) => {
       const item = e.ctrlKey && NAV.find((n) => n.touche === e.key);
       if (item) {
@@ -187,12 +217,19 @@
       {:else if vue === 'partie'}
         <Partie {client} />
       {:else}
-        <Apres matchId={apresMatch} {revision} onchoisir={(id) => (apresMatch = id)} />
+        {#if vue === 'apres'}
+          <Apres matchId={apresMatch} {revision} onchoisir={(id) => (apresMatch = id)} />
+        {:else}
+          <Potes revision={revisionPotes} />
+        {/if}
       {/if}
     </main>
   </div>
   {#if !api.enTauri}
     <p class="demo mono">Mode démo : données inventées, hors de l'app.</p>
+  {/if}
+  {#if verdict}
+    <Verdict e={verdict} onfermer={() => (verdict = null)} onvoir={() => { verdict = null; aller('potes'); }} />
   {/if}
   <Notifications />
 </div>

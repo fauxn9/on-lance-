@@ -12,7 +12,8 @@
     "start": "node server.js",
     "test": "node --test test/*.test.js",
     "collecte": "node api/stats/crawler.js",
-    "test:db": "node --env-file=.env --test test/stats-db.integration.js"
+    "test:db": "node --env-file=.env --test test/stats-db.integration.js",
+    "discord:commandes": "node --env-file-if-exists=.env scripts/discord-commandes.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

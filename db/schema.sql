@@ -174,3 +174,78 @@ create table if not exists debriefs (
 );
 create index if not exists debriefs_ia_recents on debriefs (created_at) where ia;
 alter table debriefs enable row level security;
+
+-- Entre potes (brique 8) ---------------------------------------------------
+-- Un profil = une personne. Tous les comptes LoL reliés depuis la même
+-- installation de l'app lui appartiennent (preuve : ils ont été connectés au
+-- client League sur ce PC).
+create table if not exists profils (
+  id           bigint generated always as identity primary key,
+  pseudo       text not null,
+  installation text unique,          -- empreinte SHA-256 de l'identifiant d'installation
+  created_at   timestamptz not null default now()
+);
+alter table accounts add column if not exists profil_id bigint references profils(id) on delete set null;
+create index if not exists accounts_profil on accounts (profil_id);
+
+create table if not exists groupes (
+  id              bigint generated always as identity primary key,
+  nom             text not null,
+  code            text not null unique,  -- code d'invitation
+  fuseau          text not null default 'Europe/Paris',
+  createur        bigint references profils(id) on delete set null,
+  webhook         text,                  -- salon Discord (jamais renvoyé à l'app)
+  discord_guild   text,
+  discord_salon   text,
+  discord_nom     text,
+  chambrage       boolean not null default true,
+  created_at      timestamptz not null default now()
+);
+create index if not exists groupes_guild on groupes (discord_guild);
+
+create table if not exists groupe_membres (
+  groupe_id  bigint not null references groupes(id) on delete cascade,
+  profil_id  bigint not null references profils(id) on delete cascade,
+  joined_at  timestamptz not null default now(),
+  primary key (groupe_id, profil_id)
+);
+create index if not exists groupe_membres_profil on groupe_membres (profil_id);
+
+-- Semaines terminées : classement figé et vainqueur (historique).
+create table if not exists groupe_semaines (
+  groupe_id  bigint not null references groupes(id) on delete cascade,
+  semaine    date not null,
+  gagnant    bigint references profils(id) on delete set null,
+  classement jsonb not null,
+  primary key (groupe_id, semaine)
+);
+
+-- Le fil des potes : chambrages de fin de partie, couronnes de la semaine.
+create table if not exists evenements (
+  id         bigint generated always as identity primary key,
+  groupe_id  bigint not null references groupes(id) on delete cascade,
+  profil_id  bigint references profils(id) on delete cascade,
+  type       text not null,
+  cle        text not null,             -- anti-doublon (partie, semaine…)
+  texte      text not null,
+  data       jsonb not null default '{}',
+  ia         boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (groupe_id, cle)
+);
+create index if not exists evenements_fil on evenements (groupe_id, id desc);
+create index if not exists evenements_ia on evenements (created_at) where ia;
+
+create table if not exists reactions (
+  evenement_id bigint not null references evenements(id) on delete cascade,
+  profil_id    bigint not null references profils(id) on delete cascade,
+  type         text not null,
+  primary key (evenement_id, profil_id)
+);
+
+alter table profils enable row level security;
+alter table groupes enable row level security;
+alter table groupe_membres enable row level security;
+alter table groupe_semaines enable row level security;
+alter table evenements enable row level security;
+alter table reactions enable row level security;

@@ -186,6 +186,64 @@ export const debrief = async (matchId) => {
 };
 const dd_nom = (id) => ({ 875: 'Sett', 85: 'Kennen', 133: 'Quinn', 122: 'Darius', 64: 'Lee Sin' })[id] ?? 'Champion';
 
+// Entre potes (brique 8) : « les bouffons », 5 potes, une semaine en cours.
+const heure = 3600e3;
+const MEMBRES = [
+  { profil: 1, pseudo: 'kasai', icone: 5211, lp: 45, parties: 9, victoires: 6, avant: 3 },
+  { profil: 2, pseudo: 'pingu', icone: 4568, lp: 61, parties: 7, victoires: 5, avant: 1 },
+  { profil: 3, pseudo: 'lune rousse', icone: 5367, lp: 40, parties: 11, victoires: 6, avant: 2 },
+  { profil: 4, pseudo: 'kiwi', icone: 6013, lp: -12, parties: 5, victoires: 2, avant: 4 },
+  { profil: 5, pseudo: 'tchoupi', icone: 4895, lp: -38, parties: 8, victoires: 2, avant: 5 },
+].sort((a, b) => b.lp - a.lp).map((m, i) => ({ ...m, place: i + 1 }));
+let filDemo = [
+  { id: 14, type: 'partie', pseudo: 'kasai', profil: 1, groupe: 'les bouffons', moi: true, texte: "tu passes devant lune rousse et t'es 2e mtn, pingu t'es à 16 LP t'es chaud ?", data: { championId: 875, victoire: true, kda: '8/3/6', lpPartie: 21, place: 2, avant: 3, total: 5, classement: MEMBRES }, reactions: { gg: 2 }, maReaction: null, t: Date.now() - 0.3 * heure },
+  { id: 13, type: 'partie', pseudo: 'tchoupi', profil: 5, groupe: 'les bouffons', moi: false, texte: "-38 LP depuis lundi et dernier du groupe, enft cette semaine c'est pas la tienne", data: { championId: 412, victoire: false, kda: '1/9/4', lpPartie: -19, place: 5, avant: 5, total: 5 }, reactions: { cheh: 3, aie: 1 }, maReaction: 'cheh', t: Date.now() - 2.5 * heure },
+  { id: 12, type: 'partie', pseudo: 'pingu', moi: false, texte: "vous étiez 2 dans la game et c'est pingu qui a carry, kiwi t'étais où genre", data: { championId: 64, victoire: true, kda: '12/2/9', lpPartie: 23, place: 1, avant: 1, total: 5, potes: [{ pseudo: 'kiwi', champion: 'Jinx', kda: '3/6/5', memeEquipe: true }] }, reactions: { gg: 3, cheh: 1 }, maReaction: 'gg', t: Date.now() - 20 * heure },
+  { id: 9, type: 'couronne', pseudo: 'lune rousse', moi: false, texte: "semaine pliée, lune rousse finit 1er avec +88 LP, les autres on se retrouve lundi", data: {}, reactions: { gg: 4 }, maReaction: 'gg', t: Date.now() - 50 * heure },
+];
+export const identite = async (pseudo) => ({ id: 1, pseudo: pseudo ?? 'kasai', comptes: [{ gameName: 'Kasai', tagLine: 'EUW', icone: 5211 }] });
+let groupesDemo = params.has('seul') ? [] : [{ id: 1, nom: 'les bouffons', code: 'K7QX2M', membres: 5, chambrage: true, discord: { nom: 'On lance ?' } }];
+export const potes = async (methode, chemin, corps) => {
+  await attendre(250);
+  if (chemin === '/groupes' && methode === 'GET') return { groupes: groupesDemo };
+  if (chemin === '/groupes' && methode === 'POST') { groupesDemo = [{ id: 1, nom: corps.nom, code: 'K7QX2M', membres: 1, chambrage: true, discord: null }]; return { id: 1 }; }
+  if (chemin === '/groupes/rejoindre') { groupesDemo = [{ id: 1, nom: 'les bouffons', code: 'K7QX2M', membres: 5, chambrage: true, discord: null }]; return { id: 1 }; }
+  // Fil : au premier passage le dernier événement connu, puis (avec ?verdict)
+  // ta partie qui vient de finir, pour voir le verdict.
+  if (chemin.startsWith('/fil?')) {
+    const depuis = Number(new URLSearchParams(chemin.split('?')[1]).get('depuis')) || 0;
+    if (!depuis) return { fil: [filDemo[1]] };
+    if (params.has('verdict') && depuis < 14) return { fil: [filDemo[0]] };
+    return { fil: [] };
+  }
+  if (chemin.startsWith('/fil/')) {
+    const e = filDemo.find((x) => x.id === Number(chemin.split('/')[2]));
+    if (e) {
+      if (e.maReaction) e.reactions[e.maReaction]--;
+      e.maReaction = corps.type;
+      if (corps.type) e.reactions[corps.type] = (e.reactions[corps.type] ?? 0) + 1;
+    }
+    return null;
+  }
+  if (chemin.endsWith('/apercu')) { await attendre(1200); return { texte: "2e du groupe à 27 LP de pingu, une game et t'es devant, flemme ou t'es chaud ?", ia: true }; }
+  if (chemin.endsWith('/discord') && methode === 'POST') return { nom: 'On lance ?' };
+  if (chemin.startsWith('/groupes/')) {
+    const g = groupesDemo[0];
+    return {
+      groupe: g, moi: 1,
+      semaine: { cle: '2026-09-28', nom: 'semaine du 28 septembre', fin: Date.now() + 4.3 * 24 * heure },
+      classement: MEMBRES,
+      historique: [
+        { semaine: '2026-09-21', nom: 'semaine du 21 septembre', gagnant: 'lune rousse', lp: 88 },
+        { semaine: '2026-09-14', nom: 'semaine du 14 septembre', gagnant: 'pingu', lp: 71 },
+        { semaine: '2026-09-07', nom: 'semaine du 7 septembre', gagnant: 'kasai', lp: 54 },
+      ],
+      fil: filDemo.map((e) => ({ ...e, reactions: { ...e.reactions } })),
+    };
+  }
+  return null;
+};
+
 // Une série de parties plausible, générée une fois.
 const CHAMPS = [[875, 'Sett', 'TOP'], [85, 'Kennen', 'TOP'], [133, 'Quinn', 'TOP'], [122, 'Darius', 'TOP'], [875, 'Sett', 'TOP'], [64, 'LeeSin', 'JUNGLE']];
 const BUILDS = [[3071, 3053, 6333, 3047, 3065, 0, 3364], [3078, 3053, 3071, 3111, 0, 0, 3340], [6692, 3071, 3047, 6333, 0, 0, 3363]];

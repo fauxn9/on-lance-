@@ -15,6 +15,8 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { query } from './db.js';
 import { debrief } from './debrief.js';
+import { verifierWebhook } from './groupes/discord.js';
+import * as potes from './groupes/potes.js';
 import { partieEnCours } from './live.js';
 import { DIVS, ladder, TIERS } from './rangs.js';
 import { isPlatform, RiotApi } from './riot.js';
@@ -217,6 +219,98 @@ export function appRouter({ riot = new RiotApi() } = {}) {
       next(err);
     }
   });
+
+  // --- Entre potes (brique 8)
+  const profilDe = async (req) => (req.profil ??= await potes.assurerProfil(req.account.puuid));
+  const membre = async (req, res, next) => {
+    try {
+      const id = /^\d{1,12}$/.test(req.params.id) ? Number(req.params.id) : null;
+      if (!id || !(await potes.estMembre(await profilDe(req), id))) return res.status(404).json({ erreur: 'Groupe introuvable.' });
+      req.groupe = id;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+  const texte = (v, min, max) => (typeof v === 'string' && v.trim().length >= min && v.trim().length <= max ? v.trim() : null);
+  const route = (fn) => async (req, res, next) => {
+    try {
+      await fn(req, res);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // Relie ce compte au profil de l'installation (tous les comptes d'un même PC
+  // forment une seule personne). `pseudo` : renommer son profil.
+  r.post('/identite', route(async (req, res) => {
+    const installation = /^[\w-]{16,80}$/.test(req.body?.installation ?? '') ? req.body.installation : null;
+    const profil = await potes.assurerProfil(req.account.puuid, installation);
+    const pseudo = texte(req.body?.pseudo, 2, 20);
+    if (pseudo) await query('update profils set pseudo = $2 where id = $1', [profil, pseudo]);
+    res.json(await potes.identite(profil));
+  }));
+
+  r.get('/groupes', route(async (req, res) => {
+    res.json({ groupes: await potes.mesGroupes(await profilDe(req)) });
+  }));
+
+  r.post('/groupes', rateLimit({ max: 10, windowMs: 60 * 60 * 1000 }), route(async (req, res) => {
+    const nom = texte(req.body?.nom, 2, 32);
+    if (!nom) return res.status(400).json({ erreur: 'Un nom de 2 à 32 caractères.' });
+    res.status(201).json({ id: await potes.creerGroupe(await profilDe(req), nom) });
+  }));
+
+  r.post('/groupes/rejoindre', rateLimit({ max: 20, windowMs: 60 * 60 * 1000 }), route(async (req, res) => {
+    const out = await potes.rejoindre(await profilDe(req), String(req.body?.code ?? '').slice(0, 12));
+    res.status(out.erreur ? 404 : 200).json(out);
+  }));
+
+  r.get('/groupes/:id', membre, route(async (req, res) => {
+    res.json(await potes.detail(req.groupe, await profilDe(req)));
+  }));
+
+  r.post('/groupes/:id/quitter', membre, route(async (req, res) => {
+    await potes.quitter(await profilDe(req), req.groupe);
+    res.status(204).end();
+  }));
+
+  r.post('/groupes/:id/reglages', membre, route(async (req, res) => {
+    if (typeof req.body?.chambrage === 'boolean') await query('update groupes set chambrage = $2 where id = $1', [req.groupe, req.body.chambrage]);
+    res.status(204).end();
+  }));
+
+  r.post('/groupes/:id/apercu', membre, rateLimit({ max: 6, windowMs: 60 * 60 * 1000 }), route(async (req, res) => {
+    res.json(await potes.apercu(req.groupe, await profilDe(req)));
+  }));
+
+  // Lier le salon Discord du groupe (URL de webhook, vérifiée auprès de Discord).
+  r.post('/groupes/:id/discord', membre, rateLimit({ max: 10, windowMs: 60 * 60 * 1000 }), route(async (req, res) => {
+    const w = await verifierWebhook(req.body?.webhook);
+    if (w.erreur) return res.status(400).json(w);
+    await query('update groupes set webhook = $2, discord_guild = $3, discord_salon = $4, discord_nom = $5 where id = $1', [req.groupe, w.url, w.guild, w.salon, w.nom]);
+    res.json({ nom: w.nom });
+  }));
+
+  r.delete('/groupes/:id/discord', membre, route(async (req, res) => {
+    await query('update groupes set webhook = null, discord_guild = null, discord_salon = null, discord_nom = null where id = $1', [req.groupe]);
+    res.status(204).end();
+  }));
+
+  // Le fil de tous mes groupes depuis un événement (l'app repasse toutes les minutes).
+  r.get('/fil', route(async (req, res) => {
+    const profil = await profilDe(req);
+    const ids = (await potes.mesGroupes(profil)).map((g) => g.id);
+    const depuis = Number(req.query.depuis) || 0;
+    res.json({ fil: await potes.fil(ids, profil, { depuis, limite: depuis ? 20 : 1 }) });
+  }));
+
+  r.post('/fil/:id/reaction', route(async (req, res) => {
+    const type = req.body?.type ?? null;
+    if (type !== null && !potes.REACTIONS.includes(type)) return res.status(400).json({ erreur: 'Réaction inconnue.' });
+    const id = /^\d{1,15}$/.test(req.params.id) ? Number(req.params.id) : 0;
+    res.status((await potes.reagir(await profilDe(req), id, type)) ? 204 : 404).end();
+  }));
 
   // Variation de PL mesurée par l'app sur le client, à la fin d'une partie.
   r.post('/lp', async (req, res, next) => {

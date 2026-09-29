@@ -51,6 +51,42 @@ app.get('/health', (req, res) => res.type('text').send('ok'));
 // même limiteur, donc le même budget de requêtes.
 const riot = new RiotApi();
 app.use('/api/app', appRouter({ riot }));
+
+// Discord : la commande /classement (corps brut, pour vérifier la signature).
+const { enregistrerCommandes, interactions } = await import('./api/groupes/discord.js');
+// La commande /classement est (ré)enregistrée à chaque démarrage : rien à
+// lancer à la main, il suffit des clés de l'app Discord dans l'environnement.
+if (process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET && process.env.DISCORD_PUBLIC_KEY) {
+  enregistrerCommandes()
+    .then((r) => console.log(`Discord : /classement enregistrée. Ajout à un serveur : ${r.invitation}`))
+    .catch((err) => console.error('Discord :', err.message));
+}
+const potes = await import('./api/groupes/potes.js');
+const { bornes, debutDeSemaine, nomSemaine } = await import('./api/groupes/semaine.js');
+app.post('/api/discord/interactions', express.raw({ type: 'application/json', limit: '64kb' }), interactions({
+  classementDe: async (g) => {
+    const s = debutDeSemaine(new Date(), g.fuseau);
+    return { semaine: { cle: s, nom: nomSemaine(s), fin: bornes(s, g.fuseau).fin }, classement: await potes.classement(g.id, s, g.fuseau) };
+  },
+}));
+
+// Entre potes, en fond : toutes les 5 min, les parties et le rang des membres
+// des groupes (le chambrage part même si leur app est fermée) ; toutes les
+// heures, la clôture des semaines terminées.
+if (riot.configured && process.env.POTES !== 'off') {
+  const { syncRecent } = await import('./api/sync.js');
+  const { query } = await import('./api/db.js');
+  const releve = async () => {
+    const { rows } = await query(
+      `select distinct a.puuid from accounts a join groupe_membres gm on gm.profil_id = a.profil_id
+        where a.last_sync_at is null or a.last_sync_at < now() - interval '10 minutes' limit 25`,
+    );
+    for (const { puuid } of rows) await syncRecent(riot, puuid).catch((err) => console.error('potes, relevé :', err.message));
+  };
+  setInterval(() => releve().catch((err) => console.error('potes :', err.message)), 5 * 60_000);
+  setInterval(() => potes.cloturerSemaines().catch((err) => console.error('potes, semaines :', err.message)), 60 * 60_000);
+  setTimeout(() => potes.cloturerSemaines().catch(() => {}), 30_000);
+}
 app.use('/api/stats', statsRouter());
 
 // Collecte des statistiques en fond, si demandée (COLLECTE=on).

@@ -9,6 +9,7 @@
 //   l'historique « complet » sans faire attendre personne.
 
 import { db, query } from './db.js';
+import { apresParties } from './groupes/potes.js';
 
 const RANKED = new Set(['RANKED_SOLO_5x5', 'RANKED_FLEX_SR']);
 
@@ -69,17 +70,19 @@ async function knownIds(puuid, ids) {
 async function fetchMissing(riot, account, ids, priority) {
   const known = await knownIds(account.puuid, ids);
   let added = 0, newest = null, oldest = null;
+  const nouvelles = [];
   for (const id of ids) {
     if (known.has(id)) continue;
     const m = await riot.match(account.platform, id, { priority });
     const row = m && matchRow(m, account.puuid);
     if (!row) continue;
     await insertRow(row);
+    if (priority === 'high') nouvelles.push({ match: m, row });
     added++;
     newest = Math.max(newest ?? 0, row.game_start);
     oldest = Math.min(oldest ?? Infinity, row.game_start);
   }
-  return { added, newest, oldest };
+  return { added, newest, oldest, nouvelles };
 }
 
 // Photo du rang, seulement si quelque chose a changé depuis la dernière.
@@ -136,9 +139,9 @@ export async function recleCompte(riot, ancien) {
     await client.query('begin');
     await client.query(
       `insert into accounts (puuid, platform, game_name, tag_line, profile_icon_id, summoner_level, created_at,
-         newest_game_start, backfill_before, backfill_done, last_sync_at)
+         newest_game_start, backfill_before, backfill_done, last_sync_at, profil_id)
        select $2, platform, game_name, tag_line, profile_icon_id, summoner_level, created_at,
-         newest_game_start, backfill_before, backfill_done, last_sync_at
+         newest_game_start, backfill_before, backfill_done, last_sync_at, profil_id
        from accounts where puuid = $1
        on conflict (puuid) do nothing`,
       [ancien, nouveau],
@@ -176,7 +179,7 @@ async function doSyncRecent(riot, puuid) {
     }
   }
 
-  const { added, newest, oldest } = await fetchMissing(riot, account, ids, 'high');
+  const { added, newest, oldest, nouvelles } = await fetchMissing(riot, account, ids, 'high');
   await query(
     `update accounts set
        newest_game_start = greatest(coalesce(newest_game_start, 0), coalesce($2::bigint, 0)),
@@ -191,6 +194,9 @@ async function doSyncRecent(riot, puuid) {
   if (first && ids.length === 0) await query('update accounts set backfill_done = true where puuid = $1', [puuid]);
 
   await snapshotRanks(riot, account);
+  // Entre potes : chambrage de la dernière partie, en fond (la réponse à
+  // l'app n'attend pas l'IA).
+  if (nouvelles.length && !first) apresParties(puuid, nouvelles).catch((err) => console.error('chambrage :', err.message));
   return { added };
 }
 

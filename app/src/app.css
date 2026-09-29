@@ -54,7 +54,7 @@ body {
 /* L'overlay en jeu : fenêtre transparente, seuls les widgets se voient. */
 html.overlay, html.overlay body { background: transparent; }
 h1, h2, h3, p, ul { margin: 0; }
-ul { padding: 0; list-style: none; }
+ul, ol { padding: 0; list-style: none; }
 button { font: inherit; color: inherit; }
 img { display: block; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }

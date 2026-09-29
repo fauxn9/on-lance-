@@ -37,6 +37,12 @@ Tauri 2 (Rust) + Svelte 5. Voir `../SPEC.md` pour le plan en briques.
 | 7 | « 3 choses à retenir » : règles d'abord, mise en mots par Claude avec quota (200/jour, 15/compte) | ✅ à vérifier en ligne |
 | 7 | Onglet « Après-partie » (Ctrl+5), ouvert tout seul à la fin de la partie ; « Voir le debrief » dans l'historique | ✅ |
 
+| 8 | Profils : tous les comptes reliés depuis un même PC = une personne (identifiant d'installation secret) | ✅ |
+| 8 | Groupes à code d'invitation, classement des LP de la semaine (Solo + Flex, lundi au fuseau du groupe), palmarès | ✅ |
+| 8 | Chambrage de fin de partie dans la voix de William (IA + phrases de secours), fil des potes, réactions GG / aïe / cheh | ✅ |
+| 8 | Le verdict des potes (ta ligne glisse dans le classement), notifications des potes dans l'app, pote signalé au chargement | ✅ |
+| 8 | Discord : webhook du salon du groupe (vannes, couronne du lundi), commande /classement | ✅ clés Discord à poser sur Render |
+
 Essai de l'overlay sans partie : `ONLANCE_OVERLAY=1` ouvre l'overlay au lancement, avec une
 fausse API de jeu sur le port 2999 (HTTPS, certificat auto-signé) pour les données.
 

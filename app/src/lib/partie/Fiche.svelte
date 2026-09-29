@@ -64,6 +64,11 @@
     {/if}
   </div>
 
+  {#if j.pote}
+    <span class="pote" class:eux={cote === 'eux'} title="{j.pote}, de ton groupe de potes{cote === 'eux' ? ', est en face' : ''}">
+      {cote === 'eux' ? 'Pote en face' : 'Ton pote'}
+    </span>
+  {/if}
   {#if j.duo}
     <span class="ruban" title="Joue avec {partenaires.join(', ') || 'un coéquipier'} : {j.duo.ensemble} de ses 20 dernières parties ensemble.">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
@@ -184,6 +189,13 @@
   .ruban svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
   @keyframes ruban { from { transform: translateX(-100%); } }
 
+  .pote {
+    position: absolute; top: 48px; right: 0; padding: 3px 8px 3px 9px; border-radius: 999px 0 0 999px;
+    background: var(--volt); color: var(--volt-ink); font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    box-shadow: 0 6px 16px -6px var(--volt-glow); animation: ruban-d .5s var(--ease) backwards .2s;
+  }
+  .pote.eux { background: var(--red); color: #fff; box-shadow: 0 6px 16px -6px rgba(255, 77, 106, .7); }
+  @keyframes ruban-d { from { transform: translateX(100%); } }
   .bas { position: absolute; left: 0; right: 0; bottom: 0; display: grid; gap: 6px; padding: 0 12px 12px; }
   .champ { font-size: 10px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; color: color-mix(in srgb, var(--equipe) 75%, white); text-shadow: 0 1px 8px rgba(0, 0, 0, .8); }
   .moi .champ { color: var(--volt); }
