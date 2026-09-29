@@ -1,17 +1,20 @@
 // Publie une nouvelle version de l'app :
-//   npm run publier -- 0.2.0 "Ce qui change, en une ou deux phrases"
-// Met le numéro de version partout, commite, pose le tag « tracker-v0.2.0 »
+//   npm run publier -- 0.3.0 "Première nouveauté\nDeuxième nouveauté"
+// (« \n » pour aller à la ligne : sous Windows, npm coupe un vrai retour à la
+// ligne dans un argument.)
+// Met le numéro de version partout, commite, pose le tag « tracker-v0.3.0 »
 // (son message = les notes de version affichées dans l'app) et pousse.
 // GitHub Actions compile, signe et publie ; les apps installées proposent
-// la mise à jour dans l'heure.
+// la mise à jour dans les heures qui suivent.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const [version, notes] = process.argv.slice(2);
+const [version, brut] = process.argv.slice(2);
+const notes = brut?.split('\\n').map((l) => l.trim()).join('\n');
 if (!/^\d+\.\d+\.\d+$/.test(version ?? '') || !notes?.trim()) {
-  console.error('Usage : npm run publier -- 0.2.0 "Ce qui change"');
+  console.error('Usage : npm run publier -- 0.3.0 "Première nouveauté\\nDeuxième nouveauté"');
   process.exit(1);
 }
 const ici = (p) => fileURLToPath(new URL(`../${p}`, import.meta.url));
