@@ -39,6 +39,9 @@ pub struct EtatOverlay {
     catalogue: Mutex<Option<Value>>,
     /// Ton pick en sélection des champions (champion, poste, file).
     pub pick: Mutex<Option<Value>>,
+    /// Dernier rectangle où l'overlay a été posé : on ne le repose que s'il
+    /// change (chaque déplacement fait redessiner toute la page).
+    place: Mutex<Option<(i32, i32, i32, i32)>>,
 }
 
 // ---------------------------------------------------------------- raccourcis
@@ -165,8 +168,11 @@ fn caler(w: &WebviewWindow) {
             let m = w.primary_monitor().ok().flatten()?;
             Some((m.position().x, m.position().y, m.size().width as i32, m.size().height as i32))
         });
-        if let Some(r) = rect {
+        let o = w.app_handle().state::<EtatOverlay>();
+        let mut place = o.place.lock().unwrap();
+        if let Some(r) = rect.filter(|r| *place != Some(*r)) {
             win::placer(hwnd(w), r);
+            *place = Some(r);
         }
     }
     #[cfg(not(windows))]
@@ -222,6 +228,7 @@ pub fn ouvrir(app: &AppHandle) -> tauri::Result<()> {
     let o = app.state::<EtatOverlay>();
     o.edition.store(false, Ordering::Relaxed);
     o.masque.store(false, Ordering::Relaxed);
+    *o.place.lock().unwrap() = None;
 
     let w = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
         .title("On lance ? · overlay")

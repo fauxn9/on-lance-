@@ -64,10 +64,16 @@
   });
   const momentAugment = $derived(mayhem && jeu && moi && (jeu.temps < 90 || (moi.mort && debloques > consommes)));
   const augmentsBuild = $derived(build?.augments?.length ? build.augments : null);
+  // Chaque changement d'affichage redessine tout l'overlay (plein écran,
+  // transparent, sans carte graphique) : on n'affiche que ce qui change
+  // vraiment. Minuteurs à 10 s près, à la seconde dans la dernière minute.
   const dans = (t) => {
     const reste = t - (jeu?.temps ?? 0);
-    return reste <= 0 ? null : minutes(reste);
+    return reste <= 0 ? null : minutes(reste > 60 ? Math.ceil(reste / 10) * 10 : reste);
   };
+  // Or qui manque : à 50 PO près ; jauge : par paliers de 5 %.
+  const manque = (prix) => Math.ceil(Math.max(0, prix - (jeu?.or ?? 0)) / 50) * 50;
+  const palier = (x) => Math.min(1, Math.floor(x * 20) / 20);
   const COULEURS = { Fire: '#ff7a45', Water: '#4fb6ff', Earth: '#c9a26b', Air: '#dfefff', Chemtech: '#9be15d', Hextech: '#a18bff' };
   const NOMS = { dragon: 'Dragon', ancien: 'Dragon ancien', baron: 'Baron Nashor' };
   const pieces = (n) => `${Math.round(n).toLocaleString('fr-FR')} PO`;
@@ -189,10 +195,10 @@
             {#if dd.item(prochain.id)}<img src={dd.item(prochain.id)} alt="" />{/if}
             <span>
               <b>{prochain.n}</b>
-              <small class="mono" class:v={peut}>{peut ? 'Achetable' : `${pieces(jeu?.or ?? 0)} / ${pieces(prochain.p)}`}</small>
+              <small class="mono" class:v={peut}>{peut ? 'Achetable' : `encore ${pieces(manque(prochain.p))} · ${pieces(prochain.p)}`}</small>
             </span>
           </div>
-          <span class="jauge"><i class:plein={peut} style:transform="scaleX({Math.min(1, (jeu?.or ?? 0) / prochain.p)})"></i></span>
+          <span class="jauge"><i class:plein={peut} style:transform="scaleX({palier((jeu?.or ?? 0) / prochain.p)})"></i></span>
           {#if achats.suivants.length > 1}
             <div class="ensuite">
               <small>Ensuite</small>
@@ -216,8 +222,9 @@
   .carte {
     display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 12px; white-space: nowrap;
     background: rgba(8, 10, 14, .84); color: var(--ink);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .09), 0 10px 26px -8px rgba(0, 0, 0, .7);
-    animation: apparait .35s var(--ease) both;
+    /* Pas de grande ombre floue : chaque rafraîchissement la recalculerait. */
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .09), 0 2px 6px rgba(0, 0, 0, .45);
+    animation: apparait .25s var(--ease) both;
   }
   .etiq { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
   .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -227,7 +234,7 @@
   /* Écart d'or */
   .or b { font-size: 15px; }
   .barre-or { width: 84px; height: 6px; border-radius: 6px; background: var(--red); overflow: hidden; }
-  .barre-or i { display: block; height: 100%; background: var(--blue); transform-origin: left; transition: transform .8s var(--ease); }
+  .barre-or i { display: block; height: 100%; background: var(--blue); transform-origin: left; }
   .or img { width: 22px; height: 22px; border-radius: 6px; }
   .sep { width: 1px; height: 18px; background: rgba(255, 255, 255, .12); }
 
@@ -249,13 +256,13 @@
   .camp.eux { box-shadow: inset -2px 0 0 var(--red); padding-right: 5px; }
 
   /* Compétence */
-  .competence { gap: 11px; padding: 8px 14px 8px 8px; box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 30px -8px var(--volt-glow); animation: apparait .35s var(--ease) both, appel 1.2s ease-out .35s 3; }
+  /* Mise en avant par la couleur, sans lueur ni pulsation (redessinées à chaque image). */
+  .competence { gap: 11px; padding: 8px 14px 8px 8px; box-shadow: inset 0 0 0 1.5px var(--volt), 0 2px 6px rgba(0, 0, 0, .45); animation: apparait .25s var(--ease) both; }
   .touche { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; font-size: 17px; background: var(--volt); color: var(--volt-ink); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .25); }
   .competence span { display: grid; line-height: 1.2; }
   .competence small { font-size: 10.5px; color: var(--ink-3); }
   .competence b { font-size: 14px; }
   .ordre { margin-left: 4px; color: var(--ink-2) !important; font-size: 11.5px !important; }
-  @keyframes appel { 0% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 0 rgba(var(--volt-rgb), .45); } 100% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 14px rgba(var(--volt-rgb), 0); } }
 
   /* Augments (ARAM Mayhem) */
   .augments { flex-direction: column; align-items: stretch; gap: 6px; width: 250px; white-space: normal; }
@@ -269,7 +276,7 @@
   .item b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item small { font-size: 11px; color: var(--ink-3); }
   .jauge { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .08); overflow: hidden; }
-  .jauge i { display: block; height: 100%; background: var(--gold); transform-origin: left; transition: transform .6s var(--ease); }
+  .jauge i { display: block; height: 100%; background: var(--gold); transform-origin: left; }
   .jauge i.plein { background: var(--volt); }
   .ensuite { display: flex; align-items: center; gap: 5px; }
   .ensuite small { font-size: 10.5px; color: var(--ink-3); margin-right: 3px; }
@@ -281,7 +288,7 @@
   .accueil, .bandeau {
     position: absolute; left: 50%; top: 9%; translate: -50% 0; display: flex; align-items: center; gap: 14px;
     padding: 9px 16px; border-radius: 999px; background: rgba(8, 10, 14, .9); color: var(--ink-2); white-space: nowrap;
-    box-shadow: inset 0 0 0 1px var(--volt-line), 0 12px 30px -10px rgba(0, 0, 0, .8);
+    box-shadow: inset 0 0 0 1px var(--volt-line), 0 2px 8px rgba(0, 0, 0, .5);
     animation: apparait .4s var(--ease) both;
   }
   .accueil b, .bandeau b { color: var(--volt); }
