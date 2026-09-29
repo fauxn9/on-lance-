@@ -7,11 +7,12 @@
   import CarteRang from './CarteRang.svelte';
   import Compteur from './Compteur.svelte';
   import CourbePL from './CourbePL.svelte';
+  import FocusCarte from './coach/FocusCarte.svelte';
   import Etapes from './Etapes.svelte';
   import Icone from './Icone.svelte';
   import LignePartie from './LignePartie.svelte';
 
-  let { client, profil, compte, erreur, synchro, revision, onsync, onvoir } = $props();
+  let { client, profil, compte, erreur, synchro, revision, onsync, onvoir, oncoach } = $props();
 
   let recentes = $state([]);
   let chargement = $state(true);
@@ -111,21 +112,24 @@
       {/if}
     </section>
 
-    <section class="carte histo">
-      <p class="etiquette">Historique</p>
-      <p class="compte-parties"><Compteur classe="gros" valeur={profil?.history.count ?? 0} duree={1500} /> parties</p>
-      <div class="progression" class:fini={profil?.history.backfillDone}><span></span></div>
-      <p class="dim etat">
-        {#if !profil}—
-        {:else if profil.history.backfillDone}Tout ton historique est là.
-        {:else}Tes anciennes parties arrivent en fond.{/if}
-      </p>
-      {#if profil?.history.lastSyncAt}<p class="dim etat">Dernière synchro {ilYa(new Date(profil.history.lastSyncAt).getTime())}</p>{/if}
-      <button class="bouton" use:onde onclick={onsync} disabled={synchro}>
-        <span class:tourne={synchro} class="ico"><Icone nom="sync" /></span>{synchro ? 'Synchronisation…' : 'Synchroniser'}
-      </button>
-      <p class="note dim">Chaque fin de partie se synchronise toute seule.</p>
-    </section>
+    <div class="colonne">
+      <FocusCarte onvoir={oncoach} />
+      <section class="carte histo">
+        <p class="etiquette">Historique</p>
+        <p class="compte-parties"><Compteur classe="gros" valeur={profil?.history.count ?? 0} duree={1500} /> parties</p>
+        <div class="progression" class:fini={profil?.history.backfillDone}><span></span></div>
+        <p class="dim etat">
+          {#if !profil}—
+          {:else if profil.history.backfillDone}Tout ton historique est là.
+          {:else}Tes anciennes parties arrivent en fond.{/if}
+        </p>
+        {#if profil?.history.lastSyncAt}<p class="dim etat">Dernière synchro {ilYa(new Date(profil.history.lastSyncAt).getTime())}</p>{/if}
+        <button class="bouton" use:onde onclick={onsync} disabled={synchro}>
+          <span class:tourne={synchro} class="ico"><Icone nom="sync" /></span>{synchro ? 'Synchronisation…' : 'Synchroniser'}
+        </button>
+        <p class="note dim">Chaque fin de partie se synchronise toute seule.</p>
+      </section>
+    </div>
   </div>
 {/if}
 
@@ -164,7 +168,9 @@
   .c2 { height: 12px; width: 60%; }
   .c3 { height: 12px; }
   .vide { padding: 20px 0; font-size: 13px; }
-  .histo { display: flex; flex-direction: column; gap: 6px; animation: apparait .6s var(--ease) .22s both; }
+  .colonne { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .colonne > :global(.focus) { animation: apparait .6s var(--ease) .19s both; }
+  .histo { flex: 1; display: flex; flex-direction: column; gap: 6px; animation: apparait .6s var(--ease) .22s both; }
   .compte-parties { font-size: 14px; color: var(--ink-2); margin-top: 6px; }
   .compte-parties :global(.gros) { font-size: 38px; color: var(--ink); font-stretch: 122%; font-weight: 900; margin-right: 4px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
   .progression { position: relative; height: 4px; border-radius: 4px; background: var(--panel-3); overflow: hidden; margin: 4px 0 6px; }

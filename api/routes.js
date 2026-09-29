@@ -14,6 +14,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { query } from './db.js';
+import { coach } from './coach.js';
 import { debrief } from './debrief.js';
 import { verifierWebhook } from './groupes/discord.js';
 import * as potes from './groupes/potes.js';
@@ -311,6 +312,15 @@ export function appRouter({ riot = new RiotApi() } = {}) {
     const id = /^\d{1,15}$/.test(req.params.id) ? Number(req.params.id) : 0;
     res.status((await potes.reagir(await profilDe(req), id, type)) ? 204 : 404).end();
   }));
+
+  // Coach : le focus du moment, sur les dernières parties à ton poste.
+  r.get('/coach', needRiot, rateLimit({ max: 60, windowMs: 60_000 }), async (req, res, next) => {
+    try {
+      res.json(await coach(riot, req.account));
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // Variation de PL mesurée par l'app sur le client, à la fin d'une partie.
   r.post('/lp', async (req, res, next) => {

@@ -9,6 +9,7 @@
 //   l'historique « complet » sans faire attendre personne.
 
 import { db, query } from './db.js';
+import { completerMesures } from './coach.js';
 import { apresParties } from './groupes/potes.js';
 
 const RANKED = new Set(['RANKED_SOLO_5x5', 'RANKED_FLEX_SR']);
@@ -146,7 +147,7 @@ export async function recleCompte(riot, ancien) {
        on conflict (puuid) do nothing`,
       [ancien, nouveau],
     );
-    for (const table of ['devices', 'player_matches', 'lp_changes', 'rank_snapshots', 'debriefs']) {
+    for (const table of ['devices', 'player_matches', 'lp_changes', 'rank_snapshots', 'debriefs', 'mesures_joueur', 'coach_focus']) {
       await client.query(`update ${table} set puuid = $2 where puuid = $1`, [ancien, nouveau]);
     }
     await client.query('delete from accounts where puuid = $1', [ancien]);
@@ -197,6 +198,8 @@ async function doSyncRecent(riot, puuid) {
   // Entre potes : chambrage de la dernière partie, en fond (la réponse à
   // l'app n'attend pas l'IA).
   if (nouvelles.length && !first) apresParties(puuid, nouvelles).catch((err) => console.error('chambrage :', err.message));
+  // Coach : les nouvelles parties sont mesurées en fond (priorité basse).
+  if (nouvelles.length) completerMesures(riot, { puuid, platform: account.platform }, { limite: 5 });
   return { added };
 }
 

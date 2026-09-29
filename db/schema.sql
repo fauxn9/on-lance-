@@ -253,3 +253,30 @@ alter table reactions enable row level security;
 -- Somme d'une mesure (écart d'or à 15 min des matchups, kind « gd15 ») :
 -- moyenne = somme / games.
 alter table stats add column if not exists somme bigint not null default 0;
+
+-- Coach (après la brique 8) ------------------------------------------------
+-- Les mesures de chaque partie d'un joueur (mêmes définitions que les repères
+-- par rang), pour repérer ses habitudes sur ses dernières parties.
+create table if not exists mesures_joueur (
+  puuid      text not null references accounts(puuid) on delete cascade,
+  match_id   text not null,
+  game_start bigint not null,
+  queue      int not null,
+  role       text,
+  win        boolean not null,
+  valeurs    jsonb not null,
+  primary key (puuid, match_id)
+);
+create index if not exists mesures_joueur_recentes on mesures_joueur (puuid, game_start desc);
+
+-- Le focus du moment : un point à la fois, gardé jusqu'à ce qu'il soit tenu.
+create table if not exists coach_focus (
+  puuid    text primary key references accounts(puuid) on delete cascade,
+  cle      text not null,
+  role     text,
+  cible    real not null,
+  depuis   timestamptz not null default now(),
+  valides  jsonb not null default '[]'
+);
+alter table mesures_joueur enable row level security;
+alter table coach_focus enable row level security;

@@ -13,6 +13,7 @@
 // un quota. Sans quota ou sans clé, les phrases des règles restent.
 
 import { query } from './db.js';
+import { enregistrerMesures } from './coach.js';
 import { ecrireConseils } from './ia.js';
 import { MESURES, evenements, mesurer, monstreDe, mortsDe, palierDe, situer } from './stats/reperes.js';
 import { nomsChampions, patchCourant } from './stats/items.js';
@@ -20,7 +21,7 @@ import { nomsChampions, patchCourant } from './stats/items.js';
 export const VERSION = 1;
 const MIN_PAIRS = 200;
 
-const NOMS_PALIERS = {
+export const NOMS_PALIERS = {
   IRON: 'Fer', BRONZE: 'Bronze', SILVER: 'Argent', GOLD: 'Or', PLATINUM: 'Platine',
   EMERALD: 'Émeraude', DIAMOND: 'Diamant', 'MASTER+': 'Maître+', TOUS: 'tous rangs',
 };
@@ -64,7 +65,7 @@ async function patchs() {
 }
 
 // Histogrammes des mesures pour un poste, dans un palier et dans « TOUS ».
-async function histogrammes(role, palier) {
+export async function histogrammes(role, palier) {
   const kinds = Object.keys(MESURES).flatMap((m) => [`m:${m}:${palier}`, `m:${m}:TOUS`]);
   const { rows } = await query(
     `select kind, key, sum(games)::int as games from stats
@@ -78,7 +79,7 @@ async function histogrammes(role, palier) {
 }
 
 // Le palier du joueur : son rang en Solo/Duo, sinon en Flex, sinon aucun.
-async function palierDuJoueur(puuid) {
+export async function palierDuJoueur(puuid) {
   const { rows } = await query(
     `select distinct on (queue) queue, tier from rank_snapshots where puuid = $1 order by queue, taken_at desc`,
     [puuid],
@@ -285,6 +286,9 @@ export async function debrief(riot, compte, matchId) {
   const palier = await palierDuJoueur(compte.puuid);
   const d = await analyser({ match, timeline, puuid: compte.puuid, palier, noms: await nomsChampions() });
   if (!d) return null;
+  // Les mesures de la partie servent aussi au coach (habitudes sur 20 parties) :
+  // enregistrées avant de répondre, pour que le coach relu juste après les voie.
+  await enregistrerMesures(compte.puuid, match, timeline).catch((err) => console.error('coach :', err.message));
 
   const { rows: lp } = await query('select delta from lp_changes where puuid = $1 and match_id = $2', [compte.puuid, matchId]);
   d.lp = lp[0]?.delta ?? null;

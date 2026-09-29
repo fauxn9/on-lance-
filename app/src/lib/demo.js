@@ -257,6 +257,35 @@ export const potes = async (methode, chemin, corps) => {
   return null;
 };
 
+// Coach de démo (`?coach=vide` : pas encore assez de parties ; `?coach=valide` :
+// un focus vient d'être tenu).
+export const coach = async () => {
+  await attendre(400);
+  const mode = params.get('coach');
+  if (mode === 'vide') return { pret: false, analysees: 3, besoin: 6, role: 'TOP', parties: 3 };
+  // De la plus ancienne à la plus récente (la dernière = la partie la plus récente de l'historique).
+  const valeurs = [0.55, 0.6, 0.48, 0.7, 0.62, 0.9, 0.75, 1.15, 0.95, 1.2, 1.15, 1.3];
+  const n = valeurs.length;
+  const suivi = valeurs.map((v, i) => ({ matchId: toutes[n - 1 - i]?.matchId ?? `M${i}`, t: Date.now() - (n - i) * 5 * 3600e3, valeur: v, tenu: v >= 1.1, win: i % 3 !== 1 }));
+  let serie = 0;
+  for (const x of [...suivi].reverse()) { if (!x.tenu) break; serie++; }
+  return {
+    pret: true, role: 'UTILITY', parties: 18, groupe: { palier: 'EMERALD', nom: 'Émeraude' },
+    valide: mode === 'valide' ? { cle: 'morts', titre: 'Tes morts' } : null,
+    focus: {
+      cle: 'vision', titre: 'Ta vision', sens: 'haut', objectif: '1,1 de vision par minute', cible: 1.1, valeur: 0.72, valeurTexte: '0,7 de vision par minute',
+      conseil: 'Achète une balise de contrôle à chaque retour, et pose tes balises avant les dragons et le baron, pas après.',
+      souvent: 14, parties: 18, depuis: Date.now() - 2 * 86400e3, suivi, serie,
+    },
+    autres: [
+      { cle: 'kp', titre: 'Ta présence dans les combats', valeur: '41 % de participation aux kills', cible: '52 % de participation aux kills', mieuxQue: 0.24 },
+      { cle: 'isoles', titre: 'Les morts sans allié', valeur: '48 % de morts sans allié à portée', cible: '33 % de morts sans allié à portée', mieuxQue: 0.31 },
+    ],
+    forts: [{ cle: 'objectifs', titre: 'Les objectifs', valeur: 'présent sur 71 % des objectifs de l’équipe', mieuxQue: 0.84 }],
+    parMatch: Object.fromEntries(suivi.map((s) => [s.matchId, s.tenu])),
+  };
+};
+
 // Mise à jour de démo (`?maj`) : une version dispo, un téléchargement simulé.
 export const verifierMaj = async () => ({
   actuelle: '0.1.0',

@@ -24,7 +24,7 @@
   const descend = $derived(e.data?.avant < e.data?.place);
 </script>
 
-<aside class="verdict" class:monte class:descend role="dialog" aria-label="Le verdict des potes">
+<div class="verdict" class:monte class:descend role="dialog" aria-label="Le verdict des potes">
   <header>
     <span class="titre"><Icone nom="potes" />Le verdict des potes <span class="dim">· {e.groupe}</span></span>
     <button class="fermer" onclick={onfermer} aria-label="Fermer">×</button>
@@ -50,7 +50,7 @@
     </span>
     <button class="lien" onclick={onvoir}>Voir le groupe</button>
   </footer>
-</aside>
+</div>
 
 <style>
   .verdict {

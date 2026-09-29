@@ -11,8 +11,10 @@
   import Courbe from './apres/Courbe.svelte';
   import CarteMorts from './apres/CarteMorts.svelte';
   import Icone from './Icone.svelte';
+  import Coach from './coach/Coach.svelte';
+  import { coach, chargerCoach } from './coach.svelte.js';
 
-  let { matchId = null, revision = 0, onchoisir = () => {} } = $props();
+  let { matchId = null, revision = 0, sous = 'partie', onchoisir = () => {}, onsous = () => {} } = $props();
 
   let liste = $state([]);
   let chargeListe = $state(true);
@@ -69,29 +71,52 @@
     { cle: 'kp', nom: 'Participation', nombre: (d) => d.moi.kp * 100, format: (v) => `${Math.round(v)} %`, val: (d) => `${Math.round(d.moi.kp * 100)} %`, sous: () => 'aux kills', phrase: 'mieux que' },
     { cle: 'objectifs', nom: 'Objectifs', val: (d) => `${d.objectifs.moi}/${d.objectifs.equipe}`, sous: () => 'de ton équipe', phrase: 'mieux que' },
   ];
+  // Le focus du coach sur cette partie : tenu, raté, ou pas concerné.
+  const focus = $derived(coach.donnees?.focus);
+  const focusIci = $derived(d && focus ? coach.donnees.parMatch?.[d.matchId] : undefined);
+  // La dernière partie vient d'être analysée : ses mesures entrent dans le
+  // suivi du coach, on le relit une fois pour afficher « focus tenu / raté ».
+  const relus = new Set();
+  $effect(() => {
+    if (!d || !focus || focusIci !== undefined || d.remake || d.matchId !== liste[0]?.matchId || relus.has(d.matchId)) return;
+    relus.add(d.matchId);
+    untrack(() => chargerCoach());
+  });
   const NOMS_OBJ = { dragon: 'Dragon', ancien: 'Dragon ancien', baron: 'Baron', heraut: 'Héraut', larves: 'Larves', atakhan: 'Atakhan', monstre: 'Monstre épique' };
 </script>
 
-{#if !chargeListe && !liste.length}
+<div class="haut">
+  <div class="bascule" role="tablist" aria-label="Après-partie">
+    <button role="tab" aria-selected={sous === 'partie'} class:on={sous === 'partie'} onclick={() => onsous('partie')}>Cette partie</button>
+    <button role="tab" aria-selected={sous === 'coach'} class:on={sous === 'coach'} onclick={() => onsous('coach')}>
+      Ton coach{#if focus && sous !== 'coach'}<span class="point-focus" aria-hidden="true"></span>{/if}
+    </button>
+  </div>
+  {#if sous === 'partie' && liste.length}
+    <nav class="choix" aria-label="Choisir une partie">
+      {#each liste as m, i (m.matchId)}
+        {@const c = dd.champion(m.championId, m.championName)}
+        <button
+          class="puce {m.remake ? 'remake' : m.win ? 'victoire' : 'defaite'}" class:on={m.matchId === courant}
+          onclick={() => onchoisir(m.matchId)} use:onde style:--i={i}
+          title="{c.nom} · {m.win ? 'Victoire' : 'Défaite'} · {ilYa(m.gameStart)}"
+        >
+          {#if c.icone}<img src={c.icone} alt={c.nom} />{/if}
+        </button>
+      {/each}
+    </nav>
+  {/if}
+</div>
+
+{#if sous === 'coach'}
+  <Coach onpartie={(id) => { onchoisir(id); onsous('partie'); }} />
+{:else if !chargeListe && !liste.length}
   <section class="vide">
     <span class="rond"><Icone nom="courbe" /></span>
     <h1>Pas encore de partie à analyser.</h1>
     <p>Joue une partie : à la fin, ton debrief s'ouvre ici tout seul. Écart avec ton adversaire, tes morts sur la carte, et trois choses à retenir.</p>
   </section>
 {:else}
-  <nav class="choix" aria-label="Choisir une partie">
-    {#each liste as m, i (m.matchId)}
-      {@const c = dd.champion(m.championId, m.championName)}
-      <button
-        class="puce {m.remake ? 'remake' : m.win ? 'victoire' : 'defaite'}" class:on={m.matchId === courant}
-        onclick={() => onchoisir(m.matchId)} use:onde style:--i={i}
-        title="{c.nom} · {m.win ? 'Victoire' : 'Défaite'} · {ilYa(m.gameStart)}"
-      >
-        {#if c.icone}<img src={c.icone} alt={c.nom} />{/if}
-      </button>
-    {/each}
-  </nav>
-
   {#if erreur && !chargement}
     <div class="carte erreur">
       <Icone nom="alerte" />
@@ -119,6 +144,11 @@
               <span class="tag">{duree(d.duree)}</span>
               <span class="tag">{champ.nom}{d.moi.role ? ` · ${nomPoste(d.moi.role)}` : ''}</span>
               {#if d.lp != null}<span class="tag" class:v={d.lp > 0} class:r={d.lp < 0}>{signe(d.lp)} PL</span>{/if}
+              {#if focusIci != null}
+                <button class="tag focus-tag" class:v={focusIci} class:r={!focusIci} onclick={() => onsous('coach')} title="Ton focus : {focus.titre}. Voir ton coach">
+                  <Icone nom={focusIci ? 'check' : 'cible'} />Focus {focusIci ? 'tenu' : 'raté'}
+                </button>
+              {/if}
             </p>
           </div>
         </div>
@@ -213,7 +243,16 @@
 {/if}
 
 <style>
-  .choix { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .haut { display: flex; align-items: center; gap: 14px 18px; margin-bottom: 14px; flex-wrap: wrap; }
+  .bascule { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .bascule button {
+    position: relative; border: 0; background: transparent; color: var(--ink-3); font: inherit; font-size: 12.5px; font-weight: 700;
+    padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: background-color .2s, color .2s;
+  }
+  .bascule button:hover:not(.on) { color: var(--ink); }
+  .bascule button.on { background: var(--volt); color: var(--volt-ink); }
+  .point-focus { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--volt); box-shadow: 0 0 8px var(--volt); }
+  .choix { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 4px; }
   .puce { position: relative; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 11px; cursor: pointer; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); transition: transform .25s var(--ease), box-shadow .25s; animation: apparait .35s var(--ease) both; animation-delay: calc(var(--i) * 30ms); }
   .puce img { width: 100%; height: 100%; border-radius: 11px; opacity: .6; transition: opacity .25s; }
   .puce::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -4px; height: 2px; border-radius: 2px; background: var(--ink-3); }
@@ -233,6 +272,9 @@
   h1 { font-stretch: 122%; font-weight: 900; font-size: 32px; letter-spacing: -.03em; line-height: 1.05; }
   .victoire h1 { color: var(--volt); } .defaite h1 { color: var(--red); }
   .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .focus-tag { display: inline-flex; align-items: center; gap: 5px; border: 0; font-family: inherit; cursor: pointer; transition: filter .2s; }
+  .focus-tag:hover { filter: brightness(1.25); }
+  .focus-tag :global(svg) { width: 12px; height: 12px; stroke-width: 3; }
   .groupe { position: relative; display: grid; justify-items: end; text-align: right; font-size: 12px; }
   .groupe small { color: var(--ink-3); } .groupe b { font-size: 13.5px; }
 

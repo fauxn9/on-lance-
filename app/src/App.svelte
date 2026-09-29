@@ -13,6 +13,7 @@
   import Potes from './lib/Potes.svelte';
   import Verdict from './lib/potes/Verdict.svelte';
   import { suivre } from './lib/partie.svelte.js';
+  import { chargerCoach } from './lib/coach.svelte.js';
   import Icone from './lib/Icone.svelte';
   import Notifications from './lib/Notifications.svelte';
 
@@ -128,10 +129,23 @@
 
   // Debrief : une partie choisie dans l'historique, sinon la dernière jouée.
   let apresMatch = $state(null);
+  let apresSous = $state('partie');
   function voirDebrief(id) {
     apresMatch = id;
+    apresSous = 'partie';
     aller('apres');
   }
+  function voirCoach() {
+    apresSous = 'coach';
+    aller('apres');
+  }
+
+  // Le coach se recalcule à chaque nouvel historique (les mesures des
+  // nouvelles parties arrivent avec la synchro).
+  $effect(() => {
+    revision;
+    untrack(() => chargerCoach());
+  });
   // Après une partie, le debrief s'ouvre dès qu'elle arrive dans l'historique.
   let debriefAttendu = false;
 
@@ -157,7 +171,7 @@
       api.ecouter('client', (e) => {
         const nouveau = e.compte?.puuid && e.compte.puuid !== client.compte?.puuid;
         client = e;
-        if (nouveau) chargerProfil();
+        if (nouveau) { chargerProfil(); chargerCoach(); }
       }),
       api.ecouter('historique', (h) => {
         chargerProfil();
@@ -214,7 +228,7 @@
 
     <main class="contenu">
       {#if vue === 'accueil'}
-        <Accueil {client} {profil} {compte} {erreur} {synchro} {revision} onsync={synchroniser} onvoir={() => aller('parties')} />
+        <Accueil {client} {profil} {compte} {erreur} {synchro} {revision} onsync={synchroniser} onvoir={() => aller('parties')} oncoach={voirCoach} />
       {:else if vue === 'parties'}
         <Parties {revision} {profil} {synchro} onsync={synchroniser} ondebrief={voirDebrief} />
       {:else if vue === 'draft'}
@@ -223,7 +237,7 @@
         <Partie {client} />
       {:else}
         {#if vue === 'apres'}
-          <Apres matchId={apresMatch} {revision} onchoisir={(id) => (apresMatch = id)} />
+          <Apres matchId={apresMatch} {revision} sous={apresSous} onchoisir={(id) => (apresMatch = id)} onsous={(v) => (apresSous = v)} />
         {:else}
           <Potes revision={revisionPotes} />
         {/if}

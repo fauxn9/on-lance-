@@ -4,6 +4,7 @@
   // du serveur (rangs, maîtrises, duos, forme).
   import * as api from './api.js';
   import { partie } from './partie.svelte.js';
+  import { coach, objectifTexte } from './coach.svelte.js';
   import { COULEUR_TIER, duree as formatDuree, nomFile, nomPoste, rangDepuisEchelle } from './format.js';
   import Fiche from './partie/Fiche.svelte';
   import Icone from './Icone.svelte';
@@ -63,6 +64,9 @@
     avant = cle;
   });
 
+  // Le focus du moment, rappelé pendant le chargement (sur la Faille).
+  const focus = $derived(enPartie && d?.map === 11 ? coach.donnees?.focus : null);
+
   const secondes = (ms) => (ms / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 </script>
 
@@ -72,6 +76,12 @@
       <p class="kicker mono">{nomFile(d.queue)}{chrono ? ` · ${chrono}` : ''}</p>
       <h1>{titre}</h1>
     </div>
+    {#if focus}
+      <div class="rappel" title={focus.conseil}>
+        <span class="ico"><Icone nom="cible" /></span>
+        <span class="txt"><small>Ton focus · {focus.titre}</small><b>{objectifTexte(focus)}</b></span>
+      </div>
+    {/if}
     <div class="analyse" class:fini={d.complet}>
       <ol aria-label="Analyse des joueurs">
         {#each ETAPES as [cle, nom], k}
@@ -159,6 +169,17 @@
   h1 { font-stretch: 122%; font-weight: 900; font-size: 28px; letter-spacing: -.03em; }
   .sous { font-size: 13px; margin: -6px 0 16px; }
 
+  /* Le focus du coach : discret, entre le titre et l'analyse. */
+  .rappel {
+    flex: 0 1 auto; min-width: 0; margin-right: auto; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border-radius: 12px;
+    background: var(--volt-soft); box-shadow: inset 0 0 0 1px var(--volt-line); animation: apparait .5s var(--ease) .3s both;
+  }
+  .rappel .ico { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--volt); color: var(--volt-ink); }
+  .rappel .ico :global(svg) { width: 15px; height: 15px; stroke-width: 2.4; }
+  .rappel .txt { display: grid; min-width: 0; }
+  .rappel small, .rappel b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rappel small { font-size: 10.5px; color: var(--volt); font-weight: 650; }
+  .rappel b { font-size: 12.5px; }
   .analyse { display: grid; justify-items: end; gap: 6px; }
   .analyse ol { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
   .analyse li { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--ink-3); transition: color .3s, background-color .3s; }
