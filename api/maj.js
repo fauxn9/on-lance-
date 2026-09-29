@@ -4,6 +4,10 @@
 // main : une version ratée se retire en supprimant sa release, sans toucher
 // aux apps installées. Le paquet lui-même est signé : l'app vérifie la
 // signature avec la clé publique embarquée, quoi que ce serveur réponde.
+//
+// On lit le lien de téléchargement direct de la dernière release, pas l'API
+// GitHub : l'API limite à 60 appels par heure et par IP, et les IP de Render
+// sont partagées entre beaucoup de sites (elle répond 403 bien avant).
 
 const DEPOT = 'fauxn9/on-lance-';
 // Les releases « app-v… » du dépôt sont celles de l'ancienne app Valorant :
@@ -11,19 +15,24 @@ const DEPOT = 'fauxn9/on-lance-';
 const PREFIXE = 'tracker-v';
 let cache = { at: 0, json: null };
 
+// Le latest.json est bien celui de l'app LoL : son installeur est rangé dans
+// une release « tracker-v… ».
+export const estDeLApp = (json) =>
+  Boolean(json?.version) && Object.values(json.platforms ?? {}).some((p) => String(p?.url ?? '').includes(`/download/${PREFIXE}`));
+
 export async function derniereVersion() {
   if (Date.now() - cache.at < 10 * 60_000) return cache.json;
-  const r = await fetch(`https://api.github.com/repos/${DEPOT}/releases?per_page=30`, {
-    headers: { accept: 'application/vnd.github+json', 'user-agent': 'onlance-maj' },
+  const r = await fetch(`https://github.com/${DEPOT}/releases/latest/download/latest.json`, {
+    headers: { 'user-agent': 'onlance-maj' },
+    redirect: 'follow',
     signal: AbortSignal.timeout(8000),
   });
-  if (!r.ok) throw new Error(`GitHub : HTTP ${r.status}`);
-  const release = (await r.json()).find((x) => !x.draft && !x.prerelease && x.tag_name.startsWith(PREFIXE));
-  const asset = release?.assets.find((a) => a.name === 'latest.json');
   let json = null;
-  if (asset) {
-    const j = await fetch(asset.browser_download_url, { signal: AbortSignal.timeout(8000) });
-    if (j.ok) json = await j.json();
+  if (r.ok) {
+    const j = await r.json().catch(() => null);
+    if (estDeLApp(j)) json = j;
+  } else if (r.status !== 404) {
+    throw new Error(`GitHub : HTTP ${r.status}`);
   }
   cache = { at: Date.now(), json };
   return json;

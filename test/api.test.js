@@ -106,3 +106,11 @@ test('échelle continue des rangs', () => {
   assert.equal(ladder('CHALLENGER', 'I', 1200), 2800 + 1200);
   assert.equal(ladder('???', 'I', 0), null);
 });
+
+test('mise à jour : seules les releases de l’app LoL sont proposées', async () => {
+  const { estDeLApp } = await import('../api/maj.js');
+  const url = (tag) => ({ version: '1.0.0', platforms: { 'windows-x86_64': { url: `https://github.com/fauxn9/on-lance-/releases/download/${tag}/On.lance_1.0.0_x64-setup.exe` } } });
+  assert.equal(estDeLApp(url('tracker-v1.0.0')), true);
+  assert.equal(estDeLApp(url('app-v0.1.8')), false, 'l’ancienne app Valorant');
+  assert.equal(estDeLApp(null), false);
+});
