@@ -1,6 +1,7 @@
 <script>
   import { fly } from 'svelte/transition';
   import { fenetre } from './api.js';
+  import MiseAJour from './MiseAJour.svelte';
 
   let { etape, compte } = $props();
   const TEXTE = {
@@ -27,6 +28,7 @@
       {/key}
     </span>
   </span>
+  <MiseAJour {etape} />
   <span class="ctl">
     <button onclick={() => fenetre('reduire')} aria-label="Réduire"><i class="moins"></i></button>
     <button onclick={() => fenetre('agrandir')} aria-label="Agrandir"><i class="carre"></i></button>

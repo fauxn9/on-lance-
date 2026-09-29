@@ -1,0 +1,62 @@
+# Compile et publie l'app PC à chaque tag « tracker-v… » (npm run publier
+# dans app/). La release contient l'installeur, sa signature et latest.json,
+# que le serveur sert à l'app (/api/maj) pour les mises à jour automatiques.
+#
+# Secrets à poser une fois dans le dépôt (Settings → Secrets → Actions) :
+#   TAURI_SIGNING_PRIVATE_KEY           contenu de ~/.tauri/onlance-maj.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  contenu de ~/.tauri/onlance-maj.motdepasse
+name: App PC
+
+on:
+  push:
+    tags: ['tracker-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  publier:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Les notes de version sont le message du tag.
+      - name: Notes de version
+        shell: pwsh
+        run: |
+          git fetch --tags --force
+          $notes = (git tag -l --format='%(contents)' $env:GITHUB_REF_NAME) -join "`n"
+          if (-not $notes.Trim()) { $notes = "Nouvelle version d'On lance ?" }
+          "NOTES<<FIN_NOTES`n$notes`nFIN_NOTES" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: 'app -> target'
+
+      - name: Dépendances
+        working-directory: app
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app
+          tagName: ${{ github.ref_name }}
+          releaseName: 'On lance ? ${{ github.ref_name }}'
+          releaseBody: ${{ env.NOTES }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true

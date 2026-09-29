@@ -264,6 +264,49 @@ async fn potes(etat: State<'_, Etat>, methode: String, chemin: String, corps: Op
     }
 }
 
+/// Mise à jour disponible ? `null` si l'app est à jour. Les mises à jour
+/// sont signées : l'app refuse tout paquet qui n'est pas signé par notre clé.
+#[tauri::command]
+async fn verifier_maj(app: AppHandle) -> Result<Value, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let maj = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
+    Ok(json!({
+        "actuelle": app.package_info().version.to_string(),
+        "disponible": maj.map(|m| json!({ "version": m.version, "notes": m.body, "date": m.date.map(|d| d.to_string()) })),
+    }))
+}
+
+/// Télécharge et installe la mise à jour, puis relance l'app. Jamais pendant
+/// une partie. La progression part en événements `maj-progression`.
+#[tauri::command]
+async fn installer_maj(app: AppHandle, etat: State<'_, Etat>) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    if etat.client.lock().unwrap().etape.en_partie() {
+        return Err("Pas pendant une partie : la mise à jour attendra la fin.".into());
+    }
+    let maj = app
+        .updater()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Tu as déjà la dernière version.")?;
+    let (a, b) = (app.clone(), app.clone());
+    let mut recu: u64 = 0;
+    maj.download_and_install(
+        move |morceau, total| {
+            recu += morceau as u64;
+            let _ = a.emit("maj-progression", json!({ "recu": recu, "total": total }));
+        },
+        move || {
+            let _ = b.emit("maj-installation", ());
+        },
+    )
+    .await
+    .map_err(|e| format!("Mise à jour interrompue : {e}"))?;
+    app.restart();
+}
+
 /// L'overlay demande ses réglages, ton pick et le catalogue des objets.
 #[tauri::command]
 async fn etat_overlay(app: AppHandle) -> Value {
@@ -369,6 +412,7 @@ async fn partie_terminee(app: AppHandle, fin: FinDePartie) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, raccourci, evenement| overlay::sur_raccourci(app, raccourci, evenement.state()))
@@ -460,7 +504,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes, temps_de_jeu, counters])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief, identite, potes, temps_de_jeu, counters, verifier_maj, installer_maj])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

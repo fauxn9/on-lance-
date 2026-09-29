@@ -30,8 +30,15 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
     "shortDescription": "Le tracker League of Legends gratuit et ultra léger.",
     "longDescription": "On lance ? lit le client League of Legends en lecture seule (aucune injection) pour suivre tes parties, ton rang et ton historique.",
     "publisher": "On lance ?",
@@ -40,9 +47,23 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["French"],
+        "languages": [
+          "French"
+        ],
         "displayLanguageSelector": false,
         "startMenuFolder": "On lance"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI5NDdFOEM0MDAxNTA0RjIKUldUeUJCVUF4T2hIdWVsYVIwTVU0cDQ2RGdmaHVHSGYwSDkrUTFXa2VuT1VuQ29vM0tKUkMwam0K",
+      "endpoints": [
+        "https://onlance.xyz/api/maj"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

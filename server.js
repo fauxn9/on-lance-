@@ -96,6 +96,10 @@ if (process.env.COLLECTE === 'on') {
 }
 
 let discordCache = { at: 0, data: null };
+// Mises à jour de l'app PC (voir api/maj.js).
+const { routeMaj } = await import('./api/maj.js');
+app.get('/api/maj', routeMaj);
+
 app.get('/api/discord', async (req, res) => {
   const fresh = Date.now() - discordCache.at < 10 * 60 * 1000;
   if (!fresh) {

@@ -22,6 +22,8 @@ export const tempsDeJeu = () => (enTauri ? invoke('temps_de_jeu') : Promise.reso
 export const debrief = (matchId) => (enTauri ? invoke('debrief', { matchId }) : demo.debrief(matchId));
 export const identite = (pseudo = null) => (enTauri ? invoke('identite', { pseudo }) : demo.identite(pseudo));
 export const potes = (methode, chemin, corps = null) => (enTauri ? invoke('potes', { methode, chemin, corps }) : demo.potes(methode, chemin, corps));
+export const verifierMaj = () => (enTauri ? invoke('verifier_maj') : demo.verifierMaj());
+export const installerMaj = () => (enTauri ? invoke('installer_maj') : demo.installerMaj());
 export const etatOverlay = () => (enTauri ? invoke('etat_overlay') : demo.etatOverlay());
 export const importer = (build, titre, parties) =>
   enTauri ? invoke('importer', { build, titre, parties }) : demo.importer(parties);

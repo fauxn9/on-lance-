@@ -257,6 +257,20 @@ export const potes = async (methode, chemin, corps) => {
   return null;
 };
 
+// Mise à jour de démo (`?maj`) : une version dispo, un téléchargement simulé.
+export const verifierMaj = async () => ({
+  actuelle: '0.1.0',
+  disponible: params.has('maj') ? { version: '0.2.0', notes: 'Counters façon u.gg, mises à jour automatiques, le verdict des potes.\nEt plein de petites finitions.' } : null,
+});
+export const installerMaj = async () => {
+  for (let i = 1; i <= 20; i++) {
+    await attendre(120);
+    emettre('maj-progression', { recu: i * 90_000, total: 1_800_000 });
+  }
+  emettre('maj-installation', null);
+  await attendre(100_000);
+};
+
 // Une série de parties plausible, générée une fois.
 const CHAMPS = [[875, 'Sett', 'TOP'], [85, 'Kennen', 'TOP'], [133, 'Quinn', 'TOP'], [122, 'Darius', 'TOP'], [875, 'Sett', 'TOP'], [64, 'LeeSin', 'JUNGLE']];
 const BUILDS = [[3071, 3053, 6333, 3047, 3065, 0, 3364], [3078, 3053, 3071, 3111, 0, 0, 3340], [6692, 3071, 3047, 6333, 0, 0, 3363]];
