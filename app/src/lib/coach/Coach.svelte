@@ -119,7 +119,7 @@
   .kicker { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--volt); }
   .valide {
     display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 12px; border-radius: 14px;
-    background: linear-gradient(90deg, rgba(214, 255, 63, .14), var(--panel) 70%); box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 40px -18px var(--volt-glow);
+    background: linear-gradient(90deg, rgba(var(--volt-rgb), .14), var(--panel) 70%); box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 40px -18px var(--volt-glow);
     font-size: 13.5px; line-height: 1.45; animation: apparait .5s var(--ease) both;
   }
   .coche { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--volt); color: var(--volt-ink); animation: coche .6s cubic-bezier(.34, 1.56, .64, 1) .2s backwards; }
@@ -144,7 +144,7 @@
   .legende i:first-child { margin-left: 0; }
   .legende .t { background: var(--volt); }
   .legende .r { background: rgba(255, 77, 106, .45); }
-  .legende .l { width: 14px; height: 0; border-top: 1.5px dashed rgba(214, 255, 63, .7); border-radius: 0; }
+  .legende .l { width: 14px; height: 0; border-top: 1.5px dashed rgba(var(--volt-rgb), .7); border-radius: 0; }
   .serie { font-size: 13px; line-height: 1.5; color: var(--ink-2); }
   .serie b { color: var(--volt); }
   .bravo { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; padding: 20px; }

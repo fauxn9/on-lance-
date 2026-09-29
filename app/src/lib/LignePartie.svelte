@@ -97,7 +97,7 @@
     display: grid; align-items: center; gap: 16px; padding: 10px 16px 10px 14px;
     grid-template-columns: 44px 150px 104px 92px 1fr 52px 64px 14px;
   }
-  .partie.victoire { background: linear-gradient(90deg, rgba(214, 255, 63, .05), var(--panel) 40%); color: var(--volt); }
+  .partie.victoire { background: linear-gradient(90deg, rgba(var(--volt-rgb), .05), var(--panel) 40%); color: var(--volt); }
   .partie.defaite { background: linear-gradient(90deg, rgba(255, 77, 106, .06), var(--panel) 40%); color: var(--red); }
   .partie.remake { color: var(--ink-3); }
   .resume > * { color: var(--ink); }

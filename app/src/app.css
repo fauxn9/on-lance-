@@ -24,10 +24,11 @@
   --ink-2: #a9b1be;
   --ink-3: #7c8493;
   --volt: #d6ff3f;
+  --volt-rgb: 214, 255, 63;
   --volt-ink: #0a0c02;
-  --volt-soft: rgba(214, 255, 63, .08);
-  --volt-line: rgba(214, 255, 63, .32);
-  --volt-glow: rgba(214, 255, 63, .38);
+  --volt-soft: rgba(var(--volt-rgb), .08);
+  --volt-line: rgba(var(--volt-rgb), .32);
+  --volt-glow: rgba(var(--volt-rgb), .38);
   --red: #ff4d6a;
   --red-soft: rgba(255, 77, 106, .1);
   --blue: #5fb4ff;
@@ -80,7 +81,7 @@ img { display: block; }
 .bouton:hover { background: rgba(255, 255, 255, .09); }
 .bouton:active { transform: scale(.97); }
 .bouton:disabled { opacity: .5; cursor: default; }
-.bouton.volt { background: var(--volt); color: var(--volt-ink); box-shadow: 0 0 0 1px rgba(214, 255, 63, .7), 0 8px 24px -10px var(--volt-glow); }
+.bouton.volt { background: var(--volt); color: var(--volt-ink); box-shadow: 0 0 0 1px rgba(var(--volt-rgb), .7), 0 8px 24px -10px var(--volt-glow); }
 .bouton svg { width: 16px; height: 16px; }
 .lien { background: none; border: 0; padding: 0; color: var(--volt); cursor: pointer; font-weight: 600; font-size: 12.5px; }
 .lien:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -114,13 +115,17 @@ img { display: block; }
 ::view-transition-old(contenu) { animation: vt-sortie .2s ease-in both; }
 ::view-transition-new(contenu) { animation: vt-entree .5s var(--ease) both; }
 html[data-sens='haut']::view-transition-new(contenu) { animation-name: vt-entree-haut; }
+/* Changement de thème : la nouvelle couleur se répand en cercle depuis le clic. */
+html[data-sens='theme'] main.contenu { view-transition-name: none; }
+html[data-sens='theme']::view-transition-new(root) { animation: vt-theme .7s var(--ease) both; }
+@keyframes vt-theme { from { clip-path: circle(0 at var(--vt-x) var(--vt-y)); } to { clip-path: circle(150vmax at var(--vt-x) var(--vt-y)); } }
 @keyframes vt-sortie { to { opacity: 0; transform: scale(.985); } }
 @keyframes vt-entree { from { opacity: 0; transform: translateY(22px); } }
 @keyframes vt-entree-haut { from { opacity: 0; transform: translateY(-22px); } }
 
 @keyframes tourne { to { transform: rotate(360deg); } }
 .tourne { animation: tourne 1s linear infinite; }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(214, 255, 63, .55); } 70% { box-shadow: 0 0 0 8px rgba(214, 255, 63, 0); } 100% { box-shadow: 0 0 0 0 rgba(214, 255, 63, 0); } }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(var(--volt-rgb), .55); } 70% { box-shadow: 0 0 0 8px rgba(var(--volt-rgb), 0); } 100% { box-shadow: 0 0 0 0 rgba(var(--volt-rgb), 0); } }
 @keyframes apparait { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {

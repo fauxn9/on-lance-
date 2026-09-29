@@ -141,7 +141,7 @@
   .voile { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, var(--panel) 18%, rgba(15, 18, 23, .75) 48%, rgba(15, 18, 23, .15)), linear-gradient(0deg, var(--panel), transparent 60%); }
   .qui { display: flex; align-items: center; gap: 16px; animation: apparait .6s var(--ease) both; }
   .avatar { position: relative; flex: none; }
-  .avatar img, .rond { display: block; width: 64px; height: 64px; border-radius: 18px; box-shadow: 0 0 0 2px rgba(214, 255, 63, .5), 0 14px 30px -10px rgba(0, 0, 0, .9); }
+  .avatar img, .rond { display: block; width: 64px; height: 64px; border-radius: 18px; box-shadow: 0 0 0 2px rgba(var(--volt-rgb), .5), 0 14px 30px -10px rgba(0, 0, 0, .9); }
   .avatar em { position: absolute; left: 50%; bottom: -8px; translate: -50% 0; font-style: normal; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--volt); color: var(--volt-ink); }
   h1 { font-stretch: 122%; font-weight: 900; font-size: 30px; letter-spacing: -.03em; line-height: 1.05; }
   .tag-riot { font-weight: 600; font-size: 18px; color: var(--ink-3); margin-left: 3px; font-stretch: 100%; }
@@ -176,7 +176,7 @@
   .progression { position: relative; height: 4px; border-radius: 4px; background: var(--panel-3); overflow: hidden; margin: 4px 0 6px; }
   /* Statique exprès : une barre animée en boucle ferait redessiner la fenêtre
      à chaque image, et sans GPU ça se paie en RAM. */
-  .progression span { position: absolute; inset: 0; border-radius: 4px; background: repeating-linear-gradient(-45deg, rgba(214, 255, 63, .7) 0 6px, rgba(214, 255, 63, .25) 6px 12px); }
+  .progression span { position: absolute; inset: 0; border-radius: 4px; background: repeating-linear-gradient(-45deg, rgba(var(--volt-rgb), .7) 0 6px, rgba(var(--volt-rgb), .25) 6px 12px); }
   .progression.fini span { background: var(--volt); opacity: .6; }
   .etat { font-size: 12.5px; }
   .histo .bouton { margin-top: auto; align-self: flex-start; }
@@ -186,11 +186,11 @@
   /* Attente du client */
   .attente { position: relative; height: 100%; min-height: 460px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; }
   .radar { position: absolute; top: 50%; left: 50%; width: 460px; height: 460px; translate: -50% -62%; pointer-events: none; }
-  .radar span { position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(214, 255, 63, .22); opacity: 0; animation: onde-radar 4.5s cubic-bezier(.2, .6, .4, 1) 3 backwards; }
+  .radar span { position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(var(--volt-rgb), .22); opacity: 0; animation: onde-radar 4.5s cubic-bezier(.2, .6, .4, 1) 3 backwards; }
   .radar span:nth-child(2) { animation-delay: 1.5s; }
   .radar span:nth-child(3) { animation-delay: 3s; }
   @keyframes onde-radar { from { transform: scale(.18); opacity: .9; } to { transform: scale(1); opacity: 0; } }
-  .manette { position: relative; width: 68px; height: 68px; display: grid; place-items: center; border-radius: 22px; background: #11150b; color: var(--volt); box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 50px -10px var(--volt-glow); animation: flotte 3.5s ease-in-out 3; }
+  .manette { position: relative; width: 68px; height: 68px; display: grid; place-items: center; border-radius: 22px; background: color-mix(in srgb, var(--volt) 7%, var(--bg)); color: var(--volt); box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 50px -10px var(--volt-glow); animation: flotte 3.5s ease-in-out 3; }
   .manette :global(svg) { width: 32px; height: 32px; }
   @keyframes flotte { 50% { transform: translateY(-6px); } }
   .attente h1 { position: relative; font-size: 36px; margin-top: 10px; }

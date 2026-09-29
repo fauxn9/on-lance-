@@ -144,7 +144,7 @@
   .attente { display: grid; gap: 10px; }
   .a { height: 56px; width: 60%; } .b { height: 120px; } .c { height: 80px; }
   .tete { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; animation: apparait .4s var(--ease) both; }
-  .portrait { width: 56px; height: 56px; border-radius: 16px; box-shadow: 0 0 0 2px rgba(214, 255, 63, .45), 0 12px 30px -10px rgba(0, 0, 0, .9); }
+  .portrait { width: 56px; height: 56px; border-radius: 16px; box-shadow: 0 0 0 2px rgba(var(--volt-rgb), .45), 0 12px 30px -10px rgba(0, 0, 0, .9); }
   h2 { font-stretch: 120%; font-weight: 900; font-size: 24px; letter-spacing: -.02em; }
   .sous { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin-top: 3px; }
   .actions { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }

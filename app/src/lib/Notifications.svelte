@@ -46,7 +46,7 @@
     padding: 14px 40px 16px 16px; border-radius: 16px; background: #12161d;
     box-shadow: inset 0 0 0 1px var(--line-2), 0 24px 60px -18px rgba(0, 0, 0, .9);
   }
-  .note.victoire { background: linear-gradient(120deg, rgba(214, 255, 63, .14), #12161d 55%); box-shadow: inset 0 0 0 1px var(--volt-line), 0 24px 60px -18px rgba(0, 0, 0, .9), 0 0 40px -12px var(--volt-glow); }
+  .note.victoire { background: linear-gradient(120deg, rgba(var(--volt-rgb), .14), #12161d 55%); box-shadow: inset 0 0 0 1px var(--volt-line), 0 24px 60px -18px rgba(0, 0, 0, .9), 0 0 40px -12px var(--volt-glow); }
   .note.defaite { background: linear-gradient(120deg, rgba(255, 77, 106, .14), #12161d 55%); box-shadow: inset 0 0 0 1px rgba(255, 77, 106, .35), 0 24px 60px -18px rgba(0, 0, 0, .9); }
   .embleme { width: 64px; height: auto; flex: none; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .6)); animation: pose .9s var(--ease) both; }
   @keyframes pose { from { transform: scale(.4) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.1) rotate(3deg); opacity: 1; } to { transform: none; } }

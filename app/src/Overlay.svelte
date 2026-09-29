@@ -224,7 +224,7 @@
   .competence small { font-size: 10.5px; color: var(--ink-3); }
   .competence b { font-size: 14px; }
   .ordre { margin-left: 4px; color: var(--ink-2) !important; font-size: 11.5px !important; }
-  @keyframes appel { 0% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 0 rgba(214, 255, 63, .45); } 100% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 14px rgba(214, 255, 63, 0); } }
+  @keyframes appel { 0% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 0 rgba(var(--volt-rgb), .45); } 100% { box-shadow: inset 0 0 0 1.5px var(--volt-line), 0 0 0 14px rgba(var(--volt-rgb), 0); } }
 
   /* Prochain achat */
   .achat { flex-direction: column; align-items: stretch; gap: 7px; width: 230px; white-space: normal; }

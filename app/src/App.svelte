@@ -16,6 +16,7 @@
   import { chargerCoach } from './lib/coach.svelte.js';
   import Icone from './lib/Icone.svelte';
   import Notifications from './lib/Notifications.svelte';
+  import Reglages from './lib/Reglages.svelte';
 
   let client = $state({ etape: 'hors', compte: null, rangs: [], plateforme: null });
   let profil = $state(null);
@@ -24,6 +25,7 @@
   let synchro = $state(false);
   // Incrémenté à chaque nouvel historique : les listes s'y abonnent.
   let revision = $state(0);
+  let reglages = $state(false);
 
   const compte = $derived(
     client.compte
@@ -195,6 +197,11 @@
     setTimeout(ecouterPotes, 1500);
     stops.push(() => clearInterval(potesT));
     const clavier = (e) => {
+      if (e.ctrlKey && e.key === ',') {
+        e.preventDefault();
+        reglages = !reglages;
+        return;
+      }
       const item = e.ctrlKey && NAV.find((n) => n.touche === e.key);
       if (item) {
         e.preventDefault();
@@ -221,6 +228,10 @@
           <span class="bulle">{item.nom}<kbd>Ctrl {item.touche}</kbd></span>
         </button>
       {/each}
+      <button class="nav roue" class:ouvert={reglages} onclick={() => (reglages = true)} use:onde aria-label="Réglages" aria-haspopup="dialog">
+        <Icone nom="reglages" />
+        <span class="bulle">Réglages<kbd>Ctrl ,</kbd></span>
+      </button>
       {#if compte && dd.profil(compte.icone)}
         <img class="avatar" src={dd.profil(compte.icone)} alt="" width="36" height="36" />
       {/if}
@@ -251,10 +262,11 @@
     <Verdict e={verdict} onfermer={() => (verdict = null)} onvoir={() => { verdict = null; aller('potes'); }} />
   {/if}
   <Notifications />
+  {#if reglages}<Reglages onfermer={() => (reglages = false)} />{/if}
 </div>
 
 <style>
-  .app { height: 100%; display: flex; flex-direction: column; background: radial-gradient(ellipse 70% 50% at 80% -10%, rgba(214, 255, 63, .05), transparent 70%), var(--bg); }
+  .app { height: 100%; display: flex; flex-direction: column; background: radial-gradient(ellipse 70% 50% at 80% -10%, rgba(var(--volt-rgb), .05), transparent 70%), var(--bg); }
   .corps { flex: 1; min-height: 0; display: flex; }
   .cote { position: relative; width: 64px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; border-right: 1px solid var(--line); z-index: 5; }
   /* L'indicateur glisse d'un onglet à l'autre, avec un léger rebond. */
@@ -290,7 +302,12 @@
   }
   .nav:hover .bulle { opacity: 1; transform: none; }
   kbd { font: 600 10px var(--mono); font-style: normal; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, .06); color: var(--ink-3); }
-  .avatar { margin-top: auto; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 0 0 2px var(--panel-3); }
+  /* La roue crantée tourne d'un cran au survol, et reste tournée tant que les réglages sont ouverts. */
+  .roue { margin-top: auto; }
+  .nav.roue :global(svg) { transition: transform .6s cubic-bezier(.34, 1.56, .64, 1); }
+  .nav.roue:hover:not(:disabled) :global(svg), .roue.ouvert :global(svg) { transform: rotate(90deg); }
+  .roue.ouvert { color: var(--volt); }
+  .avatar { margin-top: 6px; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 0 0 2px var(--panel-3); }
   .contenu { flex: 1; min-width: 0; overflow-y: auto; padding: 22px 26px 30px; position: relative; view-transition-name: contenu; }
   .demo { position: fixed; left: 78px; bottom: 10px; font-size: 11px; color: var(--gold); opacity: .8; pointer-events: none; }
 </style>

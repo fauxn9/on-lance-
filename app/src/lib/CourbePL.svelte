@@ -64,8 +64,8 @@
       <svg viewBox="0 0 {L} {H}" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="aire" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stop-color="#d6ff3f" stop-opacity=".3" />
-            <stop offset="1" stop-color="#d6ff3f" stop-opacity="0" />
+            <stop offset="0" style="stop-color: var(--volt)" stop-opacity=".3" />
+            <stop offset="1" style="stop-color: var(--volt)" stop-opacity="0" />
           </linearGradient>
         </defs>
         {#each lignes as l}
@@ -110,13 +110,13 @@
   svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   line { stroke: rgba(255, 255, 255, .05); stroke-dasharray: 3 5; vector-effect: non-scaling-stroke; }
   line.fort { stroke: rgba(255, 255, 255, .14); stroke-dasharray: none; }
-  line.guide { stroke: rgba(214, 255, 63, .45); stroke-dasharray: 2 4; }
+  line.guide { stroke: rgba(var(--volt-rgb), .45); stroke-dasharray: 2 4; }
   .dessin { animation: dessine 1.5s cubic-bezier(.65, 0, .35, 1) .2s both; }
   @keyframes dessine { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
   .ligne { fill: none; stroke: var(--volt); stroke-width: 2.4; vector-effect: non-scaling-stroke; stroke-linecap: round; }
   .reperes { position: absolute; inset: 0; pointer-events: none; }
   .reperes span { position: absolute; right: 0; translate: 0 -120%; font-size: 10px; color: var(--ink-3); }
-  .point { position: absolute; width: 10px; height: 10px; border-radius: 50%; translate: -50% -50%; background: var(--volt); box-shadow: 0 0 0 4px rgba(214, 255, 63, .18), 0 0 14px var(--volt); pointer-events: none; }
+  .point { position: absolute; width: 10px; height: 10px; border-radius: 50%; translate: -50% -50%; background: var(--volt); box-shadow: 0 0 0 4px rgba(var(--volt-rgb), .18), 0 0 14px var(--volt); pointer-events: none; }
   .point.fin { animation: apparait .4s var(--ease) 1.6s both, pulse 2.4s 2s 3; }
   .bulle { position: absolute; translate: 14px -50%; pointer-events: none; padding: 7px 10px; border-radius: 10px; background: var(--panel-3); box-shadow: inset 0 0 0 1px var(--line-2), 0 12px 30px -8px rgba(0, 0, 0, .8); white-space: nowrap; }
   .bulle.gauche { translate: calc(-100% - 14px) -50%; }

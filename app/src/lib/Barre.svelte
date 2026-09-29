@@ -15,7 +15,7 @@
 
 <header class="barre" data-tauri-drag-region>
   <span class="logo" data-tauri-drag-region>
-    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#d6ff3f" /><g class="q"><path d="M11.6 12.2a4.4 4.4 0 1 1 6.2 4c-1.2.55-1.8 1.45-1.8 2.7v1" fill="none" stroke="#0a0c02" stroke-width="3.2" stroke-linecap="round" /><circle cx="16" cy="24.6" r="1.9" fill="#0a0c02" /></g></svg>
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" style="fill: var(--volt)" /><g class="q"><path d="M11.6 12.2a4.4 4.4 0 1 1 6.2 4c-1.2.55-1.8 1.45-1.8 2.7v1" fill="none" style="stroke: var(--volt-ink)" stroke-width="3.2" stroke-linecap="round" /><circle cx="16" cy="24.6" r="1.9" style="fill: var(--volt-ink)" /></g></svg>
     On lance&nbsp;?
   </span>
   <span class="statut" class:actif class:vif data-tauri-drag-region>

@@ -37,7 +37,7 @@
   {#key cle}
     <svg width={largeur} height={H} viewBox="0 0 {largeur} {H}">
       <defs>
-        <linearGradient id="c-pos" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d6ff3f" stop-opacity=".42" /><stop offset="1" stop-color="#d6ff3f" stop-opacity="0" /></linearGradient>
+        <linearGradient id="c-pos" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color: var(--volt)" stop-opacity=".42" /><stop offset="1" style="stop-color: var(--volt)" stop-opacity="0" /></linearGradient>
         <linearGradient id="c-neg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff4d6a" stop-opacity="0" /><stop offset="1" stop-color="#ff4d6a" stop-opacity=".34" /></linearGradient>
         <clipPath id="c-haut"><rect width={largeur} height={H / 2} /></clipPath>
         <clipPath id="c-bas"><rect y={H / 2} width={largeur} height={H / 2} /></clipPath>
@@ -80,7 +80,7 @@
   .ligne {
     fill: none; stroke: var(--volt); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round;
     stroke-dasharray: 1; stroke-dashoffset: 1; animation: trace 1.1s var(--ease) forwards;
-    filter: drop-shadow(0 0 6px rgba(214, 255, 63, .35));
+    filter: drop-shadow(0 0 6px rgba(var(--volt-rgb), .35));
   }
   @keyframes trace { to { stroke-dashoffset: 0; } }
   .aires { opacity: 0; animation: apparait-aire .6s ease .5s forwards; }

@@ -222,7 +222,7 @@
   /* Fin de l'analyse : un éclat traverse le plateau, une seule fois. */
   .plateau::after {
     content: ""; position: absolute; inset: -10px; pointer-events: none; opacity: 0;
-    background: linear-gradient(100deg, transparent 35%, rgba(214, 255, 63, .09) 48%, rgba(214, 255, 63, .16) 50%, rgba(214, 255, 63, .09) 52%, transparent 65%);
+    background: linear-gradient(100deg, transparent 35%, rgba(var(--volt-rgb), .09) 48%, rgba(var(--volt-rgb), .16) 50%, rgba(var(--volt-rgb), .09) 52%, transparent 65%);
     transform: translateX(-70%);
   }
   .plateau.balaye::after { animation: balaye 1.3s var(--ease) forwards; }
@@ -245,7 +245,7 @@
     transform-origin: 50% 160%; transform: rotate(calc((var(--i) - 2) * 11deg));
     animation: eventail .8s var(--ease) backwards; animation-delay: calc(var(--i) * 70ms);
   }
-  .cartes-deco span:nth-child(3) { background: linear-gradient(180deg, #1c2410, var(--panel)); box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 40px -12px var(--volt-glow); z-index: 1; }
+  .cartes-deco span:nth-child(3) { background: linear-gradient(180deg, color-mix(in srgb, var(--volt) 12%, var(--panel)), var(--panel)); box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 40px -12px var(--volt-glow); z-index: 1; }
   @keyframes eventail { from { transform: rotate(0deg) translateY(20px); opacity: 0; } }
 
   /* Fenêtre basse : en-tête compact et cartes un peu plus courtes, pour que

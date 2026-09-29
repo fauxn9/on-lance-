@@ -25,7 +25,7 @@
 <style>
   .suivi { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 46px; padding-top: 4px; }
   .suivi.grand { height: 120px; gap: 6px; }
-  .cible { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px dashed rgba(214, 255, 63, .55); z-index: 1; pointer-events: none; }
+  .cible { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px dashed rgba(var(--volt-rgb), .55); z-index: 1; pointer-events: none; }
   .barre {
     flex: 1; height: var(--h); padding: 0; border: 0; border-radius: 4px 4px 2px 2px; background: rgba(255, 77, 106, .45);
     transform-origin: bottom; animation: pousse .6s var(--ease) backwards; animation-delay: calc(var(--i) * 35ms);

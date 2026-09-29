@@ -75,7 +75,7 @@
     transition: transform 1.1s cubic-bezier(.65, 0, .35, 1);
   }
   .echelle li.moi { animation: atterrit .8s ease-out 1.85s; }
-  @keyframes atterrit { 0% { outline: 2px solid rgba(214, 255, 63, .7); outline-offset: 0; } 100% { outline: 2px solid rgba(214, 255, 63, 0); outline-offset: 10px; } }
+  @keyframes atterrit { 0% { outline: 2px solid rgba(var(--volt-rgb), .7); outline-offset: 0; } 100% { outline: 2px solid rgba(var(--volt-rgb), 0); outline-offset: 10px; } }
   .echelle li.moi { z-index: 2; background: var(--volt-soft); box-shadow: inset 0 0 0 1px var(--volt-line), 0 8px 24px -8px rgba(0, 0, 0, .8); }
   .descend .echelle li.moi { background: var(--red-soft); box-shadow: inset 0 0 0 1px rgba(255, 77, 106, .35), 0 8px 24px -8px rgba(0, 0, 0, .8); }
   .echelle .place { color: var(--ink-3); font-weight: 800; text-align: center; }

@@ -104,8 +104,8 @@
   .pastille :global(svg) { width: 13px; height: 13px; rotate: -90deg; }
   .pastille.occupe { min-width: 120px; }
   @keyframes arrive { from { transform: scale(.6); opacity: 0; } }
-  @keyframes appel { 0% { box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 0 0 rgba(214, 255, 63, .5); } 100% { box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 0 10px rgba(214, 255, 63, 0); } }
-  .jauge { width: 56px; height: 4px; border-radius: 4px; background: rgba(214, 255, 63, .15); overflow: hidden; }
+  @keyframes appel { 0% { box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 0 0 rgba(var(--volt-rgb), .5); } 100% { box-shadow: inset 0 0 0 1px var(--volt-line), 0 0 0 10px rgba(var(--volt-rgb), 0); } }
+  .jauge { width: 56px; height: 4px; border-radius: 4px; background: rgba(var(--volt-rgb), .15); overflow: hidden; }
   .jauge i, .barre-dl i { display: block; height: 100%; background: var(--volt); transform-origin: left; transition: transform .3s linear; }
   .carte-maj {
     position: absolute; right: 0; top: calc(100% + 10px); z-index: 80; width: 320px; display: grid; gap: 8px; padding: 16px;

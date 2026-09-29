@@ -58,7 +58,7 @@
   .axe { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--line-2); }
   .barre i {
     position: absolute; top: 0; bottom: 0; left: 50%; width: calc(50% * var(--w)); border-radius: 0 6px 6px 0;
-    background: linear-gradient(90deg, rgba(214, 255, 63, .35), var(--volt)); transform-origin: left;
+    background: linear-gradient(90deg, rgba(var(--volt-rgb), .35), var(--volt)); transform-origin: left;
     animation: pousse .9s var(--ease) backwards; animation-delay: calc(200ms + var(--i) * 55ms);
   }
   .barre i.neg { left: auto; right: 50%; border-radius: 6px 0 0 6px; background: linear-gradient(-90deg, rgba(255, 77, 106, .35), var(--red)); transform-origin: right; }

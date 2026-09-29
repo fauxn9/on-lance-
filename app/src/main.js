@@ -1,5 +1,9 @@
 import './app.css';
 import { mount } from 'svelte';
+import { demarrer } from './lib/theme.js';
+
+// Le thème choisi, appliqué avant le premier affichage.
+demarrer();
 
 // Une seule interface pour deux fenêtres : l'app, et l'overlay en jeu
 // (fenêtre « overlay », ou `?overlay` dans le navigateur pour la démo).

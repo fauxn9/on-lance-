@@ -36,7 +36,7 @@
   .page { display: grid; gap: 10px; }
   .arbre { display: flex; align-items: center; gap: 10px; }
   .style { width: 22px; height: 22px; opacity: .85; }
-  .cle { width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle, rgba(214, 255, 63, .12), transparent 70%); animation: cle .7s cubic-bezier(.34, 1.56, .64, 1) both; }
+  .cle { width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle, rgba(var(--volt-rgb), .12), transparent 70%); animation: cle .7s cubic-bezier(.34, 1.56, .64, 1) both; }
   @keyframes cle { from { transform: scale(.5) rotate(-30deg); opacity: 0; } }
   .mineures { display: flex; gap: 6px; }
   .mineures img { width: 32px; height: 32px; border-radius: 50%; background: #0b0d10; box-shadow: inset 0 0 0 1px var(--line-2); animation: apparait .4s var(--ease) both; animation-delay: calc(80ms + var(--i) * 50ms); }

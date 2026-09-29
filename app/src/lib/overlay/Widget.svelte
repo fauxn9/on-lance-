@@ -68,7 +68,7 @@
 
 <style>
   .widget { position: absolute; translate: -50% 0; pointer-events: none; }
-  .edition { pointer-events: auto; cursor: grab; outline: 1.5px dashed rgba(214, 255, 63, .65); outline-offset: 6px; border-radius: 14px; }
+  .edition { pointer-events: auto; cursor: grab; outline: 1.5px dashed rgba(var(--volt-rgb), .65); outline-offset: 6px; border-radius: 14px; }
   .edition.glisse { cursor: grabbing; outline-style: solid; }
   .poignee {
     position: absolute; left: 50%; bottom: calc(100% + 10px); translate: -50% 0; white-space: nowrap;
