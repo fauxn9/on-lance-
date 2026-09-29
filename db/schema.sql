@@ -160,3 +160,17 @@ create index if not exists crawl_players_a_faire on crawl_players (platform, las
 alter table stats         enable row level security;
 alter table crawl_matches enable row level security;
 alter table crawl_players enable row level security;
+
+-- Debriefs d'après-partie (brique 7) : calculés une fois par partie et par
+-- joueur. `version` : un debrief d'une ancienne version est recalculé.
+create table if not exists debriefs (
+  match_id   text not null,
+  puuid      text not null references accounts(puuid) on delete cascade,
+  version    int not null,
+  ia         boolean not null default false,
+  data       jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (match_id, puuid)
+);
+create index if not exists debriefs_ia_recents on debriefs (created_at) where ia;
+alter table debriefs enable row level security;

@@ -161,6 +161,12 @@ utilisée de tous les trackers : autant la sortir en premier.
 
 **Livrable** : le debrief de la maquette à la fin de chaque partie.
 
+> Fait : `api/debrief.js` (calcul + cache), `api/stats/reperes.js` (mesures et
+> histogrammes par poste et palier, remplis par la collecte, qui échantillonne
+> aussi Fer → Platine pour les seuls repères), `api/ia.js` (mise en mots,
+> modèle réglable par DEBRIEF_MODELE, quota DEBRIEF_IA_JOUR / DEBRIEF_IA_COMPTE).
+> Sur une vraie partie : 0,6 s sans l'IA, 0,07 s en cache.
+
 ## Brique 8 — Entre potes
 
 - Comptes multiples reliés (vérifiés par la brique 1).

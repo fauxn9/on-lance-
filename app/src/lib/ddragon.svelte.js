@@ -66,6 +66,8 @@ export const dd = {
     const c = donnees.champions[id];
     return c ? c.ad / Math.max(1, c.ad + c.ap) : 0.5;
   },
+  // La Faille de l'invocateur vue de haut (512 × 512), pour la carte des morts.
+  get carte() { return donnees.version ? `${CDN}/cdn/${donnees.version}/img/map/map11.png` : null; },
   item: (id) => (donnees.version && id ? `${CDN}/cdn/${donnees.version}/img/item/${id}.png` : null),
   profil: (id) => (donnees.version && id != null ? `${CDN}/cdn/${donnees.version}/img/profileicon/${id}.png` : null),
   sort(id) {

@@ -143,7 +143,7 @@ export async function recleCompte(riot, ancien) {
        on conflict (puuid) do nothing`,
       [ancien, nouveau],
     );
-    for (const table of ['devices', 'player_matches', 'lp_changes', 'rank_snapshots']) {
+    for (const table of ['devices', 'player_matches', 'lp_changes', 'rank_snapshots', 'debriefs']) {
       await client.query(`update ${table} set puuid = $2 where puuid = $1`, [ancien, nouveau]);
     }
     await client.query('delete from accounts where puuid = $1', [ancien]);

@@ -208,6 +208,15 @@ async fn partie_en_cours(etat: State<'_, Etat>) -> Result<Value, String> {
     etat.appel("GET", &chemin, None).await
 }
 
+/// Debrief d'après-partie (brique 7), calculé par le serveur.
+#[tauri::command]
+async fn debrief(etat: State<'_, Etat>, match_id: String) -> Result<Value, String> {
+    if match_id.is_empty() || !match_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err("Partie invalide.".into());
+    }
+    etat.appel("GET", &format!("/debrief/{match_id}"), None).await
+}
+
 /// L'overlay demande ses réglages, ton pick et le catalogue des objets.
 #[tauri::command]
 async fn etat_overlay(app: AppHandle) -> Value {
@@ -404,7 +413,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay])
+        .invoke_handler(tauri::generate_handler![etat_client, profil, parties, synchroniser, build_champion, suggestions, importer, partie_en_cours, etat_overlay, debrief])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de l'application");
 }

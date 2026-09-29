@@ -6,7 +6,7 @@
   import Icone from './Icone.svelte';
   import LignePartie from './LignePartie.svelte';
 
-  let { revision, profil, synchro, onsync } = $props();
+  let { revision, profil, synchro, onsync, ondebrief = null } = $props();
 
   const FILTRES = [
     ['toutes', 'Toutes'], ['solo', 'Solo/Duo'], ['flex', 'Flex'], ['normales', 'Normales'], ['aram', 'ARAM'], ['autres', 'Autres modes'],
@@ -106,7 +106,7 @@
   </ul>
 {:else}
   <ul class="liste">
-    {#each liste as m, i (m.matchId)}<LignePartie {m} i={i % 20} />{/each}
+    {#each liste as m, i (m.matchId)}<LignePartie {m} i={i % 20} {ondebrief} />{/each}
   </ul>
 {/if}
 

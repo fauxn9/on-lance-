@@ -1,5 +1,11 @@
 // Le collecteur : parties classées Émeraude+ → compteurs dans `stats`.
 //
+// Il mesure aussi les 10 joueurs de chaque partie classée pour les repères
+// par rang du debrief (brique 7, `reperes.js`). Pour que ces repères couvrent
+// tous les rangs, une étape sur quatre part d'un joueur Fer à Platine : ces
+// parties-là ne servent qu'aux repères, jamais aux builds (qui restent
+// Émeraude+).
+//
 // Il tourne en fond, en priorité basse sur le limiteur de l'API Riot : les
 // demandes des utilisateurs passent toujours devant. Une partie = 2 appels
 // (partie + chronologie). Avec une clé personnelle (100 appels / 2 min), ça
@@ -15,8 +21,11 @@ import { fileURLToPath } from 'node:url';
 import { query } from '../db.js';
 import { extraire, patchDe, regrouper } from './extract.js';
 import { itemsDuPatch, patchCourant } from './items.js';
+import { lignesReperes, mesurer, palierDe } from './reperes.js';
 
 const PALIERS = ['EMERALD', 'DIAMOND'];
+const PALIERS_BAS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
+const PART_BAS = 0.25;
 const DIVISIONS = ['I', 'II', 'III', 'IV'];
 const APEX = ['challengerleagues', 'grandmasterleagues', 'masterleagues'];
 const LOW = { priority: 'low' };
@@ -33,14 +42,16 @@ async function ajouterJoueurs(platform, liste) {
   }
 }
 
-// Remplit la liste des joueurs suivis à partir des classements.
-export async function semer(riot, platform, { pages = 2 } = {}) {
+// Remplit la liste des joueurs suivis à partir des classements. `bas` :
+// les paliers Fer à Platine (une page par division suffit aux repères).
+export async function semer(riot, platform, { pages = 2, bas = false } = {}) {
   const liste = [];
-  for (const ligue of APEX) {
+  if (bas) pages = 1;
+  for (const ligue of bas ? [] : APEX) {
     const l = await riot.apex(platform, ligue, LOW);
     for (const e of l?.entries ?? []) if (e.puuid) liste.push({ puuid: e.puuid, tier: l.tier });
   }
-  for (const tier of PALIERS) {
+  for (const tier of bas ? PALIERS_BAS : PALIERS) {
     for (const div of DIVISIONS) {
       for (let page = 1; page <= pages; page++) {
         const entrees = (await riot.division(platform, tier, div, page, LOW)) ?? [];
@@ -53,9 +64,11 @@ export async function semer(riot, platform, { pages = 2 } = {}) {
   return liste.length;
 }
 
-// Écrit les compteurs d'une partie en un seul aller-retour.
-export async function ecrire({ patch, queue, lignes }) {
-  const toutes = regrouper([...lignes, { champion_id: 0, role: '*', kind: 'matches', key: '', games: 1, wins: 0 }]);
+// Écrit les compteurs d'une partie en un seul aller-retour. `compter` : la
+// partie entre dans le total des parties analysées pour les builds.
+export async function ecrire({ patch, queue, lignes }, { compter = true } = {}) {
+  const extra = compter ? [{ champion_id: 0, role: '*', kind: 'matches', key: '', games: 1, wins: 0 }] : [];
+  const toutes = regrouper([...lignes, ...extra]);
   for (let i = 0; i < toutes.length; i += 150) {
     const lot = toutes.slice(i, i + 150);
     const params = [];
@@ -78,20 +91,23 @@ const marquer = (id, patch, queue) =>
 
 // Une étape : un joueur, ses dernières parties, celles du patch en cours.
 // Renvoie le nombre de parties analysées.
-export async function etape(riot, platform, patch) {
+export async function etape(riot, platform, patch, { bas = Math.random() < PART_BAS } = {}) {
   const { rows } = await query(
-    'select puuid from crawl_players where platform = $1 order by last_crawled_at nulls first limit 1',
-    [platform],
+    `select puuid, tier from crawl_players where platform = $1 and (tier = any($2)) = $3
+      order by last_crawled_at nulls first limit 1`,
+    [platform, PALIERS_BAS, bas],
   );
   if (!rows[0]) {
-    await semer(riot, platform);
+    await semer(riot, platform, { bas });
     return 0;
   }
-  const { puuid } = rows[0];
+  const { puuid, tier } = rows[0];
+  const palier = palierDe(tier);
   await query('update crawl_players set last_crawled_at = now() where puuid = $1', [puuid]);
 
-  // Surtout de la classée ; une fois sur cinq, de l'ARAM pour les builds ARAM.
-  const queue = Math.random() < 0.2 ? 450 : 420;
+  // Surtout de la classée ; une fois sur cinq, de l'ARAM pour les builds ARAM
+  // (jamais en bas de l'échelle : ces parties-là ne servent qu'aux repères).
+  const queue = !bas && Math.random() < 0.2 ? 450 : 420;
   let ids;
   try {
     ids = (await riot.matchIds(platform, puuid, { count: 10, queue }, LOW)) ?? [];
@@ -121,10 +137,15 @@ export async function etape(riot, platform, patch) {
       continue;
     }
     const tl = await riot.timeline(platform, id, LOW);
-    const res = tl && extraire(m, tl, await itemsDuPatch(p));
-    if (res) {
-      await ecrire(res);
-      analysees++;
+    if (tl) {
+      const reperes = m.info.queueId === 420 ? lignesReperes(mesurer(m, tl), palier) : [];
+      const res = bas ? null : extraire(m, tl, await itemsDuPatch(p));
+      if (res) {
+        await ecrire({ ...res, lignes: [...res.lignes, ...reperes] });
+        analysees++;
+      } else if (reperes.length) {
+        await ecrire({ patch: p, queue: 420, lignes: reperes }, { compter: false });
+      }
     }
     await marquer(id, p, m.info.queueId);
   }

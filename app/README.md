@@ -31,6 +31,12 @@ Tauri 2 (Rust) + Svelte 5. Voir `../SPEC.md` pour le plan en briques.
 | 6 | Ctrl+Maj+H masquer, Ctrl+Maj+E déplacer les widgets (positions en % de l'écran) ; icône près de l'horloge | ✅ |
 | 6 | Fenêtre principale fermée pendant la partie, rouverte à la fin ; ~105 Mo mesurés overlay seul | ✅ à voir en vraie partie |
 
+| 7 | Debrief (`api/debrief.js`) : écart d'or/XP/CS avec l'adversaire direct minute par minute, fenêtre de CS perdus | ✅ |
+| 7 | Morts sur la carte (isolées ou non, suivies d'un objectif adverse), participation aux objectifs | ✅ |
+| 7 | Barème relatif au rang (méthode du coach Valorant) : repères par poste et palier, construits par la collecte | ✅ se remplit avec la collecte |
+| 7 | « 3 choses à retenir » : règles d'abord, mise en mots par Claude avec quota (200/jour, 15/compte) | ✅ à vérifier en ligne |
+| 7 | Onglet « Après-partie » (Ctrl+5), ouvert tout seul à la fin de la partie ; « Voir le debrief » dans l'historique | ✅ |
+
 Essai de l'overlay sans partie : `ONLANCE_OVERLAY=1` ouvre l'overlay au lancement, avec une
 fausse API de jeu sur le port 2999 (HTTPS, certificat auto-signé) pour les données.
 

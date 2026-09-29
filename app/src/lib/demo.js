@@ -146,6 +146,46 @@ if (params.has('overlay')) {
   setTimeout(() => emettre('overlay-edition', params.has('edition')), 300);
 }
 
+// Debrief d'une partie de démo : Sett top contre Darius, en retard de 9 à
+// 13 min après une mort seul, puis qui reprend la main.
+export const debrief = async (matchId) => {
+  await attendre(params.has('lent') ? 3000 : 600);
+  const m = toutes.find((x) => x.matchId === matchId) ?? toutes[0];
+  const n = Math.max(16, Math.round(m.durationS / 60)) + 1;
+  const courbe = (amp, k) => Array.from({ length: n }, (_, i) => Math.round(amp * (Math.sin(i / 3.2) * 0.4 + (i < 9 ? i / 18 : i < 14 ? -(i - 9) / 5 + 0.5 : (i - 14) / 6 - 0.5)) * k));
+  const aram = m.queueId === 450;
+  return {
+    version: 1, matchId: m.matchId, queue: m.queueId, debut: m.gameStart, duree: m.durationS, win: m.win, remake: m.remake,
+    lp: m.lpDelta,
+    moi: { championId: m.championId, championName: dd_nom(m.championId), role: m.position, niveau: m.champLevel, kills: m.kills, deaths: m.deaths, assists: m.assists,
+      cs: m.cs, csm: m.cs / (m.durationS / 60), degats: m.damage, vision: m.vision, or: m.gold, kp: 0.58, items: m.items, sorts: m.spells, cle: m.keystone },
+    face: aram ? null : { championId: 122, championName: 'Darius', kills: 5, deaths: 6, assists: 4 },
+    groupe: aram ? null : { palier: 'EMERALD', nom: 'Émeraude', poste: m.position, propre: true },
+    mesures: aram ? [] : [
+      { cle: 'cs10', valeur: 71, mediane: 66, mieuxQue: 0.64, n: 4200 }, { cle: 'csm', valeur: m.cs / (m.durationS / 60), mediane: 7.1, mieuxQue: 0.58, n: 4200 },
+      { cle: 'or15', valeur: -420, mediane: 0, mieuxQue: 0.31, n: 4200 }, { cle: 'kp', valeur: 0.58, mediane: 0.48, mieuxQue: 0.77, n: 4200 },
+      { cle: 'vision', valeur: 0.62, mediane: 0.71, mieuxQue: 0.36, n: 4200 }, { cle: 'degats', valeur: 0.27, mediane: 0.23, mieuxQue: 0.71, n: 4200 },
+      { cle: 'objectifs', valeur: 0.4, mediane: 0.5, mieuxQue: 0.33, n: 4200 }, { cle: 'isoles', valeur: 0.5, mediane: 0.33, mieuxQue: 0.22, n: 4200 },
+    ],
+    courbes: { or: courbe(2400, 1), xp: courbe(1500, 1), cs: courbe(22, 1) },
+    morts: [
+      { t: 9 * 60000 + 12000, x: 4100, y: 9800, isole: true, tueur: 64, attaquants: 2, apres: 'heraut' },
+      { t: 14 * 60000 + 40000, x: 2500, y: 12600, isole: true, tueur: 122, attaquants: 1, apres: 'tour' },
+      { t: 26 * 60000 + 5000, x: 9800, y: 4300, isole: false, tueur: 234, attaquants: 3, apres: null },
+    ].slice(0, Math.max(1, Math.min(3, m.deaths))),
+    objectifs: { equipe: 5, moi: 2, liste: [[330000, 'larves', true], [600000, 'dragon', false], [575000, 'heraut', false], [990000, 'dragon', true], [1320000, 'dragon', true], [1560000, 'baron', true]].map(([t, genre, nous]) => ({ t, genre, nous })) },
+    retenir: aram ? [
+      { cle: 'kp', ton: 'v', texte: 'Tu participes à 71 % des kills de ton équipe : continue à rester groupé.' },
+    ] : [
+      { cle: 'mort_objectif', ton: 'r', texte: 'Ta mort à 9:12, seul en rivière, a offert le héraut : attends ton jungler avant de pousser quand leur jungle est invisible.' },
+      { cle: 'fenetre_cs', ton: 'r', texte: 'Tu perds 18 CS sur Darius entre 14 et 20 min : pense à tes vagues avant de rejoindre un combat.' },
+      { cle: 'kp', ton: 'v', texte: 'Point fort : 58 % de participation aux kills, mieux que 77 % des Émeraude top. Tes TP paient, continue.' },
+    ],
+    ia: true, minutes: m.durationS / 60,
+  };
+};
+const dd_nom = (id) => ({ 875: 'Sett', 85: 'Kennen', 133: 'Quinn', 122: 'Darius', 64: 'Lee Sin' })[id] ?? 'Champion';
+
 // Une série de parties plausible, générée une fois.
 const CHAMPS = [[875, 'Sett', 'TOP'], [85, 'Kennen', 'TOP'], [133, 'Quinn', 'TOP'], [122, 'Darius', 'TOP'], [875, 'Sett', 'TOP'], [64, 'LeeSin', 'JUNGLE']];
 const BUILDS = [[3071, 3053, 6333, 3047, 3065, 0, 3364], [3078, 3053, 3071, 3111, 0, 0, 3340], [6692, 3071, 3047, 6333, 0, 0, 3363]];

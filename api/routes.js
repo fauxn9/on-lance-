@@ -14,6 +14,7 @@
 import crypto from 'node:crypto';
 import express from 'express';
 import { query } from './db.js';
+import { debrief } from './debrief.js';
 import { partieEnCours } from './live.js';
 import { DIVS, ladder, TIERS } from './rangs.js';
 import { isPlatform, RiotApi } from './riot.js';
@@ -199,6 +200,19 @@ export function appRouter({ riot = new RiotApi() } = {}) {
     try {
       const gameId = /^d{1,15}$/.test(String(req.query.gameId ?? '')) ? Number(req.query.gameId) : null;
       res.json(await partieEnCours(riot, req.account, { gameId }));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Debrief d'après-partie (brique 7) : calculé une fois, puis en cache.
+  r.get('/debrief/:matchId', needRiot, rateLimit({ max: 30, windowMs: 60_000 }), async (req, res, next) => {
+    try {
+      const { matchId } = req.params;
+      if (!MATCH_ID.test(matchId)) return res.status(400).json({ erreur: 'Partie invalide.' });
+      const d = await debrief(riot, req.account, matchId);
+      if (!d) return res.status(404).json({ erreur: "Partie introuvable, ou tu n'y as pas joué." });
+      res.json(d);
     } catch (err) {
       next(err);
     }

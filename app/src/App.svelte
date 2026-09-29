@@ -9,6 +9,7 @@
   import Parties from './lib/Parties.svelte';
   import Draft from './lib/Draft.svelte';
   import Partie from './lib/Partie.svelte';
+  import Apres from './lib/Apres.svelte';
   import { suivre } from './lib/partie.svelte.js';
   import Icone from './lib/Icone.svelte';
   import Notifications from './lib/Notifications.svelte';
@@ -34,8 +35,8 @@
     { id: 'parties', nom: 'Parties', icone: 'historique', touche: '2' },
     { id: 'draft', nom: 'Draft', icone: 'epees', touche: '3' },
     { id: 'partie', nom: 'En direct', icone: 'cible', touche: '4' },
+    { id: 'apres', nom: 'Après-partie', icone: 'courbe', touche: '5' },
   ];
-  const BIENTOT = [{ nom: 'Après-partie', icone: 'courbe' }];
   const indexVue = $derived(NAV.findIndex((n) => n.id === vue));
 
   // Changement d'onglet animé : le nouvel écran arrive du côté de l'onglet.
@@ -96,8 +97,18 @@
     untrack(() => suivre(e, id));
   });
 
+  // Debrief : une partie choisie dans l'historique, sinon la dernière jouée.
+  let apresMatch = $state(null);
+  function voirDebrief(id) {
+    apresMatch = id;
+    aller('apres');
+  }
+  // Après une partie, le debrief s'ouvre dès qu'elle arrive dans l'historique.
+  let debriefAttendu = false;
+
   // Fin de partie : la notification arrive avant même que Riot publie la partie.
   function finDePartie(f) {
+    debriefAttendu = true;
     if (f.variation != null) {
       const gagne = f.variation > 0;
       notifier({
@@ -119,9 +130,13 @@
         client = e;
         if (nouveau) chargerProfil();
       }),
-      api.ecouter('historique', () => {
+      api.ecouter('historique', (h) => {
         chargerProfil();
         revision++;
+        if (debriefAttendu && h?.added > 0) {
+          debriefAttendu = false;
+          voirDebrief(null);
+        }
       }),
       api.ecouter('fin-de-partie', finDePartie),
       api.ecouter('erreur-serveur', (e) => (erreur = e)),
@@ -157,13 +172,6 @@
           <span class="bulle">{item.nom}<kbd>Ctrl {item.touche}</kbd></span>
         </button>
       {/each}
-      <span class="sep"></span>
-      {#each BIENTOT as item}
-        <button class="nav" disabled aria-label="{item.nom} (bientôt)">
-          <Icone nom={item.icone} />
-          <span class="bulle">{item.nom}<em>bientôt</em></span>
-        </button>
-      {/each}
       {#if compte && dd.profil(compte.icone)}
         <img class="avatar" src={dd.profil(compte.icone)} alt="" width="36" height="36" />
       {/if}
@@ -173,11 +181,13 @@
       {#if vue === 'accueil'}
         <Accueil {client} {profil} {compte} {erreur} {synchro} {revision} onsync={synchroniser} onvoir={() => aller('parties')} />
       {:else if vue === 'parties'}
-        <Parties {revision} {profil} {synchro} onsync={synchroniser} />
+        <Parties {revision} {profil} {synchro} onsync={synchroniser} ondebrief={voirDebrief} />
       {:else if vue === 'draft'}
         <Draft {client} />
-      {:else}
+      {:else if vue === 'partie'}
         <Partie {client} />
+      {:else}
+        <Apres matchId={apresMatch} {revision} onchoisir={(id) => (apresMatch = id)} />
       {/if}
     </main>
   </div>
@@ -217,8 +227,7 @@
     transition: opacity .15s, transform .25s var(--ease);
   }
   .nav:hover .bulle { opacity: 1; transform: none; }
-  kbd, .bulle em { font: 600 10px var(--mono); font-style: normal; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, .06); color: var(--ink-3); }
-  .sep { width: 24px; height: 1px; background: var(--line-2); margin: 6px 0; }
+  kbd { font: 600 10px var(--mono); font-style: normal; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, .06); color: var(--ink-3); }
   .avatar { margin-top: auto; width: 36px; height: 36px; border-radius: 12px; box-shadow: 0 0 0 2px var(--panel-3); }
   .contenu { flex: 1; min-width: 0; overflow-y: auto; padding: 22px 26px 30px; position: relative; view-transition-name: contenu; }
   .demo { position: fixed; left: 78px; bottom: 10px; font-size: 11px; color: var(--gold); opacity: .8; pointer-events: none; }

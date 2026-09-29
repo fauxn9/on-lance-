@@ -15,6 +15,7 @@
     "test:db": "node --env-file=.env --test test/stats-db.integration.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
     "express": "^5.1.0",
     "pg": "^8.23.0"
   }

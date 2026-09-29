@@ -5,7 +5,7 @@
   import { dd } from './ddragon.svelte.js';
   import { duree, ilYa, ilYaCourt, kda, nomFile, nomPoste, signe, un } from './format.js';
 
-  let { m, compact = false, i = 0 } = $props();
+  let { m, compact = false, i = 0, ondebrief = null } = $props();
   const champ = $derived(dd.champion(m.championId, m.championName));
   const issue = $derived(m.remake ? 'remake' : m.win ? 'victoire' : 'defaite');
   const LIBELLE = { remake: 'Remake', victoire: 'Victoire', defaite: 'Défaite' };
@@ -73,13 +73,16 @@
       <div class="bloc infos">
         <small class="capitale">{DATE.format(m.gameStart)}</small>
         <small class="dim mono">{m.matchId}</small>
-        <span class="bientot"><span class="tag">Brique 7</span>L'analyse détaillée arrive avec le coach.</span>
+        {#if ondebrief && !m.remake}
+          <button class="bouton volt debrief" use:onde onclick={() => ondebrief(m.matchId)}>Voir le debrief</button>
+        {/if}
       </div>
     </div>
   {/if}
 </li>
 
 <style>
+  .debrief { margin-top: 8px; align-self: flex-start; min-height: 30px; font-size: 12px; }
   .partie {
     position: relative; border-radius: 12px; overflow: hidden;
     background: var(--panel); box-shadow: inset 0 0 0 1px var(--line);
@@ -142,5 +145,4 @@
   @keyframes jauge { from { transform: scaleX(0); } }
   .infos { display: flex; flex-direction: column; gap: 4px; }
   .capitale { text-transform: capitalize; color: var(--ink); }
-  .bientot { margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); white-space: normal; }
 </style>

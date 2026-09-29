@@ -48,3 +48,17 @@ export async function patchCourant() {
   versions ??= await (await fetch(`${CDN}/api/versions.json`)).json();
   return versions[0].split('.').slice(0, 2).join('.');
 }
+
+// Noms français des champions (« MonkeyKing » → « Wukong »), pour les phrases
+// du debrief. En cache 12 h.
+let noms = { at: 0, p: null };
+export async function nomsChampions() {
+  if (!noms.p || Date.now() - noms.at > 12 * 3600e3) {
+    noms = { at: Date.now(), p: (async () => {
+      const [v] = await (await fetch(`${CDN}/api/versions.json`)).json();
+      const j = await (await fetch(`${CDN}/cdn/${v}/data/fr_FR/champion.json`)).json();
+      return Object.fromEntries(Object.values(j.data).map((c) => [Number(c.key), c.name]));
+    })().catch(() => ({})) };
+  }
+  return noms.p;
+}
