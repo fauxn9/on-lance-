@@ -5,6 +5,7 @@
 // nombre de membres du serveur (en cache) ; /api/app sert l'app PC.
 
 import express from 'express';
+import compression from 'compression';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +25,9 @@ app.disable('x-powered-by');
 // Render passe par un proxy : sans ça, toutes les requêtes auraient la même IP
 // et la limite d'enregistrements par IP bloquerait tout le monde d'un coup.
 app.set('trust proxy', 1);
+// Gzip : le HTML, le CSS, le JS et le JSON de l'API partent ~4 fois plus
+// légers. La bande passante sortante de Render est comptée (5 Go/mois en Hobby).
+app.use(compression());
 
 app.use((req, res, next) => {
   res.set({
